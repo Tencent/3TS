@@ -1,0 +1,123 @@
+diff --git a/Makefile b/Makefile
+index 6526488..bfd3f1b 100644
+--- a/Makefile
++++ b/Makefile
+@@ -1,19 +1,18 @@
+ CC=g++
+ CFLAGS=-Wall -g -gdwarf-3 -std=c++0x
+ #CFLAGS += -fsanitize=address -fno-omit-frame-pointer
+-JEMALLOC=./jemalloc-4.0.3
+ NNMSG=./nanomsg-0.5-beta
+
+ .SUFFIXES: .o .cpp .h
+
+ SRC_DIRS = ./ ./benchmarks/ ./client/ ./concurrency_control/ ./storage/ ./transport/ ./system/ ./statistics/#./unit_tests/
+-DEPS = -I. -I./benchmarks -I./client/ -I./concurrency_control -I./storage -I./transport -I./system -I./statistics -I$(JEMALLOC)/include #-I./unit_tests
++DEPS = -I. -I./benchmarks -I./client/ -I./concurrency_control -I./storage -I./transport -I./system -I./statistics #-I./unit_tests
+
+ CFLAGS += $(DEPS) -D NOGRAPHITE=1 -Werror -Wno-sizeof-pointer-memaccess
+-LDFLAGS = -Wall -L. -L$(NNMSG) -L$(JEMALLOC)/lib -Wl,-rpath,$(JEMALLOC)/lib -pthread -gdwarf-3 -lrt -std=c++0x
++LDFLAGS = -Wall -L. -L$(NNMSG) -Wl,-rpath -pthread -gdwarf-3 -lrt -std=c++0x
+ #LDFLAGS = -Wall -L. -L$(NNMSG) -L$(JEMALLOC)/lib -Wl,-rpath,$(JEMALLOC)/lib -pthread -gdwarf-3 -lrt -std=c++11
+ LDFLAGS += $(CFLAGS)
+-LIBS = -lnanomsg -lanl -ljemalloc
++LIBS = -lnanomsg -lanl
+
+ DB_MAINS = ./client/client_main.cpp ./system/sequencer_main.cpp ./unit_tests/unit_main.cpp
+ CL_MAINS = ./system/main.cpp ./system/sequencer_main.cpp ./unit_tests/unit_main.cpp
+@@ -41,10 +40,10 @@ deps:$(CPPS_DB)
+ -include obj/deps
+
+ unit_test :  $(OBJS_UNIT)
+-#	$(CC) -static -o $@ $^ $(LDFLAGS) $(LIBS)
++#	$(CC)   -o $@ $^ $(LDFLAGS) $(LIBS)
+ 	$(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
+ ./obj/%.o: transport/%.cpp
+-#	$(CC) -static -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
++#	$(CC)   -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
+ 	$(CC) -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
+ ./obj/%.o: unit_tests/%.cpp
+ 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
+@@ -63,10 +62,10 @@ unit_test :  $(OBJS_UNIT)
+
+
+ rundb : $(OBJS_DB)
+-	$(CC) -static -o $@ $^ $(LDFLAGS) $(LIBS)
++	$(CC)   -o $@ $^ $(LDFLAGS) $(LIBS)
+ #	$(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
+ ./obj/%.o: transport/%.cpp
+-	$(CC) -static -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
++	$(CC)   -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
+ #	$(CC) -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
+ #./deps/%.d: %.cpp
+ #	$(CC) -MM -MT $*.o -MF $@ $(CFLAGS) $<
+@@ -87,10 +86,10 @@ rundb : $(OBJS_DB)
+
+
+ runcl : $(OBJS_CL)
+-	$(CC) -static -o $@ $^ $(LDFLAGS) $(LIBS)
++	$(CC)   -o $@ $^ $(LDFLAGS) $(LIBS)
+ #	$(CC) -o $@ $^ $(LDFLAGS) $(LIBS)
+ ./obj/%.o: transport/%.cpp
+-	$(CC) -static -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
++	$(CC)   -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
+ #	$(CC) -c $(CFLAGS) $(INCLUDE) $(LIBS) -o $@ $<
+ #./deps/%.d: %.cpp
+ #	$(CC) -MM -MT $*.o -MF $@ $(CFLAGS) $<
+diff --git a/config.h b/config.h
+index 3e3da75..6410412 100644
+--- a/config.h
++++ b/config.h
+@@ -5,11 +5,11 @@
+ /***********************************************/
+ // Simulation + Hardware
+ /***********************************************/
+-#define NODE_CNT 2
++#define NODE_CNT 1
+ #define THREAD_CNT 4
+ #define REM_THREAD_CNT THREAD_CNT
+ #define SEND_THREAD_CNT THREAD_CNT
+-#define CORE_CNT 8
++#define CORE_CNT 4
+ // PART_CNT should be at least NODE_CNT
+ #define PART_CNT NODE_CNT
+ #define CLIENT_NODE_CNT NODE_CNT
+diff --git a/system/mem_alloc.cpp b/system/mem_alloc.cpp
+index 1a78f3f..8443303 100644
+--- a/system/mem_alloc.cpp
++++ b/system/mem_alloc.cpp
+@@ -17,9 +17,9 @@
+ #include "mem_alloc.h"
+ #include "helper.h"
+ #include "global.h"
+-#include "jemalloc/jemalloc.h"
++//#include "jemalloc/jemalloc.h"
+
+-//#define N_MALLOC
++#define N_MALLOC
+
+ void mem_alloc::free(void * ptr, uint64_t size) {
+ 	if (NO_FREE) {}
+diff --git a/transport/transport.cpp b/transport/transport.cpp
+index 83780c7..3d36323 100644
+--- a/transport/transport.cpp
++++ b/transport/transport.cpp
+@@ -13,7 +13,8 @@
+    See the License for the specific language governing permissions and
+    limitations under the License.
+ */
+-
++#include <stdio.h>
++#include <iostream>
+ #include "global.h"
+ #include "manager.h"
+ #include "transport.h"
+@@ -40,6 +41,7 @@ void Transport::read_ifconfig(const char * ifaddr_file) {
+ 		printf("%ld: %s\n",cnt,ifaddr[cnt]);
+ 		cnt++;
+ 	}
++  printf("%lu %u\n", cnt, g_total_node_cnt);
+   assert(cnt == g_total_node_cnt);
+ }
+
+

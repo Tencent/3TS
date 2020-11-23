@@ -1,0 +1,11 @@
+build/*
+.vscode/*
+*.txt
+*.cfg
+__*
+*.o
+*.bak
+core*
+3ts
+rundb
+runcl
