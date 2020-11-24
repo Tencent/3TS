@@ -49,7 +49,7 @@
 /***********************************************/
 // Concurrency Control
 /***********************************************/
-// WAIT_DIE, NO_WAIT, DL_DETECT, TIMESTAMP, MVCC, HSTORE, OCC, VLL
+// WAIT_DIE, NO_WAIT, DL_DETECT, TIMESTAMP, MVCC, HSTORE, OCC, VLL, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define CC_ALG                                          DL_DETECT
 
 // all transactions acquire tuples according to the primary key order.

@@ -146,7 +146,7 @@
 // Concurrency Control
 /***********************************************/
 
-// WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SI
+// WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
 #define CC_ALG BOCC
 #define YCSB_ABORT_MODE false

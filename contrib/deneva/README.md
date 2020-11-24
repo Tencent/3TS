@@ -25,8 +25,8 @@ DBMS configurations can be changed in the config.h file. Please refer to README 
     NODE_CNT          : Number of server nodes in the database
     THREAD_CNT        : Number of worker threads running per server
     WORKLOAD          : Supported workloads include YCSB and TPCC
-    CC_ALG            : Concurrency control algorithm. Six algorithms are supported
-                        (NO_WAIT, WAIT_DIE, TIMESTAMP, MVCC, OCC, CALVIN)
+    CC_ALG            : Concurrency control algorithm. Twelve algorithms are supported
+                        (NO_WAIT, WAIT_DIE, TIMESTAMP, MVCC, OCC, CALVIN, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI)
     MAX_TXN_IN_FLIGHT  : Maximum number of active transactions at each server at a given time
     DONE_TIMER        : Amount of time to run experiment
 
