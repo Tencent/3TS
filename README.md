@@ -62,7 +62,7 @@ If you want to better understand the aims of our project, please view [3TS opens
       - `"SerializableAlgorithm_FINAL_SAME_RR"` // repeatable read strategy
       - `"SerializableAlgorithm_FINAL_SAME_SI"` // snapshot read strategy
   - Conflict Serializable Algorithm：`"ConflictSerializableAlgorithm"`
-  - Snapshot Serializable Isolation：`"SSI"`
+  - Serializable Snapshot Isolation：`"SSI"`
   - Write-Snapshot Isolation：`"WSI"`
   - Backward Optimistic Concurrency Control：`"BOCC"`
   - Forward Optimistic Concurrency Control：`"FOCC"`
