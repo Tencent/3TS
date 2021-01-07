@@ -117,14 +117,7 @@ BaseQuery * DAQueryGenerator::create_query(Workload * h_wl, uint64_t home_partit
           t_version[DAQ_t->item_id]++;
         DAQ_t->write_version=t_version[DAQ_t->item_id];
         da_gen_qry_queue.push_data(DAQ_t);
-        /*
-        while(!(pu=da_query_queue.push(DAQ_t)));
-        if(pu)
-          printf("true ");
-        else
-          printf("false ");
-        fflush(stdout);
-        */
+
     }
     free(t_version);
     seq_num++;

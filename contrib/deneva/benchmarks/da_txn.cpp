@@ -51,32 +51,10 @@ RC DATxnManager::run_txn() {
   DATxnType txn_type = da_query->txn_type;
   bool jump=false;
 
-  switch (txn_type)
-  {
-    case DA_WRITE:
-      DA_history_mem.push_back('W');
-      break;
-    case DA_READ:
-      DA_history_mem.push_back('R');
-      break;
-    case DA_COMMIT:
-      DA_history_mem.push_back('C');
-      break;
-    case DA_ABORT:
-      DA_history_mem.push_back('A');
-      break;
-    case DA_SCAN:
-      DA_history_mem.push_back('S');
-      break;
-  }
-  DA_history_mem.push_back(static_cast<char>('0'+trans_id));//trans_id
-  if(txn_type==DA_WRITE || txn_type==DA_READ)
-    DA_history_mem.push_back(static_cast<char>('a'+item_id));//item_id
-  DA_history_mem.push_back(' ');
-  #if WORKLOAD ==DA
-    printf("thd_id:%lu check: state:%lu nextstate:%lu \n",h_thd->_thd_id, state, _wl->nextstate);
-    fflush(stdout);
-  #endif
+#if WORKLOAD == DA && DA_PRINT_LOG == true
+  printf("thd_id:%lu check: state:%lu nextstate:%lu \n",h_thd->_thd_id, state, _wl->nextstate);
+  fflush(stdout);
+#endif
   if(_wl->nextstate!=0)
   {
     while (state != _wl->nextstate&&!simulation->is_done());
@@ -149,11 +127,51 @@ RC DATxnManager::run_txn() {
           break;
         }
       }
-      //if(rc==Abort||rc==WAIT)
-      //{
-      //  rc = start_abort();
-      //}
+      // if(rc==Abort||rc==WAIT)
+      // {
+      //   rc = start_abort();
+      //   abort_history = true;
+      // }
+      if (rc == RCOK) {
+        switch (txn_type)
+        {
+          case DA_WRITE:
+            DA_history_mem.push_back('W');
+            break;
+          case DA_READ:
+            DA_history_mem.push_back('R');
+            break;
+          case DA_COMMIT:
+            DA_history_mem.push_back('C');
+            break;
+          case DA_ABORT:
+            DA_history_mem.push_back('A');
+            break;
+          case DA_SCAN:
+            DA_history_mem.push_back('S');
+            break;
+        }
+        DA_history_mem.push_back(static_cast<char>('0'+trans_id));//trans_id
+        if(txn_type==DA_WRITE || txn_type==DA_READ) {
+          DA_history_mem.push_back(static_cast<char>('a'+item_id));//item_id
+          DA_history_mem.push_back(static_cast<char>('='));//item_id
+          if (txn_type==DA_WRITE)
+            DA_history_mem.push_back(static_cast<char>('0'+version));//item_id
+          else if (txn_type==DA_READ)
+            DA_history_mem.push_back(static_cast<char>('0'+value[0]));//item_id
+        } 
+        DA_history_mem.push_back(' ');
+      } else if (rc == Commit) {
+        DA_history_mem.push_back('C');
+        DA_history_mem.push_back(static_cast<char>('0'+trans_id));//trans_id
+        DA_history_mem.push_back(' ');
+      } else {
+        DA_history_mem.push_back('A');
+        DA_history_mem.push_back(static_cast<char>('0'+trans_id));//trans_id
+        DA_history_mem.push_back(' ');
+      }
   }
+
   _wl->nextstate = da_query->next_state;
   if(_wl->nextstate==0)
   {

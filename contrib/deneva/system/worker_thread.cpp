@@ -351,7 +351,7 @@ RC WorkerThread::run() {
             continue;
         }
         simulation->last_da_query_time = get_sys_clock();
-#if WORKLOAD == DA
+#if WORKLOAD == DA && DA_PRINT_LOG == true
         printf("thd_id:%lu stxn_id:%lu batch_id:%lu seq_id:%lu type:%c rtype:%d trans_id:%lu item:%c laststate:%lu state:%lu next_state:%lu\n",
             this->_thd_id,
             ((DAClientQueryMessage*)msg)->txn_id,

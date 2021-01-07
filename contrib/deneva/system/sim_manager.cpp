@@ -62,7 +62,7 @@ bool SimManager::timeout() {
         bool res =  ((get_sys_clock() - run_starttime) >= (g_done_timer + g_warmup_timer)/12)
         &&((now - t) >= (g_done_timer + g_warmup_timer)/6);
         if (res) {
-            printf("123\n");
+            printf("SimManager::timeout success\n");
         }
         return res;
     #else

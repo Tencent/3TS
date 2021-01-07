@@ -59,14 +59,14 @@ Client_query_queue::init(Workload * h_wl) {
         query_cnt[id] = (uint64_t*)mem_allocator.align_alloc(sizeof(uint64_t));
     }
     next_tid = 0;
-/*
 #if WORKLOAD == DA
-    pthread_t * p_thds = new pthread_t[1];
-    pthread_create(&p_thds[0], NULL, initQueriesHelper, this);
-    pthread_join(p_thds[0], NULL);
+    FUNC_ARGS *arg=(FUNC_ARGS*)mem_allocator.align_alloc(sizeof(FUNC_ARGS));
+    arg->context=this;
+    arg->thd_id=g_init_parallelism - 1;
+    pthread_t  p_thds_main;
+    pthread_create(&p_thds_main, NULL, initQueriesHelper, (void*)arg );
+    pthread_detach(p_thds_main);
 #else
-*/
-
     pthread_t * p_thds = new pthread_t[g_init_parallelism - 1];
     for (uint64_t i = 0; i < g_init_parallelism - 1; i++) {
         FUNC_ARGS *arg=(FUNC_ARGS*)mem_allocator.align_alloc(sizeof(FUNC_ARGS));
@@ -77,17 +77,13 @@ Client_query_queue::init(Workload * h_wl) {
     FUNC_ARGS *arg=(FUNC_ARGS*)mem_allocator.align_alloc(sizeof(FUNC_ARGS));
     arg->context=this;
     arg->thd_id=g_init_parallelism - 1;
-    #if WORKLOAD == DA
-        pthread_t  p_thds_main;
-        pthread_create(&p_thds_main, NULL, initQueriesHelper, (void*)arg );
-        pthread_detach(p_thds_main);
-    #else
-        initQueriesHelper(arg);
-    #endif
+
+    initQueriesHelper(arg);
 
     for (uint32_t i = 0; i < g_init_parallelism - 1; i++) {
         pthread_join(p_thds[i], NULL);
     }
+#endif
 }
 
 void *

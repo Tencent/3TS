@@ -50,14 +50,18 @@
 // #define NO_REMOTE // remove all remote txn
 #define TXN_QUEUE_PERCENT 0.9 // The proportion of the transaction to take from txn_queue firstly.
 // ! end of these parameters
+//
+
+// print detail log for each operation execution
+#define DA_PRINT_LOG false
 
 /***********************************************/
 // Simulation + Hardware
 /***********************************************/
-#define NODE_CNT 2
-#define THREAD_CNT 4 //trans_num
-#define REM_THREAD_CNT 2
-#define SEND_THREAD_CNT 2
+#define NODE_CNT 1
+#define THREAD_CNT 1 //trans_num
+#define REM_THREAD_CNT 1
+#define SEND_THREAD_CNT 1
 #define CORE_CNT 2
 // PART_CNT should be at least NODE_CNT
 #define PART_CNT NODE_CNT
@@ -88,7 +92,7 @@
 // # of transactions to run for warmup
 #define WARMUP            0
 // YCSB or TPCC or PPS or DA
-#define WORKLOAD YCSB
+#define WORKLOAD DA
 // print the transaction latency distribution
 #define PRT_LAT_DISTR false
 #define STATS_ENABLE        true
