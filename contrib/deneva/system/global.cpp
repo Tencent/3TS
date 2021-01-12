@@ -26,6 +26,8 @@
 #include "focc.h"
 #include "ssi.h"
 #include "wsi.h"
+#include "dta.h"
+#include "dli.h"
 #include "transport.h"
 #include "work_queue.h"
 #include "abort_queue.h"
@@ -69,6 +71,8 @@ Maat maat_man;
 ssi ssi_man;
 wsi wsi_man;
 Sundial sundial_man;
+Dta dta_man;
+Dli dli_man;
 Transport tport_man;
 TxnManPool txn_man_pool;
 TxnPool txn_pool;
@@ -85,6 +89,7 @@ Client_txn client_man;
 Sequencer seq_man;
 Logger logger;
 TimeTable time_table;
+DtaTimeTable dta_time_table;
 InOutTable inout_table;
 // QTcpQueue tcp_queue;
 TcpTimestamp tcp_ts;

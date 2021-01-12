@@ -234,6 +234,12 @@ void Stats_thd::clear() {
     sched_epoch_cnt=0;
     sched_epoch_diff=0;
 
+    // DLI_MVCC_OCC
+    dli_mvcc_occ_validate_time = 0;
+    dli_mvcc_occ_check_cnt = 0;
+    dli_mvcc_occ_abort_check_cnt = 0;
+    dli_mvcc_occ_ts_abort_cnt = 0;
+
     //OCC
     occ_validate_time=0;
     occ_cs_wait_time=0;
@@ -1451,7 +1457,7 @@ uint64_t Stats::get_txn_cnts() {
     for (uint64_t tid = 0; tid < limit; tid ++) {
         total_txn_cnt += _stats[tid]->txn_cnt;
     }
-    
+
     return total_txn_cnt;
 }
 

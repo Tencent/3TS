@@ -6,7 +6,7 @@
     Tencent Modifications are Copyright (C) THL A29 Limited.
 
     Author: hongyaozhao@ruc.edu.cn
-    
+
      Copyright 2016 Massachusetts Institute of Technology
 
      Licensed under the Apache License, Version 2.0 (the "License");
@@ -293,6 +293,9 @@ public:
     int last_txn_id;
     Message* last_msg;
 
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    std::atomic<bool>* is_abort = nullptr;
+#endif
 
 protected:
 
