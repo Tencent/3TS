@@ -127,11 +127,11 @@ RC DATxnManager::run_txn() {
           break;
         }
       }
-      // if(rc==Abort||rc==WAIT)
-      // {
-      //   rc = start_abort();
-      //   abort_history = true;
-      // }
+      if(rc==Abort||rc==WAIT)
+      {
+        rc = start_abort();
+        abort_history = true;
+      }
       if (rc == RCOK) {
         switch (txn_type)
         {
