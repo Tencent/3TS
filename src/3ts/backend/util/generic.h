@@ -110,19 +110,24 @@ class Operation {
     ABORT = 'A',
     SCAN_ODD = 'S'
   };
+  using ReadTypeConstant = std::integral_constant<Type, Type::READ>;
+  using WriteTypeConstant = std::integral_constant<Type, Type::WRITE>;
+  using CommitTypeConstant = std::integral_constant<Type, Type::COMMIT>;
+  using AbortTypeConstant = std::integral_constant<Type, Type::ABORT>;
+  using ScanOddTypeConstant = std::integral_constant<Type, Type::SCAN_ODD>;
   Operation() : type_(Type::UNKNOWN), trans_id_(0) {}
-  Operation(const Type dtl_type, const uint64_t trans_id) : type_(dtl_type), trans_id_(trans_id) {
-    if (!IsTCL()) {
-      throw std::to_string(static_cast<char>(dtl_type)) + " is not a TCL Operation";
-    }
-  }
-  Operation(const Type dml_type, const uint64_t trans_id, const uint64_t item_id,
-            const std::optional<uint64_t> version = {})
-      : type_(dml_type), trans_id_(trans_id), item_id_(item_id), version_(version) {
-    if (!IsPointDML()) {
-      throw std::to_string(static_cast<char>(dml_type)) + " is not a Point DML Operation";
-    }
-  }
+  Operation(const std::integral_constant<Type, Type::COMMIT> dtl_type, const uint64_t trans_id)
+    : type_(dtl_type.value), trans_id_(trans_id) {}
+  Operation(const std::integral_constant<Type, Type::ABORT> dtl_type, const uint64_t trans_id)
+    : type_(dtl_type.value), trans_id_(trans_id) {}
+  Operation(const std::integral_constant<Type, Type::SCAN_ODD> dtl_type, const uint64_t trans_id)
+    : type_(dtl_type.value), trans_id_(trans_id) {}
+  Operation(const std::integral_constant<Type, Type::READ> dml_type, const uint64_t trans_id,
+            const uint64_t item_id, const std::optional<uint64_t> version = {})
+      : type_(dml_type.value), trans_id_(trans_id), item_id_(item_id), version_(version) {}
+  Operation(const std::integral_constant<Type, Type::WRITE> dml_type, const uint64_t trans_id,
+            const uint64_t item_id, const std::optional<uint64_t> version = {})
+      : type_(dml_type.value), trans_id_(trans_id), item_id_(item_id), version_(version) {}
   Operation& operator=(const Operation& operation) = default;
   virtual ~Operation() {}
 
@@ -253,15 +258,12 @@ class History {
 
   History& operator=(History&& history) = default;
   History operator+(const History& history) const {
-    if (trans_num_ != history.trans_num_ || item_num_ != history.item_num_) {
-      throw "History mismatch";
-    }
     std::vector<Operation> new_operations = operations_;
     for (const auto& operation : history.operations_) {
       new_operations.push_back(operation);
     }
-    return History(trans_num_, item_num_, std::move(new_operations),
-                   abort_trans_num_ + history.abort_trans_num_);
+    return History(std::max(trans_num_, history.trans_num_), std::max(item_num_, history.item_num_),
+        std::move(new_operations), abort_trans_num_ + history.abort_trans_num_);
   }
   std::vector<Operation>& operations() { return operations_; }
   const std::vector<Operation>& operations() const { return operations_; }
@@ -340,6 +342,12 @@ class History {
 };
 
 struct Options {
+  enum class Intensity
+  {
+    NO = 0,   // No histories satisfies the requirement
+    SOME = 1, // Some histories satisfies the requirement
+    ALL = 2,  // All histories satisfies the requirement
+  };
   uint64_t trans_num;
   uint64_t item_num;
 
@@ -351,6 +359,8 @@ struct Options {
   bool tail_tcl;
   bool allow_empty_trans;
   bool dynamic_history_len;
+
+  Intensity with_scan;
 };
 
 }  // namespace ttts

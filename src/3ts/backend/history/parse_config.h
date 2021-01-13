@@ -23,6 +23,14 @@
 #include "outputter.h"
 #include "run.h"
 
+ttts::Options::Intensity IntensityParse(const std::string& intensity_string)
+{
+  if (intensity_string == "NO") { return ttts::Options::Intensity::NO; }
+  if (intensity_string == "SOME") { return ttts::Options::Intensity::SOME; }
+  if (intensity_string == "ALL") { return ttts::Options::Intensity::ALL; }
+  throw "Parse Intensity failed: " + intensity_string;
+}
+
 std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &cfg,
                                                        const std::string &name) {
   try {
@@ -40,6 +48,7 @@ std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &
       opt.tail_tcl = s.lookup("tail_tcl");
       opt.dynamic_history_len = s.lookup("dynamic_history_len");
       opt.allow_empty_trans = s.lookup("allow_empty_trans");
+      opt.with_scan = IntensityParse(s.lookup("with_scan"));
       if (name == "TraversalGenerator") {
         opt.subtask_num = s.lookup("subtask_num");
         opt.subtask_id = s.lookup("subtask_id");
