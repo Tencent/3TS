@@ -1,0 +1,7 @@
+//size,type,name
+TABLE=DAtab
+    8,int64_t,id
+    8,int64_t,value
+
+INDEX=DAtab_IDX
+        DAtab,0
