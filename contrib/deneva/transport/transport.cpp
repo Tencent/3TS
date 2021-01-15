@@ -254,7 +254,14 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void * 
     int rc = -1;
     while (rc < 0 && (!simulation->is_setup_done() ||
                         (simulation->is_setup_done() && !simulation->is_done()))) {
-        rc= socket->sock.send(&buf,NN_MSG,NN_DONTWAIT);
+#if WORKLOAD == DA
+        try {
+#endif
+            rc= socket->sock.send(&buf,NN_MSG,NN_DONTWAIT);
+#if WORKLOAD == DA
+        } catch (const nn::exception&) {
+        }
+#endif
     }
     //nn_freemsg(sbuf);
     DEBUG("%ld Batch of %d bytes sent to node %ld\n",send_thread_id,size,dest_node_id);
@@ -287,22 +294,29 @@ std::vector<Message*> * Transport::recv_msg(uint64_t thd_id) {
     while (bytes <= 0 && (!simulation->is_setup_done() ||
                     (simulation->is_setup_done() && !simulation->is_done()))) {
         Socket * socket = recv_sockets[ctr];
-        bytes = socket->sock.recv(&buf, NN_MSG, NN_DONTWAIT);
+#if WORKLOAD == DA
+        try {
+#endif
+            bytes = socket->sock.recv(&buf, NN_MSG, NN_DONTWAIT);
+#if WORKLOAD == DA
+        } catch (const nn::exception&) {
+        }
+#endif
         //++ctr;
         ctr = (ctr + g_this_rem_thread_cnt);
 
         if (ctr >= recv_sockets.size()) ctr = (thd_id % g_this_rem_thread_cnt) % recv_sockets.size();
         if (ctr == start_ctr) break;
 
-        if(bytes <= 0 && errno != 11) {
+        if (bytes <= 0 && errno != 11) {
             printf("Recv Error %d %s\n",errno,strerror(errno));
             nn::freemsg(buf);
         }
 
         if (bytes > 0) break;
-        }
+    }
 
-        if(bytes <= 0 ) {
+    if (bytes <= 0 ) {
         INC_STATS(thd_id,msg_recv_idle_time, get_sys_clock() - starttime);
         return msgs;
     }

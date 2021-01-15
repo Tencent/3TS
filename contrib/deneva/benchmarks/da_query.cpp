@@ -126,6 +126,7 @@ BaseQuery * DAQueryGenerator::create_query(Workload * h_wl, uint64_t home_partit
   };
 
   creator.DeliverActionSequences(handle);
+  da_gen_qry_queue.push_data(nullptr); // tell consumer no histories anymore
   printf("history thread exit\n");
   fflush(stdout);
   return ret;
