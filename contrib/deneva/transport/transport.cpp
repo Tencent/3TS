@@ -242,11 +242,13 @@ void Transport::init() {
 
 void Transport::destroy() {
     for (auto& sock : recv_sockets) {
-        delete sock;
+        sock->~Socket();
+        mem_allocator.free(sock, sizeof(Socket));
     }
     recv_sockets.clear();
     for (auto& sock_pair : send_sockets) {
-        delete sock_pair.second;
+        sock_pair.second->~Socket();
+        mem_allocator.free(sock_pair.second, sizeof(Socket));
     }
     send_sockets.clear();
     printf("Tport Destroy %d: %ld\n",g_node_id,_sock_cnt);
