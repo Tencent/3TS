@@ -33,7 +33,11 @@ void SimManager::init() {
 
 #if TIME_ENABLE
     run_starttime = get_sys_clock();
+#if WORKLOAD == DA
     last_da_query_time = get_sys_clock();
+    last_da_recv_query_time = get_sys_clock();
+    da_has_recved_query = false;
+#endif
 #else
     run_starttime = get_wall_clock();
 #endif
@@ -45,32 +49,43 @@ void SimManager::set_starttime(uint64_t starttime) {
     if(ATOM_CAS(start_set, false, true)) {
         run_starttime = starttime;
         last_da_query_time = starttime;
+        last_da_recv_query_time = starttime;
         last_worker_epoch_time = starttime;
         sim_done = false;
         printf("Starttime set to %ld\n",run_starttime);
     } 
 }
+
+#if WORKLOAD == DA
+bool SimManager::da_timeout_(const uint64_t last_time) {
+    uint64_t now = get_sys_clock();
+    if (now < last_time)
+    {
+        now = last_time;
+    }
+    bool res = ((get_sys_clock() - run_starttime) >= (g_done_timer + g_warmup_timer) / 12) &&
+               ((now - last_time) >= (g_done_timer + g_warmup_timer) / 6);
+    if (res) {
+        printf("SimManager::da_timeout_ success\n");
+    }
+    return res;
+}
+#endif
+
 bool SimManager::timeout() {
 #if TIME_ENABLE
     #if WORKLOAD == DA
-        uint64_t t=last_da_query_time;
-        uint64_t now=get_sys_clock();
-        if(now<t)
-        {
-            now=t;
-        }
-        bool res =  ((get_sys_clock() - run_starttime) >= (g_done_timer + g_warmup_timer)/12)
-        &&((now - t) >= (g_done_timer + g_warmup_timer)/6);
-        if (res) {
-            printf("SimManager::timeout success\n");
-        }
-        return res;
+    return da_timeout_(last_da_query_time);
     #else
     return (get_sys_clock() - run_starttime) >= g_done_timer + g_warmup_timer;
     #endif
 #else
     return (get_wall_clock() - run_starttime) >= g_done_timer + g_warmup_timer;
 #endif
+}
+
+bool SimManager::da_server_iothread_timeout() {
+    return da_has_recved_query && da_timeout_(last_da_recv_query_time);
 }
 
 bool SimManager::is_done() {
