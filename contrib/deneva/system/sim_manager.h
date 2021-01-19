@@ -57,8 +57,8 @@ public:
     double seconds_from_start(uint64_t time);
 
 #if WORKLOAD == DA
-    uint64_t last_da_query_time; // last time client generated a history or server ran a history
-    uint64_t last_da_recv_query_time; // last time server received a history
+    std::atomic<uint64_t> last_da_query_time; // last time client generated a history or server ran a history
+    std::atomic<uint64_t> last_da_recv_query_time; // last time server received a history
     bool da_has_recved_query;
     bool da_server_iothread_timeout();
 
