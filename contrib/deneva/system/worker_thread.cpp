@@ -876,6 +876,7 @@ RC WorkerNumThread::run() {
     while(!simulation->is_done()) {
         progress_stats();
 
+/* heap-buffer-overflow
         uint64_t wq_size = work_queue.get_wq_cnt();
         uint64_t tx_size = work_queue.get_txn_cnt();
         uint64_t ewq_size = work_queue.get_enwq_cnt();
@@ -897,6 +898,7 @@ RC WorkerNumThread::run() {
 
         INC_STATS(_thd_id,work_queue_etx_cnt[i],etx_size);
         INC_STATS(_thd_id,work_queue_dtx_cnt[i],dtx_size);
+*/
         i++;
         sleep(1);
 

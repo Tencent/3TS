@@ -492,7 +492,7 @@ void YCSBClientQueryMessage::copy_from_buf(char * buf) {
     for(uint64_t i = 0 ; i < size;i++) {
         DEBUG_M("YCSBClientQueryMessage::copy ycsb_request alloc\n");
         ycsb_request * req = (ycsb_request*)mem_allocator.alloc(sizeof(ycsb_request));
-        COPY_VAL(*req,buf,ptr);
+        *req = *reinterpret_cast<ycsb_request*>(buf + ptr);
 
         assert(req->key < g_synth_table_size);
         requests.add(req);
@@ -1406,7 +1406,7 @@ void YCSBQueryMessage::copy_from_buf(char * buf) {
     for(uint64_t i = 0 ; i < size;i++) {
         DEBUG_M("YCSBQueryMessage::copy ycsb_request alloc\n");
         ycsb_request * req = (ycsb_request*)mem_allocator.alloc(sizeof(ycsb_request));
-        COPY_VAL(*req,buf,ptr);
+        *req = *reinterpret_cast<ycsb_request*>(buf + ptr);
         ASSERT(req->key < g_synth_table_size);
         requests.add(req);
     }
