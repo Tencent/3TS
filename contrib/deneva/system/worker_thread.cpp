@@ -733,7 +733,9 @@ RC WorkerThread::process_rtxn(Message * msg) {
 #if CC_ALG == WSI || CC_ALG == SSI
     txn_table.update_min_ts(get_thd_id(),txn_id,0,txn_man->get_start_timestamp());
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI ||\
+    CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA ||\
+    CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
     #if WORKLOAD==DA
     if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
     {
@@ -763,7 +765,17 @@ RC WorkerThread::process_rtxn(Message * msg) {
     assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == MAAT_RUNNING);
     #endif
 #endif
-
+#if CC_ALG == DTA
+    txn_table.update_min_ts(get_thd_id(), txn_id, 0, txn_man->get_timestamp());
+    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_timestamp());
+    // assert(dta_time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
+    assert(dta_time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
+    assert(dta_time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == DTA_RUNNING);
+#endif
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    txn_table.update_min_ts(get_thd_id(), txn_id, 0, txn_man->get_start_timestamp());
+    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
+#endif
     rc = init_phase();
     if (rc != RCOK) return rc;
 

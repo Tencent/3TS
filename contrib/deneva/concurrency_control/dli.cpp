@@ -142,12 +142,7 @@ static RC validate_main(TxnManager* txn, Dli* dli, const bool final_validate) {
   if (rc == RCOK) {
     for (auto& i : wset) {
       if (i.first->manager->w_trans != ts) {
-        if (!i.first->manager->w_trans.compare_exchange_weak(expect, ts)) {//先写者获胜？
-        /*compare_exchange_strong：if w_trans' value == expected. Then w_trans' value = ts
-                                    else expect=w_trans' value 
-          #Q: is there means? if P_REQ, row is ok, but its version is 0. Once real write, set version.
-                              So w_trans' value != 0, then abort，提交之后之后就又是0了
-        */
+        if (!i.first->manager->w_trans.compare_exchange_weak(expect, ts)) {
           rc = Abort;
           break;
         }
@@ -157,8 +152,7 @@ static RC validate_main(TxnManager* txn, Dli* dli, const bool final_validate) {
 
   if (rc == RCOK && !wset.empty()) {
     for (auto& i : wset) {
-    /*#Q: Why we set all the write version to UINT64_MAX?*/
-      i.second = UINT64_MAX;//我写的版本号是最大的，在提交的时候会给一个真实的版本
+      i.second = UINT64_MAX;
 #if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
       row_t* cur_wrow = i.first;
       if (lower <= cur_wrow->manager->timestamp_last_write) {
@@ -167,7 +161,9 @@ static RC validate_main(TxnManager* txn, Dli* dli, const bool final_validate) {
 #endif
     }
     bool res = false;
-    for (TSNode<Dli::ValidatedTxn>* tl = dli->validated_txns_.load(); tl != nullptr && tl->start_ts_ > ts; tl = tl->next_) {//cur_trans is active tran table
+    for (TSNode<Dli::ValidatedTxn>* tl = dli->validated_txns_.load();
+        tl != nullptr && tl->start_ts_ > ts;
+        tl = tl->next_) {//cur_trans is active tran table
       if (tl->is_abort_.load()) continue;
 #if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
       res = check_conflict(txn, rset, wset, tl->rset_, tl->wset_, lower, upper,

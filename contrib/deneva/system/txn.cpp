@@ -34,6 +34,8 @@
 #include "focc.h"
 #include "bocc.h"
 #include "row_occ.h"
+#include "dli.h"
+#include "dta.h"
 #include "table.h"
 #include "catalog.h"
 #include "index_btree.h"
@@ -862,6 +864,9 @@ void TxnManager::cleanup(RC rc) {
 #if (CC_ALG == WSI) && MODE == NORMAL_MODE
     wsi_man.finish(rc,this);
 #endif
+#if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC_BASE) && MODE == NORMAL_MODE
+    dli_man.finish_trans(rc, this);
+#endif
     ts_t starttime = get_sys_clock();
     uint64_t row_cnt = txn->accesses.get_count();
     assert(txn->accesses.get_count() == txn->row_cnt);
@@ -1083,32 +1088,47 @@ RC TxnManager::validate() {
 #if MODE != NORMAL_MODE
     return RCOK;
 #endif
-    if (CC_ALG != OCC && CC_ALG != MAAT  &&
-            CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC && CC_ALG != WSI &&
-            CC_ALG != SSI && CC_ALG != SILO) {
-        return RCOK;
-    }
     RC rc = RCOK;
     uint64_t starttime = get_sys_clock();
-    if (CC_ALG == OCC && rc == RCOK) rc = occ_man.validate(this);
-    if(CC_ALG == BOCC && rc == RCOK) rc = bocc_man.validate(this);
-    if(CC_ALG == FOCC && rc == RCOK) rc = focc_man.validate(this);
-    if(CC_ALG == SSI && rc == RCOK) rc = ssi_man.validate(this);
-    if(CC_ALG == WSI && rc == RCOK) rc = wsi_man.validate(this);
-    if(CC_ALG == MAAT  && rc == RCOK) {
+    if (CC_ALG == OCC) {
+        rc = occ_man.validate(this);
+    } else if (CC_ALG == BOCC) {
+        rc = bocc_man.validate(this);
+    } else if (CC_ALG == FOCC) {
+        rc = focc_man.validate(this);
+    } else if (CC_ALG == SSI) {
+        rc = ssi_man.validate(this);
+    } else if (CC_ALG == WSI) {
+        rc = wsi_man.validate(this);
+    } else if (CC_ALG == MAAT) {
         rc = maat_man.validate(this);
         // Note: home node must be last to validate
         if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
             rc = maat_man.find_bound(this);
         }
-    }
-    if(CC_ALG == SUNDIAL  && rc == RCOK) {
+    } else if (CC_ALG == SUNDIAL) {
         rc = sundial_man.validate(this);
+    } else if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC ||
+          CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC) {
+        rc = dli_man.validate(this);
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+            rc = dli_man.find_bound(this);
+#else
+            set_commit_timestamp(glob_manager.get_ts(get_thd_id()));
+#endif
+        }
+    } else if (CC_ALG == DTA) {
+        rc = dta_man.validate(this);
+        // Note: home node must be last to validate
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
+            rc = dta_man.find_bound(this);
+        }
     }
 #if CC_ALG == SILO
-    if(CC_ALG == SILO && rc == RCOK) {
+    else if (CC_ALG == SILO) {
         rc = validate_silo();
-        if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
             _cur_tid ++;
             commit_timestamp = _cur_tid;
             DEBUG("Validate success: %ld, cts: %ld \n", get_txn_id(), commit_timestamp);
