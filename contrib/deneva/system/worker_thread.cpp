@@ -46,6 +46,8 @@
 #include "ssi.h"
 #include "focc.h"
 #include "bocc.h"
+#include "dli.h"
+#include "dta.h"
 
 void WorkerThread::setup() {
     if( get_thd_id() == 0) {
