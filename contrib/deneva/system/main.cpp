@@ -351,7 +351,7 @@ int main(int argc, char *argv[]) {
     pthread_create(&p_thds[id++], NULL, run_thread, (void *)&log_thds[0]);
 #endif
 
-#if CC_ALG != CALVIN
+#if CC_ALG != CALVIN && WORKLOAD != DA
     abort_thds[0].init(id,g_node_id,m_wl);
     pthread_create(&p_thds[id++], NULL, run_thread, (void *)&abort_thds[0]);
 #endif
