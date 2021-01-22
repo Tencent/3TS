@@ -267,7 +267,11 @@ void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void * 
 
     int rc = -1;
     while (rc < 0 && (!simulation->is_setup_done() ||
-                        (simulation->is_setup_done() && !simulation->is_done()))) {
+                      (simulation->is_setup_done() && !simulation->is_done()
+#if WORKLOAD == DA
+                                                   && !simulation->da_server_iothread_timeout()
+#endif
+                       ))) {
 #if WORKLOAD == DA
         try {
 #endif
