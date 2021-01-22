@@ -130,7 +130,7 @@ RC Workload::init_schema(const char * schema_file) {
                 table_size = MAX_PPS_SUPPLIER_KEY;
             }
 #elif WORKLOAD == DA
-            if (!tname.compare(1, 5, "DAtab")) {
+            if (!tname.compare(0, 5, "DAtab")) {
                 table_size = MAX_DA_TABLE_SIZE;
             }
 #else

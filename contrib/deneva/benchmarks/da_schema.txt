@@ -4,4 +4,4 @@ TABLE=DAtab
     8,int64_t,value
 
 INDEX=DAtab_IDX
-        DAtab,0
+DAtab,0
