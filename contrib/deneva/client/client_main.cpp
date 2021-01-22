@@ -158,8 +158,8 @@ int main(int argc, char *argv[]) {
     warmup_done = true;
     pthread_barrier_init( &warmup_bar, NULL, all_thd_cnt);
 
-    uint64_t cpu_cnt = 0;
 #if SET_AFFINITY
+    uint64_t cpu_cnt = 0;
     cpu_set_t cpus;
 #endif
     // spawn and run txns again.
