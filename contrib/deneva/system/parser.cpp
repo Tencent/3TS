@@ -179,6 +179,13 @@ void parser(int argc, char * argv[]) {
             assert(false);
         }
     }
+
+#if WORKLOAD == DA
+    g_thread_cnt = 1; // worker thread
+    g_rem_thread_cnt = 1; // input thread
+    g_send_thread_cnt = 1; // output thread
+    g_abort_thread_cnt = 0; // abort thread
+#endif
     g_total_thread_cnt = g_thread_cnt + g_rem_thread_cnt + g_send_thread_cnt + g_abort_thread_cnt + 1;
 #if LOGGING
     g_total_thread_cnt += g_logger_thread_cnt; // logger thread
@@ -188,10 +195,6 @@ void parser(int argc, char * argv[]) {
     // Remove abort thread
     g_abort_thread_cnt = 0;
     g_total_thread_cnt -= 1;
-#endif
-#if WORKLOAD == DA
-    g_total_thread_cnt -= 1;
-    g_abort_thread_cnt = 0;
 #endif
     g_total_client_thread_cnt =
         g_client_thread_cnt + g_client_rem_thread_cnt + g_client_send_thread_cnt;
