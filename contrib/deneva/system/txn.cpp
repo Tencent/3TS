@@ -295,8 +295,8 @@ void Transaction::release_accesses(uint64_t thd_id) {
 void Transaction::release_inserts(uint64_t thd_id) {
     for(uint64_t i = 0; i < insert_rows.size(); i++) {
         row_t * row = insert_rows[i];
-#if CC_ALG != MAAT && CC_ALG != OCC && \
-        CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC
+#if CC_ALG != MAAT && CC_ALG != OCC && CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC
+// TODO: does DLI need free row->manager?
         DEBUG_M("TxnManager::cleanup row->manager free\n");
         mem_allocator.free(row->manager, 0);
 #endif
@@ -566,7 +566,7 @@ RC TxnManager::start_commit() {
                 send_prepare_messages();
                 rc = WAIT_REM;
             }
-        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI) {
+        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == DLI_BASE || CC_ALG == DLI_OCC) {
             // send prepare messages
 #if CC_ALG == FOCC
             rc = focc_man.start_critical_section(this);
@@ -884,6 +884,10 @@ void TxnManager::cleanup(RC rc) {
         row_t * row = calvin_locked_rows[i];
         row->return_row(rc,RD,this,row);
     }
+#endif
+
+#if CC_ALG == DTA
+    dta_man.finish(rc, this);
 #endif
 
     if (rc == Abort) {
