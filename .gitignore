@@ -9,3 +9,9 @@ core*
 3ts
 rundb
 runcl
+dbtest
+*.swp
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+Makefile
