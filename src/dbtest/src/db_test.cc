@@ -12,15 +12,22 @@ DEFINE_string(port, "", "database port, such as 3306");
 DEFINE_string(user, "", "username");
 DEFINE_string(passwd, "", "password");
 
+//std::unique_ptr<DBConnectorBase> get_db_connector(const std::string& host, 
+//                                                  const std::string& port, 
+//                                                  const std::string& user, 
+//                                                  const std::string& passwd, 
+//                                                  const DBType& db_type) {
+//    return NULL;
+//}
 
 std::pair<std::string, std::string> SQLReader::get_txn_id_and_sql(std::string line) {
     std::pair<std::string, std::string> txn_id_and_sql;
-    int index = line.find_first_of(" ");
+    const auto index = line.find_first_of(" ");
     if (index > 0) {
         txn_id_and_sql.first = line.substr(0, index);
-        txn_id_and_sql.second = line.substr(index+1);
+        txn_id_and_sql.second = line.substr(index + 1);
     } else {
-        std::cout << "read txn_sql failed, please check format of test file. line:" + line << std::endl;
+        throw "read txn_sql failed, please check format of test file. line:" + line;
     }
     return txn_id_and_sql;
 }
@@ -29,10 +36,8 @@ TestCaseType SQLReader::get_test_case_type_by_test_file(std::string& test_file) 
     if (test_file.find("dirty-read")) {
         return TestCaseType::DirtyRead;
     } else {
-        std::cout << "unsupported test type" << std::endl;
-        return TestCaseType::Unsupported;
+        throw "unsupported test type";
     }
-
 }
 
 TestSequence SQLReader::get_one_test_sequence_from_file(std::string& test_file) {
@@ -47,7 +52,7 @@ TestSequence SQLReader::get_one_test_sequence_from_file(std::string& test_file) 
             test_sequence.add_txn_sql(txn_sql);
         }
     } else {
-        std::cout << "test file not found" << std::endl;
+        throw "test file not found";
     }
     std::vector<TxnSQL> txn_sql_list = test_sequence.get_txn_sql_list();
     TxnSQL txn_sql = txn_sql_list[0];
@@ -67,7 +72,7 @@ void SQLReader::init_test_sequence_list(std::string& test_path) {
             SQLReader::add_test_sequence(test_sequence);
         }
     } else {
-        std::cout << "do_test_list.txt not found" << std::endl;
+        throw "do_test_list.txt not found";
     }
 }
 
@@ -79,9 +84,9 @@ int main(int argc, char* argv[]) {
     std::string test_path = test_path_base + "mysql";
     sql_reader.init_test_sequence_list(test_path);
     std::vector<TestSequence> test_sequence_list = sql_reader.SQLReader::get_test_sequence_list();
-    for (auto test_sequence : test_sequence_list) {
+    for (auto &test_sequence : test_sequence_list) {
         std::vector<TxnSQL> txn_sql_list = test_sequence.get_txn_sql_list();
-        for (auto txn_sql : txn_sql_list) {
+        for (auto &txn_sql : txn_sql_list) {
             std::cout << txn_sql.get_sql() << std::endl;
         }
     }
