@@ -13,7 +13,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeLists.txt"
   "/usr/local/lib/cmake/gflags/gflags-config-version.cmake"
   "/usr/local/lib/cmake/gflags/gflags-config.cmake"
-  "/usr/local/lib/cmake/gflags/gflags-nonamespace-targets-noconfig.cmake"
+  "/usr/local/lib/cmake/gflags/gflags-nonamespace-targets-release.cmake"
   "/usr/local/lib/cmake/gflags/gflags-nonamespace-targets.cmake"
   "/usr/local/share/cmake-3.3/Modules/CMakeCInformation.cmake"
   "/usr/local/share/cmake-3.3/Modules/CMakeCXXInformation.cmake"
@@ -21,7 +21,6 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/usr/local/share/cmake-3.3/Modules/CMakeGenericSystem.cmake"
   "/usr/local/share/cmake-3.3/Modules/CMakeSystemSpecificInformation.cmake"
   "/usr/local/share/cmake-3.3/Modules/CMakeSystemSpecificInitialize.cmake"
-  "/usr/local/share/cmake-3.3/Modules/CMakeUnixFindMake.cmake"
   "/usr/local/share/cmake-3.3/Modules/Compiler/GNU-C.cmake"
   "/usr/local/share/cmake-3.3/Modules/Compiler/GNU-CXX.cmake"
   "/usr/local/share/cmake-3.3/Modules/Compiler/GNU.cmake"
@@ -45,6 +44,5 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/dbtest_core_static.dir/DependInfo.cmake"
   "CMakeFiles/dbtest.dir/DependInfo.cmake"
   )

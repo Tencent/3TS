@@ -4,14 +4,20 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_CXX
-  "/data1/farrisli/3TS-DBTest/src/db_test.cc" "/data1/farrisli/3TS-DBTest/CMakeFiles/dbtest.dir/src/db_test.cc.o"
+  "/data1/farrisli/3TS/src/dbtest/src/db_test.cc" "/data1/farrisli/3TS/src/dbtest/CMakeFiles/dbtest.dir/src/db_test.cc.o"
   )
 set(CMAKE_CXX_COMPILER_ID "GNU")
+
+# Preprocessor definitions for this target.
+set(CMAKE_TARGET_DEFINITIONS_CXX
+  "GFLAGS_IS_A_DLL=0"
+  )
 
 # The include file search paths:
 set(CMAKE_CXX_TARGET_INCLUDE_PATH
   "src"
-  "include"
+  "/usr/include/mysql-cppconn-8"
+  "/usr/local/include"
   )
 
 # Targets to which this target links.

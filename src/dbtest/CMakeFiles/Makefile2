@@ -54,10 +54,10 @@ RM = /usr/local/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /data1/farrisli/3TS-DBTest
+CMAKE_SOURCE_DIR = /data1/farrisli/3TS/src/dbtest
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /data1/farrisli/3TS-DBTest
+CMAKE_BINARY_DIR = /data1/farrisli/3TS/src/dbtest
 
 #=============================================================================
 # Target rules for target CMakeFiles/dbtest.dir
@@ -66,7 +66,7 @@ CMAKE_BINARY_DIR = /data1/farrisli/3TS-DBTest
 CMakeFiles/dbtest.dir/all:
 	$(MAKE) -f CMakeFiles/dbtest.dir/build.make CMakeFiles/dbtest.dir/depend
 	$(MAKE) -f CMakeFiles/dbtest.dir/build.make CMakeFiles/dbtest.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/data1/farrisli/3TS-DBTest/CMakeFiles --progress-num=1,2 "Built target dbtest"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/data1/farrisli/3TS/src/dbtest/CMakeFiles --progress-num=1,2 "Built target dbtest"
 .PHONY : CMakeFiles/dbtest.dir/all
 
 # Include target in all.
@@ -76,9 +76,9 @@ all: CMakeFiles/dbtest.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/dbtest.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS-DBTest/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS/src/dbtest/CMakeFiles 2
 	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/dbtest.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS-DBTest/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS/src/dbtest/CMakeFiles 0
 .PHONY : CMakeFiles/dbtest.dir/rule
 
 # Convenience name for target.
@@ -93,43 +93,6 @@ CMakeFiles/dbtest.dir/clean:
 
 # clean rule for target.
 clean: CMakeFiles/dbtest.dir/clean
-
-.PHONY : clean
-
-#=============================================================================
-# Target rules for target CMakeFiles/dbtest_core_static.dir
-
-# All Build rule for target.
-CMakeFiles/dbtest_core_static.dir/all:
-	$(MAKE) -f CMakeFiles/dbtest_core_static.dir/build.make CMakeFiles/dbtest_core_static.dir/depend
-	$(MAKE) -f CMakeFiles/dbtest_core_static.dir/build.make CMakeFiles/dbtest_core_static.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/data1/farrisli/3TS-DBTest/CMakeFiles --progress-num=3,4 "Built target dbtest_core_static"
-.PHONY : CMakeFiles/dbtest_core_static.dir/all
-
-# Include target in all.
-all: CMakeFiles/dbtest_core_static.dir/all
-
-.PHONY : all
-
-# Build rule for subdir invocation for target.
-CMakeFiles/dbtest_core_static.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS-DBTest/CMakeFiles 2
-	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/dbtest_core_static.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS-DBTest/CMakeFiles 0
-.PHONY : CMakeFiles/dbtest_core_static.dir/rule
-
-# Convenience name for target.
-dbtest_core_static: CMakeFiles/dbtest_core_static.dir/rule
-
-.PHONY : dbtest_core_static
-
-# clean rule for target.
-CMakeFiles/dbtest_core_static.dir/clean:
-	$(MAKE) -f CMakeFiles/dbtest_core_static.dir/build.make CMakeFiles/dbtest_core_static.dir/clean
-.PHONY : CMakeFiles/dbtest_core_static.dir/clean
-
-# clean rule for target.
-clean: CMakeFiles/dbtest_core_static.dir/clean
 
 .PHONY : clean
 

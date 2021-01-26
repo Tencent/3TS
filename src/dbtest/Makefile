@@ -48,10 +48,10 @@ RM = /usr/local/bin/cmake -E remove -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /data1/farrisli/3TS-DBTest
+CMAKE_SOURCE_DIR = /data1/farrisli/3TS/src/dbtest
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /data1/farrisli/3TS-DBTest
+CMAKE_BINARY_DIR = /data1/farrisli/3TS/src/dbtest
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -80,9 +80,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS-DBTest/CMakeFiles /data1/farrisli/3TS-DBTest/CMakeFiles/progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS/src/dbtest/CMakeFiles /data1/farrisli/3TS/src/dbtest/CMakeFiles/progress.marks
 	$(MAKE) -f CMakeFiles/Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS-DBTest/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /data1/farrisli/3TS/src/dbtest/CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -123,19 +123,6 @@ dbtest/fast:
 	$(MAKE) -f CMakeFiles/dbtest.dir/build.make CMakeFiles/dbtest.dir/build
 .PHONY : dbtest/fast
 
-#=============================================================================
-# Target rules for targets named dbtest_core_static
-
-# Build rule for target.
-dbtest_core_static: cmake_check_build_system
-	$(MAKE) -f CMakeFiles/Makefile2 dbtest_core_static
-.PHONY : dbtest_core_static
-
-# fast build rule for target.
-dbtest_core_static/fast:
-	$(MAKE) -f CMakeFiles/dbtest_core_static.dir/build.make CMakeFiles/dbtest_core_static.dir/build
-.PHONY : dbtest_core_static/fast
-
 src/db_test.o: src/db_test.cc.o
 
 .PHONY : src/db_test.o
@@ -143,7 +130,6 @@ src/db_test.o: src/db_test.cc.o
 # target to build an object file
 src/db_test.cc.o:
 	$(MAKE) -f CMakeFiles/dbtest.dir/build.make CMakeFiles/dbtest.dir/src/db_test.cc.o
-	$(MAKE) -f CMakeFiles/dbtest_core_static.dir/build.make CMakeFiles/dbtest_core_static.dir/src/db_test.cc.o
 .PHONY : src/db_test.cc.o
 
 src/db_test.i: src/db_test.cc.i
@@ -153,7 +139,6 @@ src/db_test.i: src/db_test.cc.i
 # target to preprocess a source file
 src/db_test.cc.i:
 	$(MAKE) -f CMakeFiles/dbtest.dir/build.make CMakeFiles/dbtest.dir/src/db_test.cc.i
-	$(MAKE) -f CMakeFiles/dbtest_core_static.dir/build.make CMakeFiles/dbtest_core_static.dir/src/db_test.cc.i
 .PHONY : src/db_test.cc.i
 
 src/db_test.s: src/db_test.cc.s
@@ -163,7 +148,6 @@ src/db_test.s: src/db_test.cc.s
 # target to generate assembly for a file
 src/db_test.cc.s:
 	$(MAKE) -f CMakeFiles/dbtest.dir/build.make CMakeFiles/dbtest.dir/src/db_test.cc.s
-	$(MAKE) -f CMakeFiles/dbtest_core_static.dir/build.make CMakeFiles/dbtest_core_static.dir/src/db_test.cc.s
 .PHONY : src/db_test.cc.s
 
 # Help Target
@@ -173,9 +157,8 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
-	@echo "... rebuild_cache"
-	@echo "... dbtest_core_static"
 	@echo "... dbtest"
+	@echo "... rebuild_cache"
 	@echo "... src/db_test.o"
 	@echo "... src/db_test.i"
 	@echo "... src/db_test.s"

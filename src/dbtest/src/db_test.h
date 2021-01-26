@@ -1,10 +1,11 @@
 #include <vector>
 #include <libconfig.h++>
 #include <iostream>
-#include "jdbc/mysql_connection.h"
-#include "jdbc/mysql_driver.h"
-#include "jdbc/cppconn/statement.h"
-#include "jdbc/cppconn/prepared_statement.h"
+#include <jdbc/mysql_connection.h>
+#include <jdbc/mysql_driver.h>
+#include <jdbc/cppconn/driver.h>
+#include <jdbc/cppconn/statement.h>
+#include <jdbc/cppconn/prepared_statement.h>
 #include <unordered_map>
 
 enum class ResultType {
@@ -137,54 +138,61 @@ public:
 };
 
 //db connector
-//class DBConnectorBase {
-//public:
-//    virtual void set_auto_commit() = 0;
-//    virtual void begin() = 0;
-//    virtual void rollback() = 0;
-//    virtual void commit() = 0;
-//    virtual void execute_read_sql(const std::string& sql, TestResultSet& test_rs, int conn_id) = 0;
-//    virtual void ececute_write_sql(const std::string& sql, TestResultSet& test_rs, int conn_id) = 0;
-//    virtual void close_stmt() = 0;
-//    virtual void close_conn() = 0;
-//    virtual ~DBConnectorBase();
-//};
-//
-//enum class DBType {
-//    MYSQL,
-//    ORACLE
-//};
-//
-//class MYSQLConnector : public DBConnectorBase { 
-//private:
-//    std::vector<sql::Connection*> conn_pool_;
-//    std::vector<sql::Statement*> stmt_pool_;
-//public:
-//    MYSQLConnector(const std::string& host, std::string port, const std::string& user, const std::string& passwd, int conn_pool_size) {
-//        sql::mysql::MySQL_Driver *driver = NULL;
-//	driver = sql::mysql::get_mysql_driver_instance();
-//        for (int i=0;i<conn_pool_size;i++) {
-//            sql::Connection* conn = NULL;
-//            if (driver == NULL) {
-//                std::cout << "driver is null" << std::endl;
-//            }
-//            std::string url_base = "tcp://";
-//            std::string url = url_base + host + ":" + port + "ourcms";
-//            conn = driver->connect(url, user, passwd);
-//            if (conn == NULL) {
-//                std::cout << "conn is null" << std::endl;
-//            }
-//            conn_pool_.push_back(conn);
-//            std::cout << "connect suceess" << std::endl;
-//        }
-//    }
-//    virtual void set_auto_commit() override;
-//    virtual void begin() override;
-//    virtual void rollback() override;
-//    virtual void commit() override;
-//    virtual void execute_read_sql(const std::string& sql, TestResultSet& test_rs, int conn_id) override;
-//    virtual void ececute_write_sql(const std::string& sql, TestResultSet& test_rs, int conn_id) override;
-//    virtual void close_stmt() override;
-//    virtual void close_conn() override;
-//    virtual ~MYSQLConnector();
-//};
+class DBConnectorBase {
+public:
+    virtual void set_auto_commit() = 0;
+    virtual void begin() = 0;
+    virtual void rollback() = 0;
+    virtual void commit() = 0;
+    virtual void execute_sql(const std::string& sql, TestResultSet& test_rs, int conn_id) = 0;
+    virtual void close_stmt() = 0;
+    virtual void close_conn() = 0;
+    virtual ~DBConnectorBase() {};
+};
+
+enum class DBType {
+    MYSQL,
+    ORACLE
+};
+
+class MYSQLConnector : public DBConnectorBase { 
+private:
+    //std::vector<std::unique_str<sql::Connection>> conn_pool_;
+    std::vector<sql::Connection*> conn_pool_;
+    std::vector<sql::Statement*> stmt_pool_;
+public:
+    MYSQLConnector(const std::string& host, const std::string port, const std::string& user, const std::string& passwd, const std::string& db_name, int conn_pool_size) {
+        sql::mysql::MySQL_Driver *driver = NULL;
+        driver = sql::mysql::get_mysql_driver_instance();
+        for (int i = 0; i < conn_pool_size; i++) {
+            //std::unique_ptr<sql::Connection> conn = NULL;
+            sql::Connection* conn = NULL;
+            sql::Statement* stmt = NULL;
+            //std::unique_ptr<sql::Statement*> stmt = NULL;
+            if (driver == NULL) {
+                std::cout << "driver is null" << std::endl;
+            }
+            std::string url_base = "tcp://";
+            std::string url = url_base + host + ":" + port;
+            conn = driver->connect(url, user, passwd);
+            if (conn == NULL) {
+                std::cout << "conn is null" << std::endl;
+            }
+            stmt = conn->createStatement();
+            conn_pool_.push_back(conn);
+            stmt_pool_.push_back(stmt);
+            std::cout << "connect suceess" << std::endl;
+        }
+        stmt_pool_[0]->executeQuery("create database if not exists" + db_name);
+    };
+    virtual void set_auto_commit() override;
+    virtual void begin() override;
+    virtual void rollback() override;
+    virtual void commit() override;
+    virtual void execute_sql(const std::string& sql, TestResultSet& test_rs, int conn_id) override;
+    virtual void close_stmt() override;
+    virtual void close_conn() override;
+    virtual ~MYSQLConnector() {
+        std::cout << "deconstruct" << std::endl;
+    };
+};
