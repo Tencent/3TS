@@ -14,5 +14,5 @@ dbtest
 CMakeCache.txt
 CMakeFiles/*
 *.cmake
-*Makefile*
+Makefile
 cmake/*
