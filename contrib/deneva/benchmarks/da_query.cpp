@@ -121,13 +121,13 @@ BaseQuery * DAQueryGenerator::create_query(Workload * h_wl, uint64_t home_partit
     }
     free(t_version);
     seq_num++;
-    printf("product: %lu\n",seq_num);
     fflush(stdout);
   };
 
+  printf("start generating histories\n");
   creator.DeliverActionSequences(handle);
   da_gen_qry_queue.push_data(nullptr); // tell consumer no histories anymore
-  printf("history thread exit\n");
+  printf("finish generating histories, total product: %lu\n", seq_num);
   fflush(stdout);
   return ret;
 }
