@@ -52,6 +52,8 @@
 #include "wsi.h"
 #include "focc.h"
 #include "bocc.h"
+#include "dta.h"
+#include "dli.h"
 #include "client_query.h"
 #include "sundial.h"
 #include "http.h"
@@ -302,6 +304,17 @@ int main(int argc, char *argv[]) {
 #if CC_ALG == FOCC
     printf("Initializing occ lock manager... ");
     focc_man.init();
+    printf("Done\n");
+#endif
+
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    printf("Initializing DTA Time Table... ");
+    fflush(stdout);
+    dta_time_table.init();
+    printf("Done\n");
+    printf("Initializing DTA manager... ");
+    fflush(stdout);
+    dta_man.init();
     printf("Done\n");
 #endif
 

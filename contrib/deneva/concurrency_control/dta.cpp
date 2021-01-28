@@ -250,7 +250,6 @@ DtaTimeTableEntry* DtaTimeTable::find(uint64_t key) {
 }
 
 void DtaTimeTable::init(uint64_t thd_id, uint64_t key, uint64_t ts) {
-  init();
   uint64_t idx = hash(key);
   uint64_t mtx_wait_starttime = get_sys_clock();
   pthread_mutex_lock(&table[idx].mtx);
