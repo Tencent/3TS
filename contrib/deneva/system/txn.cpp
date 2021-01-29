@@ -501,7 +501,9 @@ RC TxnManager::abort() {
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
 #endif
-
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    dta_time_table.release(get_thd_id(), get_txn_id());
+#endif
     uint64_t timespan = get_sys_clock() - txn_stats.restart_starttime;
     if (IS_LOCAL(get_txn_id()) && warmup_done) {
         INC_STATS_ARR(get_thd_id(),start_abort_commit_latency, timespan);

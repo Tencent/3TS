@@ -173,7 +173,7 @@ public:
     void release() {}
 
     RC rc;
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT || CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     uint64_t lower;
     uint64_t upper;
 #endif

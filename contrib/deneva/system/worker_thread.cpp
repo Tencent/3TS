@@ -490,6 +490,23 @@ RC WorkerThread::process_rack_prep(Message * msg) {
         time_table.set_state(get_thd_id(),msg->get_txn_id(),MAAT_ABORTED);
     }
 #endif
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    // Integrate bounds
+    uint64_t lower = ((AckMessage*)msg)->lower;
+    uint64_t upper = ((AckMessage*)msg)->upper;
+    if (lower > dta_time_table.get_lower(get_thd_id(), msg->get_txn_id())) {
+      dta_time_table.set_lower(get_thd_id(), msg->get_txn_id(), lower);
+    }
+    if (upper < dta_time_table.get_upper(get_thd_id(), msg->get_txn_id())) {
+      dta_time_table.set_upper(get_thd_id(), msg->get_txn_id(), upper);
+    }
+    DEBUG("%ld bound set: [%ld,%ld] -> [%ld,%ld]\n", msg->get_txn_id(), lower, upper,
+          dta_time_table.get_lower(get_thd_id(), msg->get_txn_id()),
+          dta_time_table.get_upper(get_thd_id(), msg->get_txn_id()));
+    if (((AckMessage*)msg)->rc != RCOK) {
+      dta_time_table.set_state(get_thd_id(), msg->get_txn_id(), DTA_ABORTED);
+    }
+#endif
 
 #if CC_ALG == SILO
     uint64_t max_tid = ((AckMessage*)msg)->max_tid;
@@ -591,6 +608,14 @@ RC WorkerThread::process_rqry(Message * msg) {
 #endif
 #if CC_ALG == MAAT
     time_table.init(get_thd_id(),txn_man->get_txn_id());
+#endif
+#if CC_ALG == DTA
+    txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_timestamp());
+    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_timestamp());
+#endif
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_start_timestamp());
+    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
 #endif
     rc = txn_man->run_txn();
 

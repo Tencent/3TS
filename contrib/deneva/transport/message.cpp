@@ -25,6 +25,7 @@
 #include "global.h"
 #include "message.h"
 #include "maat.h"
+#include "dta.h"
 #include "da.h"
 #include "da_query.h"
 #include "sundial.h"
@@ -1125,6 +1126,10 @@ void AckMessage::copy_from_txn(TxnManager * txn) {
 #if CC_ALG == MAAT
     lower = time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
     upper = time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
+#endif
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    lower = dta_time_table.get_lower(txn->get_thd_id(), txn->get_txn_id());
+    upper = dta_time_table.get_upper(txn->get_thd_id(), txn->get_txn_id());
 #endif
 #if CC_ALG == SILO
     max_tid = txn->max_tid;

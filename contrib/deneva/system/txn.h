@@ -41,6 +41,7 @@ class INDEX;
 class TxnQEntry;
 class YCSBQuery;
 class TPCCQuery;
+class DliValidatedTxn;
 //class r_query;
 
 enum TxnState {START,INIT,EXEC,PREP,FIN,DONE};
@@ -294,7 +295,7 @@ public:
     Message* last_msg;
 
 #if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
-    std::atomic<bool>* is_abort = nullptr;
+    DliValidatedTxn* dli_txn = nullptr;
 #endif
 
 protected:
