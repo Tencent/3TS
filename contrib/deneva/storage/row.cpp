@@ -298,7 +298,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
             assert(access->data->get_table_name() != NULL);
         }
     }
-    if (rc != Abort && (CC_ALG == MVCC  || CC_ALG == SSI || CC_ALG == WSI) && type == WR) {
+    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI) && type == WR) {
         DEBUG_M("row_t::get_row MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
         newr->init(this->get_table(), get_part_id());
@@ -315,33 +315,33 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     access->data = txn->cur_row;
     goto end;
 #elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
-  // DLI always make a local copy regardless of read or write
-  DEBUG_M("row_t::get_row DLI alloc \n");
-  txn->cur_row = (row_t *)mem_allocator.alloc(sizeof(row_t));
-  txn->cur_row->init(get_table(), get_part_id());
-  rc = this->manager->access(txn, type == WR ? P_REQ : R_REQ, access->version);
-  access->data = txn->cur_row;
+    // DLI always make a local copy regardless of read or write
+    DEBUG_M("row_t::get_row DLI alloc \n");
+    txn->cur_row = (row_t *)mem_allocator.alloc(sizeof(row_t));
+    txn->cur_row->init(get_table(), get_part_id());
+    rc = this->manager->access(txn, type == WR ? P_REQ : R_REQ, access->version);
+    access->data = txn->cur_row;
 #if CC_ALG == DLI_BASE
-  if (rc == RCOK) {
-    rc = dli_man.validate(txn, false);
-  }
+    if (rc == RCOK) {
+        rc = dli_man.validate(txn, false);
+    }
 #endif
-  goto end;
+    goto end;
 #elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
-  rc = this->manager->access(txn, R_REQ, access->version);
-  if (type == WR) {
-    DEBUG_M("row_t::get_row SI alloc \n");
-    row_t *newer = (row_t *)mem_allocator.alloc(sizeof(row_t));
-    newer->init(get_table(), get_part_id());
-    newer->copy(txn->cur_row);
-    txn->cur_row = newer;
-  }
+    rc = this->manager->access(txn, R_REQ, access->version);
+    if (type == WR) {
+        DEBUG_M("row_t::get_row SI alloc \n");
+        row_t *newer = (row_t *)mem_allocator.alloc(sizeof(row_t));
+        newer->init(get_table(), get_part_id());
+        newer->copy(txn->cur_row);
+        txn->cur_row = newer;
+    }
 
-  access->data = txn->cur_row;
+    access->data = txn->cur_row;
 #if CC_ALG == DLI_MVCC
-  rc = dli_man.validate(txn, false);
+    rc = dli_man.validate(txn, false);
 #endif
-  goto end;
+    goto end;
 #elif CC_ALG == SILO
     // like OCC, sundial also makes a local copy for each read/write
     DEBUG_M("row_t::get_row SILO alloc \n");
@@ -353,7 +353,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     goto end;
 #elif CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC || CC_ALG == CALVIN
 #if CC_ALG == HSTORE_SPEC
-    if(txn_table.spec_mode) {
+    if (txn_table.spec_mode) {
         DEBUG_M("row_t::get_row HSTORE_SPEC alloc \n");
         txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
         txn->cur_row->init(get_table(), get_part_id());

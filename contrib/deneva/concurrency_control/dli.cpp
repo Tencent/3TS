@@ -198,14 +198,14 @@ static RC validate_main(TxnManager* txn, Dli* dli, const bool final_validate) {
     return rc;
 }
 
-void Dli::get_rw_set(TxnManager* txn, Dli::RWSet& rset,
-                                         Dli::RWSet& wset) {
+void Dli::get_rw_set(TxnManager* txn, Dli::RWSet& rset, Dli::RWSet& wset) {
     uint64_t len = txn->get_access_cnt();
     for (uint64_t i = 0; i < len; i++) {
-        if (txn->get_access_type(i) == WR)
+        if (txn->get_access_type(i) == WR) {
             wset.emplace(txn->get_access_original_row(i), txn->get_access_version(i));
-        else
+        } else {
             rset.emplace(txn->get_access_original_row(i), txn->get_access_version(i));
+        }
     }
 #if WORKLOAD == TPCC
     for (const auto& i : wset) rset[i.first] = i.second;

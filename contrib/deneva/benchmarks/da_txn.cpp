@@ -46,6 +46,8 @@ RC DATxnManager::run_txn() {
     DAQuery *da_query = (DAQuery *)query;
     uint64_t trans_id = da_query->trans_id;
     uint64_t item_id = da_query->item_id;    // item_id from 0-2 represent X,Y,Z
+    assert(trans_id < TRANS_CNT);
+    assert(item_id < ITEM_CNT);
     //uint64_t seq_id = da_query->seq_id;
     uint64_t state = da_query->state;
     uint64_t version = da_query->write_version;
