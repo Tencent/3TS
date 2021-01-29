@@ -30,8 +30,9 @@ RC Row_si::access(TxnManager* txn, TsType type, uint64_t& version) {
                 break;
             }
         }
-    } else
+    } else {
         assert(false);
+    }
     uint64_t timespan = get_sys_clock() - start_time;
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;

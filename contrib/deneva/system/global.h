@@ -345,7 +345,7 @@ enum access_t {RD, WR, XP, SCAN};
 /* LOCK */
 enum lock_t {LOCK_EX = 0, LOCK_SH, LOCK_NONE, LOCK_COM};
 /* TIMESTAMP */
-enum TsType {R_REQ = 0, W_REQ, P_REQ, XP_REQ};
+enum TsType {R_REQ = 0, W_REQ, P_REQ, XP_REQ, S_REQ};
 
 /*DA query build queue*/
 //queue<DAQuery> query_build_queue;

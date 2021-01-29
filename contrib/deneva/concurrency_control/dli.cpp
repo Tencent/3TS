@@ -157,7 +157,7 @@ static RC validate_main(TxnManager* txn, Dli* dli, const bool final_validate) {
         }
         bool res = false;
         for (TSNode<DliValidatedTxn>* tl = dli->validated_txns_.load();
-                tl != nullptr && tl->start_ts_ > ts;
+                tl != nullptr && tl != txn->history_dli_txn_head;
                 tl = tl->next_) {//cur_trans is active tran table
             if (tl->is_abort_.load()) continue;
 #if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3

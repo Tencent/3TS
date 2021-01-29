@@ -61,7 +61,7 @@ RC DATxnManager::run_txn() {
     fflush(stdout);
 #endif
     if (_wl->nextstate != 0) {
-        while (state != _wl->nextstate&&!simulation->is_done());
+        while (state != _wl->nextstate && !simulation->is_done());
     }
 
     if (already_abort_tab.count(trans_id)>0) {

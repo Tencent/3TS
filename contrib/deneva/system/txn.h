@@ -296,6 +296,7 @@ public:
 
 #if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     DliValidatedTxn* dli_txn = nullptr;
+    DliValidatedTxn* history_dli_txn_head = nullptr;
 #endif
 
 protected:

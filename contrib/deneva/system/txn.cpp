@@ -369,6 +369,10 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
   // write_set = (int *) mem_allocator.alloc(sizeof(int) * 100);
 #endif
 
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    history_dli_txn_head = dli_man.validated_txns_.load();
+#endif
+
     registed_ = false;
     txn_ready = true;
     twopl_wait_start = 0;
