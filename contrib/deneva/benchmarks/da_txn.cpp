@@ -73,16 +73,14 @@ RC DATxnManager::run_txn() {
 
     if (!jump) {
         //enum RC { RCOK = 0, Commit, Abort, WAIT, WAIT_REM, ERROR, FINISH, NONE };
-        itemid_t *item;
-        INDEX *index = _wl->i_datab;
-        uint64_t value[3];
-
-        item = index_read(index, item_id, 0);
-        assert(item != NULL);
-        row_t *TempRow = ((row_t *)item->location);
+        INDEX* index = _wl->i_datab;
+        uint64_t value[ITEM_CNT];
 
         switch (txn_type) {
             case DA_WRITE: {
+                itemid_t* item = index_read(index, item_id, 0);
+                assert(item != NULL);
+                row_t* TempRow = ((row_t *)item->location);
                 rc = get_row(TempRow, WR, row);
                 if (rc == RCOK) {
                     row->set_value(VALUE, version);
@@ -93,6 +91,9 @@ RC DATxnManager::run_txn() {
                 break;
             }
             case DA_READ: {
+                itemid_t* item = index_read(index, item_id, 0);
+                assert(item != NULL);
+                row_t* TempRow = ((row_t *)item->location);
                 rc = get_row(TempRow, RD, row);
                 if (rc == RCOK) {
                     row->get_value(VALUE, value[0]);
@@ -113,12 +114,17 @@ RC DATxnManager::run_txn() {
             }
             case DA_SCAN: {
                 row_t *TempRow;
-                for (int i = 0; i < ITEM_CNT; i++) {
-                    item = index_read(index, item_id, 0);
+                for (int i = 0; i < ITEM_CNT && rc == RCOK; i++) {
+                    itemid_t* item = index_read(index, i, 0);
                     assert(item != NULL);
                     TempRow = ((row_t *)item->location);
-                    rc = get_row(TempRow, WR, row);
-                    row->get_value(VALUE, value[i]);
+                    rc = get_row(TempRow, SCAN, row);
+                    if (rc == RCOK) {
+                        row->get_value(VALUE, value[i]);
+                    } else {
+                        rc = start_abort();
+                        already_abort_tab.insert(trans_id);
+                    }
                 }
                 break;
             }
@@ -146,15 +152,23 @@ RC DATxnManager::run_txn() {
                     DA_history_mem.push_back('S');
                     break;
             }
-            DA_history_mem.push_back(static_cast<char>('0'+trans_id));//trans_id
-            if (txn_type==DA_WRITE || txn_type==DA_READ) {
-                DA_history_mem.push_back(static_cast<char>('a'+item_id));//item_id
+            DA_history_mem.push_back(static_cast<char>('0' + trans_id));//trans_id
+            if (txn_type == DA_WRITE || txn_type == DA_READ) {
+                DA_history_mem.push_back(static_cast<char>('a' + item_id));//item_id
                 DA_history_mem.push_back(static_cast<char>('='));//item_id
-                if (txn_type==DA_WRITE) {
-                    DA_history_mem.push_back(static_cast<char>('0'+version));//item_id
-                } else if (txn_type==DA_READ) {
-                    DA_history_mem.push_back(static_cast<char>('0'+value[0]));//item_id
+                if (txn_type == DA_WRITE) {
+                    DA_history_mem.push_back(static_cast<char>('0' + version));//item_id
+                } else if (txn_type == DA_READ) {
+                    DA_history_mem.push_back(static_cast<char>('0' + value[0]));//item_id
                 }
+            } else if (txn_type == DA_SCAN) {
+                DA_history_mem.push_back('=');
+                DA_history_mem.push_back('{');
+                for (const auto v : value) {
+                    DA_history_mem.push_back(static_cast<char>('0' + v));//item_id
+                    DA_history_mem.push_back(',');
+                }
+                DA_history_mem.back() = '}';
             }
             DA_history_mem.push_back(' ');
         } else if (rc == Commit) {

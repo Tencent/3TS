@@ -40,7 +40,7 @@ RC Row_maat::access(access_t type, TxnManager * txn) {
 #if WORKLOAD == TPCC
     read_and_prewrite(txn);
 #else
-    if (type == RD) read(txn);
+    if (type == RD || type == SCAN) read(txn);
     if (type == WR) prewrite(txn);
 #endif
     uint64_t timespan = get_sys_clock() - starttime;
@@ -179,7 +179,7 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     uncommitted_reads->erase(txn->get_txn_id());
     uncommitted_writes->erase(txn->get_txn_id());
 #else
-    if(type == RD) {
+    if(type == RD || type == SCAN) {
         uncommitted_reads->erase(txn->get_txn_id());
     }
 
@@ -250,14 +250,14 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
 
 #else
     uint64_t txn_commit_ts = txn->get_commit_timestamp();
-    if(type == RD) {
+    if (type == RD || type == SCAN) {
         if (txn_commit_ts > timestamp_last_read) timestamp_last_read = txn_commit_ts;
         uncommitted_reads->erase(txn->get_txn_id());
 
     // Forward validation
     // Check uncommitted writes against this txn's
-        for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
-        if(txn->uncommitted_writes->count(*it) == 0) {
+        for (auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
+        if (txn->uncommitted_writes->count(*it) == 0) {
             // apply timestamps
             // these write txns need to come AFTER this txn
             uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);

@@ -86,7 +86,7 @@ Row_sundial::access(access_t type, TxnManager * txn, row_t *& row,
                     uint64_t &wts, uint64_t &rts) {
     uint64_t starttime = get_sys_clock();
     RC rc = RCOK;
-    if(type == RD || !OCC_WAW_LOCK)
+    if(type == RD || type == SCAN || !OCC_WAW_LOCK)
         rc = read(txn, wts, rts, true);
     else if(type == WR)
         rc = write(txn, wts, rts);

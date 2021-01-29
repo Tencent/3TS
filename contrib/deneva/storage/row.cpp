@@ -216,14 +216,14 @@ RC row_t::get_lock(access_t type, TxnManager * txn) {
 }
 
 RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
-        RC rc = RCOK;
-#if MODE==NOCC_MODE || MODE==QRY_ONLY_MODE
+    RC rc = RCOK;
+#if MODE == NOCC_MODE || MODE == QRY_ONLY_MODE
     access->data = this;
-        return rc;
+    return rc;
 #endif
 #if ISOLATION_LEVEL == NOLOCK
     access->data = this;
-        return rc;
+    return rc;
 #endif
 
 #if CC_ALG == CNULL
@@ -238,11 +238,11 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
 #endif
 #if CC_ALG == MAAT
 
-        DEBUG_M("row_t::get_row MAAT alloc \n");
+    DEBUG_M("row_t::get_row MAAT alloc \n");
     txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
     txn->cur_row->init(get_table(), get_part_id());
-        rc = this->manager->access(type,txn);
-        txn->cur_row->copy(this);
+    rc = this->manager->access(type,txn);
+    txn->cur_row->copy(this);
 
     access->data = txn->cur_row;
     assert(rc == RCOK);
@@ -347,7 +347,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     DEBUG_M("row_t::get_row SILO alloc \n");
     txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
     txn->cur_row->init(get_table(), get_part_id());
-    TsType ts_type = (type == RD)? R_REQ : P_REQ;
+    TsType ts_type = (type == RD || type == SCAN)? R_REQ : P_REQ;
     rc = this->manager->access(txn, ts_type, txn->cur_row);
     access->data = txn->cur_row;
     goto end;

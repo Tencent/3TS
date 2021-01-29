@@ -937,14 +937,14 @@ RC TxnManager::get_row(row_t * row, access_t type, row_t *& row_rtn) {
     if (!access) {
         access_pool.get(get_thd_id(),access);
         rc = row->get_row(type, this, access->data, access->orig_wts, access->orig_rts);
-        if (!OCC_WAW_LOCK || type == RD) {
+        if (!OCC_WAW_LOCK || type == RD || type == SCAN) {
             _min_commit_ts = _min_commit_ts > access->orig_wts ? _min_commit_ts : access->orig_wts;
         } else {
             if (rc == WAIT) ATOM_ADD_FETCH(_num_lock_waits, 1);
             if (rc == Abort || rc == WAIT) return rc;
         }
     }
-    if (!OCC_WAW_LOCK || type == RD) {
+    if (!OCC_WAW_LOCK || type == RD || type == SCAN) {
         access->locked = false;
     } else {
         _min_commit_ts = _min_commit_ts > access->orig_rts + 1 ? _min_commit_ts : access->orig_rts + 1;
