@@ -49,6 +49,7 @@ std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &
       opt.dynamic_history_len = s.lookup("dynamic_history_len");
       opt.allow_empty_trans = s.lookup("allow_empty_trans");
       opt.with_scan = IntensityParse(s.lookup("with_scan"));
+      opt.with_write = IntensityParse(s.lookup("with_write"));
       if (name == "TraversalGenerator") {
         opt.subtask_num = s.lookup("subtask_num");
         opt.subtask_id = s.lookup("subtask_id");

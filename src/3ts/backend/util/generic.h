@@ -361,6 +361,7 @@ struct Options {
   bool dynamic_history_len;
 
   Intensity with_scan;
+  Intensity with_write;
 };
 
 }  // namespace ttts

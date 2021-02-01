@@ -149,7 +149,8 @@ class TraversalHistoryGenerator : public HistoryGenerator {
         tail_tcl_(opt.tail_tcl),
         allow_empty_trans_(opt.allow_empty_trans),
         dynamic_history_len_(opt.dynamic_history_len),
-        with_scan_(opt.with_scan) {}
+        with_scan_(opt.with_scan),
+        with_write_(opt.with_write) {}
 
   void DeliverHistories(const std::function<void(History &&)> &handle) const {
     std::vector<Operation> tmp_operations;
@@ -210,7 +211,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
 
     if (dfs_cnt_ == subtask_num_) {
       if ((with_scan_ != Options::Intensity::ALL || check_has_operation(Operation::Type::SCAN_ODD)) &&
-          (check_has_operation(Operation::Type::WRITE)) && // cannot all readonly transactions
+          (with_write_ != Options::Intensity::ALL || check_has_operation(Operation::Type::WRITE)) && // cannot all readonly transactions
           (allow_empty_trans_ || max_trans_id == trans_num_)) {
         handle(History(max_trans_id, max_item_id, operations), max_trans_id);
       } else {
@@ -242,7 +243,9 @@ class TraversalHistoryGenerator : public HistoryGenerator {
           }
         };
         fill_dml(Operation::ReadTypeConstant());
-        fill_dml(Operation::WriteTypeConstant());
+        if (with_write_ != Options::Intensity::NO) {
+          fill_dml(Operation::WriteTypeConstant());
+        }
       }
       if (with_scan_ != Options::Intensity::NO &&
           !(cur > 0 && operations[cur - 1].type() == Operation::Type::SCAN_ODD &&
@@ -339,6 +342,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
   const bool allow_empty_trans_;
   const bool dynamic_history_len_;
   const Options::Intensity with_scan_;
+  const Options::Intensity with_write_;
 };
 uint64_t TraversalHistoryGenerator::cut_down_ = 0;
 }  // namespace ttts

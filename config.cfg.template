@@ -36,6 +36,7 @@ TraversalGenerator = {
 	subtask_id = 0L; // the id of subtask to run
 	with_abort = true; // generate history with Abort operation
   with_scan = "NO"; // generate history with ScanOdd operation ("NO", "SOME", "ALL")
+  with_write = "SOME"; // generate history with Write operation ("NO", "SOME", "ALL")
 	tail_tcl = false; // generate TCL operation only on the tail of history
   allow_empty_trans = false; // transactions generated can be without DML operations
   dynamic_history_len = false; // number of DML operation can be less than <max_dml>
