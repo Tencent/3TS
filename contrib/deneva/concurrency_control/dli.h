@@ -44,7 +44,6 @@ struct DliValidatedTxn {
     Dli::RWSet rset_;
     Dli::RWSet wset_;
     const ts_t start_ts_;
-    ts_t commit_ts_;
 #if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     std::atomic<uint64_t> lower_;
     std::atomic<uint64_t> upper_;

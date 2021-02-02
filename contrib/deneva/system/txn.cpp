@@ -842,6 +842,17 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
         }
     }
 #endif
+
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    Dli::RWSet::iterator it;
+    if (type == WR && dli_txn && (it = dli_txn->wset_.find(orig_r)) != dli_txn->wset_.end()) {
+      // We need not lock wset_ because once dli_txn can be visiable to other transactions, the size
+      // of wset will not be changed. We only update the version of each row has been written.
+      // TODO: the value of wset should be atomical
+      it->second = version;
+    }
+#endif
+
 #endif
     if (type == WR) txn->accesses[rid]->version = version;
 #if CC_ALG == SUNDIAL
