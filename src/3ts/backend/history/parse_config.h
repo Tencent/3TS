@@ -17,6 +17,7 @@
 #include "../cca/occ_algorithm/trans/focc_trans.h"
 #include "../cca/occ_algorithm/trans/ssi_trans.h"
 #include "../cca/occ_algorithm/trans/wsi_trans.h"
+#include "../cca/occ_algorithm/trans/dli_trans.h"
 #include "../cca/serializable_algorithm.h"
 #include "../util/generic.h"
 #include "generator.h"
@@ -77,6 +78,8 @@ void AlgorithmParseInternal_(const libconfig::Config &cfg, const std::string &al
     add_algorithm(std::make_shared<ttts::OCCAlgorithm<occ_algorithm::BoccTransactionDesc>>());
   } else if (algorithm_name == "FOCC") {
     add_algorithm(std::make_shared<ttts::OCCAlgorithm<occ_algorithm::FoccTransactionDesc>>());
+  } else if (algorithm_name == "DLI") {
+    add_algorithm(std::make_shared<ttts::OCCAlgorithm<occ_algorithm::DLITransactionDesc>>());
   } else if constexpr (only_rollback_rate) {
     throw "Unknown algorithm name " + algorithm_name +
         " in algorithms supporting rollback rate statistics";
