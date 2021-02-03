@@ -157,7 +157,7 @@ static RC validate_main(TxnManager* txn, Dli* dli, const bool final_validate) {
         }
         bool res = false;
         for (TSNode<DliValidatedTxn>* tl = dli->validated_txns_.load();
-                tl != nullptr && tl != txn->history_dli_txn_head;
+                tl != nullptr && tl != txn->history_dli_txn_head && tl->commit_ts_ > ts;
                 tl = tl->next_) {//cur_trans is active tran table
             if (tl->is_abort_.load()) continue;
 #if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
@@ -242,6 +242,7 @@ void Dli::finish_trans(RC rc, TxnManager* txn) {
 #if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
         // transaction commit successfully and the timestamp of the transaction is certained
         txn->dli_txn->upper_ = txn->dli_txn->lower_.load() + 1;
+        txn->dli_txn->commit_ts_ = txn->commit_timestamp;
 #endif
     }
 #endif
@@ -258,7 +259,7 @@ RC Dli::find_bound(TxnManager* txn) {
         rc = Abort;
     } else {
         dta_time_table.set_state(tid, txnid, DTA_COMMITTED);
-        txn->commit_timestamp = lower;
+        txn->commit_timestamp = lower + 1;
     }
     DEBUG("DTA Bound %ld: %d [%lu,%lu] %lu\n", tid, rc, lower, upper, txn->commit_timestamp);
     return rc;

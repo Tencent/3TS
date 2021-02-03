@@ -481,24 +481,24 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     manager->release();
     return 0;
 #elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
-  assert(row != NULL);
-  uint64_t version = 0;
-  version = manager->write(row, txn, type);
-  row->free_row();
-  DEBUG_M("row_t::return_row DLT1 free \n");
-  mem_allocator.free(row, sizeof(row_t));
-  return version;
-#elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
-  assert(row != NULL);
-  uint64_t version = 0;
-  if (type == WR) {
+    assert(row != NULL);
+    uint64_t version = 0;
     version = manager->write(row, txn, type);
-  } else if (type == XP) {
-    manager->write(row, txn, type);
     row->free_row();
+    DEBUG_M("row_t::return_row DLT1 free \n");
     mem_allocator.free(row, sizeof(row_t));
-  }
-  return version;
+    return version;
+#elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
+    assert(row != NULL);
+    uint64_t version = 0;
+    if (type == WR) {
+      version = manager->write(row, txn, type);
+    } else if (type == XP) {
+      manager->write(row, txn, type);
+      row->free_row();
+      mem_allocator.free(row, sizeof(row_t));
+    }
+    return version;
 #elif CC_ALG == CNULL
     assert (row != NULL);
     if (rc == Abort) {
@@ -508,7 +508,7 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     }
 
     row->free_row();
-    DEBUG_M("row_t::return_row Maat free \n");
+    DEBUG_M("roversionreturn_row Maat free \n");
     mem_allocator.free(row, sizeof(row_t));
     return 0;
 #elif CC_ALG == MAAT
