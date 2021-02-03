@@ -11,6 +11,7 @@
 #pragma once
 #include "../env/si_env.h"
 #include "../occ_algorithm.h"
+
 namespace ttts {
 namespace occ_algorithm {
 
@@ -20,143 +21,115 @@ class DLITransactionDesc
   static std::string name;
 
   DLITransactionDesc(const uint64_t trans_id, const uint64_t start_ts,
-                                   Snapshot&& snapshot, env_desc_type& env_desc)
+                                    Snapshot&& snapshot, env_desc_type& env_desc)
       : SITransactionDesc(trans_id, start_ts, std::move(snapshot), env_desc) {}
 
-  virtual std::optional<Anomally> Commit(const uint64_t commit_ts) override {
-    THROW_ANOMALY(SITransactionDesc::Commit(commit_ts));
-    MergeToHistoryTransRecursive();
-    return {};
+  virtual std::optional<Anomally> CheckConflict(const uint64_t) override {
+    // It is indeed unnecessary to do such a copy for each TransctionDesc. But in actual database
+    // system based on OCC, we usually copy the current environment to transaction with which
+    // transaction can do conflict check without considering of the thread safe problem when other
+    // transaction access the gloval environment concurrently.
+    std::list<DLITransactionDesc*> l;
+    const auto add_to_link = [trans_id = trans_id_,
+                              &l](const std::unique_ptr<DLITransactionDesc>& ptr) {
+      if (ptr->trans_id() != trans_id && !ptr->is_aborted()) {
+        l.emplace_back(ptr.get());
+      }
+    };
+    for (const auto& ptr : env_desc_.active_trans_) {
+      add_to_link(ptr.second);
+    }
+    for (const auto& ptr : env_desc_.commit_trans_) {
+      add_to_link(ptr.second);  // add by ym: Q why we detect DLI with commit_trans_?
+    }
+    return CheckConflict_(l);
   }
 
  private:
-  virtual std::optional<Anomally> CheckConflict(const uint64_t) override {
-    for (const auto& pair : r_items_) {
-      if (env_desc_.HasVersion(pair.first, pair.second->version_ + 1)) {
-        const auto& later_item = env_desc_.GetVersion(pair.first, pair.second->version_ + 1);
-        if (Has(w_items_, pair.first)) {
-          return Anomally::LOST_UPDATE;
-        }
-        const DLITransactionDesc* const tl = later_item.w_trans_;
-        if (tl) {
-          THROW_ANOMALY(CheckCrossWithTrans(*tl));
-          tl->MergeTo(*this);
-        }
-      }
+  std::optional<Anomally> CheckConflict_(
+      const std::list<DLITransactionDesc*>& transs) {
+    DLITransactionDesc combined_trans = *this;
+    for (const auto& tl : transs) {
+      THROW_ANOMALY(combined_trans.CheckDynamicEdgeCross(*tl));
+      combined_trans.MergeTransaction(*tl);
     }
     return {};
   }
 
-  std::optional<Anomally> CheckCrossWithTrans(const DLITransactionDesc& tl) const {
-    assert(tl.is_committed());
-    for (const auto& pair : tl.r_items_) {
-      if (Has(w_items_, pair.first)) {
-        return Anomally::WRITE_SKEW;
-      } else if (Has(r_items_, pair.first) &&
-                 pair.second->version_ < AssertGet(r_items_, pair.first)->version_) {
-        return Anomally::THREE_TRANS_WRITE_SKEW;
-      }
-    }
-    for (const auto& pair : tl.i_items_) {
-      if (Has(w_items_, pair.first)) {
-        return Anomally::MULTI_TRANS_ANOMALY;
-      } else if (Has(r_items_, pair.first) &&
-                 pair.second->version_ < AssertGet(r_items_, pair.first)->version_) {
-        return Anomally::MULTI_TRANS_ANOMALY;
-      }
-    }
-    for (const auto& pair : tl.w_items_) {
-      if (Has(w_items_, pair.first)) {
-        return Anomally::READ_WRITE_SKEW;
-      } else if (Has(r_items_, pair.first) &&
-                 pair.second->version_ <= AssertGet(r_items_, pair.first)->version_) {
-        return Anomally::READ_SKEW;
-      }
-    }
-    return {};
-  }
-
-  void MergeToHistoryTransRecursive() const {
-    std::vector<item_type*> empty_items_to_merge;
-    std::unordered_set<uint64_t> empty_transs_merged;
-    MergeToHistoryTransRecursive(empty_items_to_merge, empty_transs_merged);
-  }
-
-  void MergeToHistoryTransRecursive(const std::vector<item_type*>& items_to_merge,
-                                    std::unordered_set<uint64_t>& transs_merged) const {
-    const auto merge = [&transs_merged, &items_to_merge,
-                        this](DLITransactionDesc& tl) {
-      if (!Has(transs_merged, tl.trans_id_)) {
-        transs_merged.emplace(tl.trans_id_);
-        const auto items_merged =
-            items_to_merge.empty() ? MergeTo(tl) : MergeTo(items_to_merge, tl);
-        if (!items_merged.empty()) {
-          tl.MergeToHistoryTransRecursive(items_merged, transs_merged);
+  void MergeTransaction(const SITransactionDesc& tl) {
+    const auto merge = [](const set_type& src, set_type& dst) {
+      for (const auto& pair : src) {
+        if (!Has(dst, pair.first)) {
+          dst[pair.first] = pair.second;  // if version is different, don't change it
         }
       }
     };
-    for (const auto& pair_item : w_items_) {
-      const item_type& last_item =
-          env_desc_.GetVersion(pair_item.first, pair_item.second->version_ - 1);
-      bool merged = false;
-      for (const auto& pair_r_trans : last_item.r_transs_) {
-        if (pair_r_trans.second->trans_id_ != trans_id_ &&
-            pair_r_trans.second->is_committed()) {  // eg: "R1x W1x C1" will cause same trans_id
-          merge(*pair_r_trans.second);
-          merged = true;
-        }
+    merge(tl.r_items(), r_items_);
+    merge(tl.w_items(), w_items_);
+  }
+
+  struct IntersectionItem {
+    IntersectionItem(const uint64_t item_id, const uint64_t version_1, const uint64_t version_2)
+        : item_id_(item_id), version_1_(version_1), version_2_(version_2) {}
+    const uint64_t item_id_;
+    const uint64_t version_1_;
+    const uint64_t version_2_;
+  };
+
+  std::optional<Anomally> CheckDynamicEdgeCross(const DLITransactionDesc& tl) const {
+    bool upper = 0, tl_upper = 0;
+    THROW_ANOMALY(CheckWWOrRRIntersection(r_items_, upper, tl.r_items(), tl_upper));
+    THROW_ANOMALY(CheckWWOrRRIntersection(w_items_, upper, tl.w_items(), tl_upper));
+    THROW_ANOMALY(CheckWRIntersection(w_items_, upper, tl.r_items(), tl_upper));
+    THROW_ANOMALY(CheckWRIntersection(tl.w_items(), tl_upper, r_items_, upper));
+    return {};
+  };
+
+  std::optional<Anomally> CheckWWOrRRIntersection(const set_type& s1, bool& upper1,
+                                                  const set_type& s2, bool& upper2) const {
+    for (const auto& inter_item : GetIntersection(s1, s2)) {
+      if (inter_item.version_1_ > inter_item.version_2_) {
+        upper1 = true;
+      } else if (inter_item.version_1_ < inter_item.version_2_) {
+        upper2 = true;
       }
-      if (!merged && last_item.w_trans_) {
-        merge(*last_item.w_trans_);
+    }
+    if (upper1 && upper2) {
+      return Anomally::EDGE_CROESS;
+    }
+    return {};
+  }
+
+  std::optional<Anomally> CheckWRIntersection(const set_type& w_items, bool& w_upper,
+                                              const set_type& r_items, bool& r_upper) const {
+    for (const auto& inter_item : GetIntersection(w_items, r_items)) {
+      if (inter_item.version_1_ > inter_item.version_2_) {
+        w_upper = true;
+      } else {
+        r_upper = true;
       }
     }
-    for (const auto& pair : r_items_) {
-      DLITransactionDesc* const w_trans = pair.second->w_trans_;
-      if (w_trans) {  // maybe it is a initial version
-        merge(*w_trans);
+    if (w_upper && r_upper) {
+      return Anomally::EDGE_CROESS;
+    }
+    return {};
+  }
+
+  static std::vector<IntersectionItem> GetIntersection(const set_type& s1, const set_type& s2) {
+    static const auto get_version =
+        [](const ItemVersionDesc<DLITransactionDesc>* ver) {
+          return ver ? ver->version_
+                     : UINT64_MAX;  // ver is empty only when it is written by current transction
+        };
+    std::vector<IntersectionItem> ret;
+    for (const auto& pair : s1) {
+      if (Has(s2, pair.first)) {
+        ret.emplace_back(pair.first, get_version(pair.second),
+                         get_version(AssertGet(s2, pair.first)));
       }
     }
+    return ret;
   }
-
-  void MergeOneItemTo(DLITransactionDesc& tl, item_type& item,
-                      std::vector<item_type*>& items_merged) const {
-    if (Has(tl.r_items_, item.item_id_)) {
-      assert(AssertGet(tl.r_items_, item.item_id_)->version_ <= item.version_);
-    } else if (Has(tl.w_items_, item.item_id_)) {
-      assert(AssertGet(tl.w_items_, item.item_id_)->version_ <= item.version_);
-    } else if (!Has(tl.i_items_, item.item_id_) ||
-               AssertGet(tl.i_items_, item.item_id_)->version_ > item.version_) {
-      tl.i_items_[item.item_id_] = &item;
-      items_merged.emplace_back(&item);
-    }
-  }
-
-  std::vector<item_type*> MergeTo(DLITransactionDesc& tl) const {
-    assert(is_committed());
-    std::vector<ItemVersionDesc<DLITransactionDesc>*> merged_items;
-    for (auto& pair : r_items_) {
-      MergeOneItemTo(tl, *pair.second, merged_items);
-    }
-    for (const auto& pair : i_items_) {
-      MergeOneItemTo(tl, *pair.second, merged_items);
-    }
-    for (const auto& pair : w_items_) {
-      MergeOneItemTo(tl, env_desc_.GetVersion(pair.first, pair.second->version_ - 1), merged_items);
-    }
-    return merged_items;
-  }
-
-  std::vector<item_type*> MergeTo(const std::vector<item_type*>& items_to_merge,
-                                  DLITransactionDesc& tl) const {
-    assert(is_committed());
-    std::vector<ItemVersionDesc<DLITransactionDesc>*> merged_items;
-    for (item_type* const item : items_to_merge) {
-      MergeOneItemTo(tl, *item, merged_items);
-    }
-    return merged_items;
-  }
-
-  set_type i_items_;
 };
 
 std::string DLITransactionDesc::name = "DLI";
