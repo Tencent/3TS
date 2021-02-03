@@ -277,12 +277,15 @@ void WorkerThread::abort() {
     INC_STATS(get_thd_id(), trans_finish_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_abort_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_total_run_time, timespan_short);
-    #if WORKLOAD != DA //actually DA do not need real abort. Just count it and do not send real abort msg.
-    uint64_t penalty =
-        abort_queue.enqueue(get_thd_id(), txn_man->get_txn_id(), txn_man->get_abort_cnt());
-
+#if WORKLOAD == DA
+    // DA do not need retry abort transactions. Just count it and do not send real abort msg.
+    // If not release txn man, later transactions will use the same txn_man which remains the
+    // current data and will not be initialized.
+    release_txn_man();
+#else
+    abort_queue.enqueue(get_thd_id(), txn_man->get_txn_id(), txn_man->get_abort_cnt());
     txn_man->txn_stats.total_abort_time += penalty;
-    #endif
+#endif
 }
 
 TxnManager * WorkerThread::get_transaction_manager(Message * msg) {
