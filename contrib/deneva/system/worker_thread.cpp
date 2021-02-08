@@ -48,6 +48,7 @@
 #include "bocc.h"
 #include "dli.h"
 #include "dta.h"
+#include "da.h"
 
 void WorkerThread::setup() {
     if( get_thd_id() == 0) {
@@ -692,126 +693,159 @@ RC WorkerThread::process_rtxn(Message * msg) {
     RC rc = RCOK;
     uint64_t txn_id = UINT64_MAX;
 
-    if(msg->get_rtype() == CL_QRY) {
-        // This is a new transaction
-        // Only set new txn_id when txn first starts
-    #if WORKLOAD == DA
-        msg->txn_id=((DAClientQueryMessage*)msg)->trans_id;
-        txn_id=((DAClientQueryMessage*)msg)->trans_id;
-    #else
-        txn_id = get_next_txn_id();
-        msg->txn_id = txn_id;
-    #endif
-        // Put txn in txn_table
-        txn_man = txn_table.get_transaction_manager(get_thd_id(),txn_id,0);
-        txn_man->register_thread(this);
-        uint64_t ready_starttime = get_sys_clock();
-        bool ready = txn_man->unset_ready();
-        INC_STATS(get_thd_id(),worker_activate_txn_time,get_sys_clock() - ready_starttime);
-        assert(ready);
-        if (CC_ALG == WAIT_DIE) {
-        #if WORKLOAD == DA //mvcc use timestamp
-            if (da_stamp_tab.count(txn_man->get_txn_id())==0)
+#if WORKLOAD == DA && DA_PRINT_LOG == true
+    printf("thd_id:%lu check: state:%lu nextstate:%lu \n",h_thd->_thd_id, da_query->state, _wl->nextstate);
+    fflush(stdout);
+#endif
+
+#if WORKLOAD == DA
+    auto da_wl = static_cast<DAWorkload*>(_wl);
+    if (da_wl->nextstate != 0) {
+        while (((DAClientQueryMessage*)msg)->state != da_wl->nextstate && !simulation->is_done());
+    }
+
+    if (already_abort_tab.find(((DAClientQueryMessage*)msg)->trans_id) == already_abort_tab.end()) {
+#endif
+
+        if (msg->get_rtype() == CL_QRY) {
+            // This is a new transaction
+            // Only set new txn_id when txn first starts
+#if WORKLOAD == DA
+            msg->txn_id=((DAClientQueryMessage*)msg)->trans_id;
+            txn_id=((DAClientQueryMessage*)msg)->trans_id;
+#else
+            txn_id = get_next_txn_id();
+            msg->txn_id = txn_id;
+#endif
+            // Put txn in txn_table
+            //
+            txn_man = txn_table.get_transaction_manager(get_thd_id(),txn_id,0);
+            txn_man->register_thread(this);
+            uint64_t ready_starttime = get_sys_clock();
+            bool ready = txn_man->unset_ready();
+            INC_STATS(get_thd_id(),worker_activate_txn_time,get_sys_clock() - ready_starttime);
+            assert(ready);
+            if (CC_ALG == WAIT_DIE) {
+#if WORKLOAD == DA //mvcc use timestamp
+                if (da_stamp_tab.count(txn_man->get_txn_id())==0)
+                {
+                da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+                }
+                else
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+#else
+                txn_man->set_timestamp(get_next_ts());
+#endif
+            }
+            txn_man->txn_stats.starttime = get_sys_clock();
+            txn_man->txn_stats.restart_starttime = txn_man->txn_stats.starttime;
+            msg->copy_to_txn(txn_man);
+            DEBUG("START %ld %f %lu\n", txn_man->get_txn_id(),
+                simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
+#if WORKLOAD==DA
+            if(da_start_trans_tab.count(txn_man->get_txn_id())==0)
             {
-            da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+                da_start_trans_tab.insert(txn_man->get_txn_id());
+                INC_STATS(get_thd_id(),local_txn_start_cnt,1);
+            }
+#else
+            INC_STATS(get_thd_id(), local_txn_start_cnt, 1);
+#endif
+
+        } else {
+            txn_man->txn_stats.restart_starttime = get_sys_clock();
+            DEBUG("RESTART %ld %f %lu\n", txn_man->get_txn_id(),
+                simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
+        }
+        // Get new timestamps
+        if(is_cc_new_timestamp()) {
+#if WORKLOAD==DA //mvcc use timestamp
+            if(da_stamp_tab.count(txn_man->get_txn_id())==0)
+            {
+                da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
             }
             else
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
-        #else
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+#else
             txn_man->set_timestamp(get_next_ts());
-        #endif
+#endif
         }
-        txn_man->txn_stats.starttime = get_sys_clock();
-        txn_man->txn_stats.restart_starttime = txn_man->txn_stats.starttime;
-        msg->copy_to_txn(txn_man);
-        DEBUG("START %ld %f %lu\n", txn_man->get_txn_id(),
-            simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
-    #if WORKLOAD==DA
-        if(da_start_trans_tab.count(txn_man->get_txn_id())==0)
-        {
-            da_start_trans_tab.insert(txn_man->get_txn_id());
-            INC_STATS(get_thd_id(),local_txn_start_cnt,1);
-        }
-    #else
-        INC_STATS(get_thd_id(), local_txn_start_cnt, 1);
-    #endif
-
-    } else {
-        txn_man->txn_stats.restart_starttime = get_sys_clock();
-        DEBUG("RESTART %ld %f %lu\n", txn_man->get_txn_id(),
-            simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
-    }
-    // Get new timestamps
-    if(is_cc_new_timestamp()) {
-    #if WORKLOAD==DA //mvcc use timestamp
-        if(da_stamp_tab.count(txn_man->get_txn_id())==0)
-        {
-            da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
-        }
-        else
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
-    #else
-         txn_man->set_timestamp(get_next_ts());
-    #endif
-    }
 
 #if CC_ALG == MVCC
-    txn_table.update_min_ts(get_thd_id(),txn_id,0,txn_man->get_timestamp());
+        txn_table.update_min_ts(get_thd_id(),txn_id,0,txn_man->get_timestamp());
 #endif
 #if CC_ALG == WSI || CC_ALG == SSI
-    txn_table.update_min_ts(get_thd_id(),txn_id,0,txn_man->get_start_timestamp());
+        txn_table.update_min_ts(get_thd_id(),txn_id,0,txn_man->get_start_timestamp());
 #endif
 #if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI ||\
-    CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA ||\
-    CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
-    #if WORKLOAD==DA
-    if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
-    {
-        da_start_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
-        txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
-    }
-    else
-        txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
-    #else
-        txn_man->set_start_timestamp(get_next_ts());
-    #endif
+        CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA ||\
+        CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
+#if WORKLOAD==DA
+        if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
+        {
+            da_start_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
+            txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
+        }
+        else
+            txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
+#else
+            txn_man->set_start_timestamp(get_next_ts());
+#endif
 #endif
 #if CC_ALG == MAAT
-    #if WORKLOAD==DA
-    if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
-    {
-        da_start_stamp_tab[txn_man->get_txn_id()]=1;
-        time_table.init(get_thd_id(), txn_man->get_txn_id());
-        assert(time_table.get_lower(get_thd_id(), txn_man->get_txn_id()) == 0);
-        assert(time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
-        assert(time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == MAAT_RUNNING);
-    }
-    #else
-    time_table.init(get_thd_id(),txn_man->get_txn_id());
-    assert(time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
-    assert(time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
-    assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == MAAT_RUNNING);
-    #endif
+#if WORKLOAD==DA
+        if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
+        {
+            da_start_stamp_tab[txn_man->get_txn_id()]=1;
+            time_table.init(get_thd_id(), txn_man->get_txn_id());
+            assert(time_table.get_lower(get_thd_id(), txn_man->get_txn_id()) == 0);
+            assert(time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
+            assert(time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == MAAT_RUNNING);
+        }
+#else
+        time_table.init(get_thd_id(),txn_man->get_txn_id());
+        assert(time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
+        assert(time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
+        assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == MAAT_RUNNING);
+#endif
 #endif
 #if CC_ALG == DTA
-    txn_table.update_min_ts(get_thd_id(), txn_id, 0, txn_man->get_timestamp());
-    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_timestamp());
-    // assert(dta_time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
-    assert(dta_time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
-    assert(dta_time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == DTA_RUNNING);
+        txn_table.update_min_ts(get_thd_id(), txn_id, 0, txn_man->get_timestamp());
+        dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_timestamp());
+        // assert(dta_time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
+        assert(dta_time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
+        assert(dta_time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == DTA_RUNNING);
 #endif
 #if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
-    txn_table.update_min_ts(get_thd_id(), txn_id, 0, txn_man->get_start_timestamp());
-    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
+        txn_table.update_min_ts(get_thd_id(), txn_id, 0, txn_man->get_start_timestamp());
+        dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
 #endif
-    rc = init_phase();
-    if (rc != RCOK) return rc;
+        rc = init_phase();
+        if (rc != RCOK) return rc;
 
-    // Execute transaction
-    rc = txn_man->run_txn();
-    check_if_done(rc);
+        // Execute transaction
+        rc = txn_man->run_txn();
+        check_if_done(rc);
+#if WORKLOAD == DA
+    }
+
+    da_wl->nextstate = ((DAClientQueryMessage*)msg)->next_state;
+    if (da_wl->nextstate == 0) {
+        if (abort_history) {
+            abort_file << DA_history_mem << endl;
+        } else {
+            commit_file << DA_history_mem << endl;
+        }
+        string().swap(DA_history_mem);
+        abort_history = false;
+        da_start_stamp_tab.clear();
+        da_wl->reset_tab_idx();
+        already_abort_tab.clear();
+        da_start_trans_tab.clear();
+    }
+#endif
     return rc;
 }
 
