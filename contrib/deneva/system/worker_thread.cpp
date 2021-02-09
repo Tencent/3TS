@@ -831,13 +831,35 @@ RC WorkerThread::process_rtxn(Message * msg) {
 #if WORKLOAD == DA
     }
 
+    auto tmp_txn_man = txn_man;
+    if (!DA_delayed_operations.empty()) {
+        std::vector<Message*> delayed_operations;
+        std::swap(DA_delayed_operations, delayed_operations);
+        for (auto msg : delayed_operations) {
+          txn_man = get_transaction_manager(msg);
+          const bool is_current_trans = txn_man == tmp_txn_man;
+          static_cast<DATxnManager*>(txn_man)->set_not_waiting();
+          process_rtxn_cont(msg);
+          if (is_current_trans && txn_man == nullptr) {
+              // current txn is over
+              // such as: C1 C2 *R2x *C2, current trans is 2.
+              // before process cont, trans 2 is not over because C2 is delayed, so tmp_txn_man is not null
+              // after process cont, trans is over because *C2 finished
+              // in this time, we need finally set txn_man NULL
+              tmp_txn_man = nullptr;
+          }
+        }
+    }
+    txn_man = tmp_txn_man;
+
     da_wl->nextstate = ((DAClientQueryMessage*)msg)->next_state;
     if (da_wl->nextstate == 0) {
-        if (abort_history) {
-            abort_file << DA_history_mem << endl;
-        } else {
-            commit_file << DA_history_mem << endl;
+        auto& output_file = abort_history ? abort_file : commit_file;
+        if (!DA_delayed_operations.empty()) {
+            output_file << "[ERROR] remain delayed operations: ";
+            DA_delayed_operations.clear();
         }
+        output_file << DA_history_mem << endl;
         string().swap(DA_history_mem);
         abort_history = false;
         da_start_stamp_tab.clear();

@@ -156,6 +156,9 @@ void TxnTable::restart_txn(uint64_t thd_id, uint64_t txn_id,uint64_t batch_id){
         if(is_matching_txn_node(t_node,txn_id,batch_id)) {
 #if CC_ALG == CALVIN
             work_queue.enqueue(thd_id,Message::create_message(t_node->txn_man,RTXN),false);
+#elif WORKLOAD == DA
+            //TODO: if DA run distributedly, we need judge IS_LOCAL
+            DA_delayed_operations.push_back(Message::create_message(t_node->txn_man,RTXN_CONT));
 #else
             if(IS_LOCAL(txn_id))
                 work_queue.enqueue(thd_id,Message::create_message(t_node->txn_man,RTXN_CONT),false);

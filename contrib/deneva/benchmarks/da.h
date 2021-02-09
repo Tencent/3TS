@@ -6,6 +6,7 @@
 #include "txn.h"
 #include "wl.h"
 #include "creator.h"
+#include "da_query.h"
 
 class DAQuery;
 class DAQueryMessage;
@@ -49,11 +50,14 @@ class DATxnManager : public TxnManager {
     RC run_calvin_txn();
 
     void copy_remote_items(DAQueryMessage* msg);
+    void set_not_waiting() { is_waiting_ = false; }
 
   private:
     DAWorkload* _wl;
     volatile RC _rc;
     row_t* row;
+    bool is_waiting_;
+    std::vector<DAQuery> skip_queries_;
 
     uint64_t next_item_id;
 
@@ -61,5 +65,6 @@ class DATxnManager : public TxnManager {
     bool is_local_item(uint64_t idx);
     RC send_remote_request();
     RC run_delivery(DAQuery* query);
+    RC process_query(const DAQuery* const da_query);
 };
 #endif

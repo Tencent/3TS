@@ -289,9 +289,7 @@ void Row_ts::update_buffer(uint64_t thd_id) {
                 uint64_t timespan = get_sys_clock() - req->starttime;
                 req->txn->txn_stats.cc_block_time += timespan;
                 req->txn->txn_stats.cc_block_time_short += timespan;
-                #if WORKLOAD!=DA
                 txn_table.restart_txn(thd_id,req->txn->get_txn_id(),0);
-                #endif
             }
             req = req->next;
         }

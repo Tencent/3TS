@@ -95,6 +95,7 @@ class KeyXidCache;
 class RtsCache;
 // class QTcpQueue;
 class TcpTimestamp;
+class Message;
 
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
@@ -267,7 +268,10 @@ extern map<uint64_t, ts_t> da_start_stamp_tab;
 extern set<uint64_t> da_start_trans_tab;
 extern map<uint64_t, ts_t> da_stamp_tab;
 extern set<uint64_t> already_abort_tab;
-extern string DA_history_mem;
+#if WORKLOAD == DA
+extern std::string DA_history_mem;
+extern std::vector<Message*> DA_delayed_operations;
+#endif
 extern bool abort_history;
 extern ofstream commit_file;
 extern ofstream abort_file;

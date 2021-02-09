@@ -100,7 +100,12 @@ map<uint64_t, ts_t> da_start_stamp_tab;
 set<uint64_t> da_start_trans_tab;
 map<uint64_t, ts_t> da_stamp_tab;
 set<uint64_t> already_abort_tab;
-string DA_history_mem;
+
+#if WORKLOAD == DA
+std::string DA_history_mem;
+std::vector<Message*> DA_delayed_operations;
+#endif
+
 bool abort_history;
 ofstream commit_file;
 ofstream abort_file;
