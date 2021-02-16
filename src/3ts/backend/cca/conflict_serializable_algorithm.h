@@ -94,11 +94,11 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
         std::set<uint64_t>& read_trans_set = read_trans_set_for_items[operation.item_id()];
         std::set<uint64_t>& write_trans_set = write_trans_set_for_items[operation.item_id()];
         if (Operation::Type::READ == operation.type()) {
-          graph.Insert(write_trans_set, trans_id);
+          graph.Insert(write_trans_set, trans_id); // W1R2 precedence
           read_trans_set.insert(trans_id);
         } else if (Operation::Type::WRITE == operation.type()) {
-          graph.Insert(read_trans_set, trans_id);
-          graph.Insert(write_trans_set, trans_id);
+          graph.Insert(read_trans_set, trans_id); // R1W2 precedence
+          graph.Insert(write_trans_set, trans_id); // W1W2 precedence
           write_trans_set.insert(trans_id);
           write_item_set_for_transs[trans_id].insert(operation.item_id());  // record for abort
         }
@@ -107,8 +107,13 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       } else if (Operation::Type::ABORT == operation.type()) {
         for (const uint64_t write_item : write_item_set_for_transs[trans_id]) {
           // restore all items has been written
-          graph.Insert(read_trans_set_for_items[write_item], trans_id);
-          graph.Insert(write_trans_set_for_items[write_item], trans_id);
+          graph.Insert(read_trans_set_for_items[write_item], trans_id); // R1A2 precedence
+          graph.Insert(write_trans_set_for_items[write_item], trans_id); // W1A2 precedence
+        }
+      } else if (Operation::Type::COMMIT == operation.type()) {
+        for (const uint64_t write_item : write_item_set_for_transs[trans_id]) {
+          // restore all items has been written
+          graph.Insert(write_trans_set_for_items[write_item], trans_id); // W1C2 precedence
         }
       }
     }
