@@ -136,7 +136,9 @@ RC DATxnManager::process_query(const DAQuery* const da_query) {
     if (rc == Abort) {
         rc = start_abort();
         DA_history_mem += "Abort ";
-        abort_history = true;
+        if (txn_type != DA_ABORT) {
+          abort_history = true;
+        }
     } else if (rc == WAIT) {
         DA_history_mem += "Wait ";
         is_waiting_ = true;
