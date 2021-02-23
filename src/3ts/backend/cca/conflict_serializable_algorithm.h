@@ -397,19 +397,29 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   }
 
  private:
+  static uint64_t ItemCount_(const std::vector<PreceInfo>& preces) {
+    std::set<uint64_t> item_ids;
+    for (const auto prece : preces) {
+      item_ids.emplace(prece.item_id());
+    }
+    return item_ids.size();
+  }
+
   static AnomalyType IdentifyAnomaly_(const std::vector<PreceInfo>& preces) {
+    assert(preces.size() >= 2);
+    const uint64_t item_count = ItemCount_(preces);
     if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
       // WA and WC precedence han only appear
       return AnomalyType::WAT_1_DIRTY_WRITE;
     } else if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
       return AnomalyType::RAT_1_DIRTY_READ;
-    } else if (preces.size() > 2) {
-      return IdentifyAnomalyMultiple_(preces);
-    } else if (preces[0].item_id() == preces[1].item_id()) {
+    } else if (item_count == 1) {
       // when build path, later happened precedence is sorted to front. preces1 is happens before preces0
-      return IdentifyAnomalySimple_(preces[1].type(), preces[0].type());
+      return IdentifyAnomalySimple_(preces.back().type(), preces.front().type());
+    } else if (item_count == 2) {
+      return IdentifyAnomalyDouble_(preces.back().type(), preces.front().type());
     } else {
-      return IdentifyAnomalyDouble_(preces[1].type(), preces[0].type());
+      return IdentifyAnomalyMultiple_(preces);
     }
   }
 

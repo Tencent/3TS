@@ -61,4 +61,6 @@ template <> const std::array<name, Count<name>()>& Members()\
 #undef ENUM_BEGIN
 #undef ENUM_MEMBER
 #undef ENUM_END
+
+#undef ENUM_FILE
 #endif

@@ -8,7 +8,29 @@
  * Author: williamcliu@tencent.com
  *
  */
-#pragma once
+
+#ifdef ENUM_BEGIN
+#ifdef ENUM_MEMBER
+#ifdef ENUM_END
+
+ENUM_BEGIN(Intensity)
+ENUM_MEMBER(Intensity, NONE_HAVE)
+ENUM_MEMBER(Intensity, ALL_HAVE)
+ENUM_MEMBER(Intensity, NO_LIMIT)
+ENUM_END(Intensity)
+
+ENUM_BEGIN(TclPosition)
+ENUM_MEMBER(TclPosition, TAIL)
+ENUM_MEMBER(TclPosition, ANYWHERE)
+ENUM_MEMBER(TclPosition, NOWHERE)
+ENUM_END(TclPosition)
+
+#endif
+#endif
+#endif
+
+#ifndef UTIL_GENERIC_H
+#define UTIL_GENERIC_H
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -341,13 +363,10 @@ class History {
   std::string anomaly_name_;
 };
 
+#define ENUM_FILE "./generic.h"
+#include "extend_enum.h"
+
 struct Options {
-  enum class Intensity
-  {
-    NO = 0,   // No histories satisfies the requirement
-    SOME = 1, // Some histories satisfies the requirement
-    ALL = 2,  // All histories satisfies the requirement
-  };
   uint64_t trans_num;
   uint64_t item_num;
 
@@ -356,7 +375,7 @@ struct Options {
   uint64_t max_dml;
 
   bool with_abort;
-  bool tail_tcl;
+  TclPosition tcl_position;
   bool allow_empty_trans;
   bool dynamic_history_len;
 
@@ -365,3 +384,4 @@ struct Options {
 };
 
 }  // namespace ttts
+#endif

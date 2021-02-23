@@ -24,12 +24,15 @@
 #include "outputter.h"
 #include "run.h"
 
-ttts::Options::Intensity IntensityParse(const std::string& intensity_string)
+template <typename EnumType>
+EnumType EnumParse(const std::string& s)
 {
-  if (intensity_string == "NO") { return ttts::Options::Intensity::NO; }
-  if (intensity_string == "SOME") { return ttts::Options::Intensity::SOME; }
-  if (intensity_string == "ALL") { return ttts::Options::Intensity::ALL; }
-  throw "Parse Intensity failed: " + intensity_string;
+  for (const auto e : Members<EnumType>()) {
+    if (s == ToString(e)) {
+      return e;
+    }
+  }
+  throw std::string("Parse Enum failed: ") + s + " type:" + typeid(EnumType).name();
 }
 
 std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &cfg,
@@ -46,11 +49,11 @@ std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &
       opt.item_num = s.lookup("item_num");
       opt.max_dml = s.lookup("max_dml");
       opt.with_abort = s.lookup("with_abort");
-      opt.tail_tcl = s.lookup("tail_tcl");
+      opt.tcl_position = EnumParse<TclPosition>(s.lookup("tcl_position"));
       opt.dynamic_history_len = s.lookup("dynamic_history_len");
       opt.allow_empty_trans = s.lookup("allow_empty_trans");
-      opt.with_scan = IntensityParse(s.lookup("with_scan"));
-      opt.with_write = IntensityParse(s.lookup("with_write"));
+      opt.with_scan = EnumParse<Intensity>(s.lookup("with_scan"));
+      opt.with_write = EnumParse<Intensity>(s.lookup("with_write"));
       if (name == "TraversalGenerator") {
         opt.subtask_num = s.lookup("subtask_num");
         opt.subtask_id = s.lookup("subtask_id");
@@ -263,12 +266,12 @@ void BenchmarkRunParse(const libconfig::Config &cfg) {
     const uint64_t history_num = s.lookup("history_num");
     const std::string os = s.lookup("os");
     const bool with_abort = s.lookup("with_abort");
-    const bool tail_tcl = s.lookup("tail_tcl");
+    const TclPosition tcl_position = EnumParse<TclPosition>(s.lookup("tcl_position"));
     if (os == "cout")
-      BenchmarkRun(trans_nums, item_nums, history_num, algorithms, std::cout, with_abort, tail_tcl);
+      BenchmarkRun(trans_nums, item_nums, history_num, algorithms, std::cout, with_abort, tcl_position);
     else
       BenchmarkRun(trans_nums, item_nums, history_num, algorithms, std::ofstream(os), with_abort,
-                   tail_tcl);
+                   tcl_position);
   } catch (const libconfig::SettingNotFoundException &nfex) {
     throw "Func BenchmarkRun setting " + std::string(nfex.getPath()) + " no found";
   }

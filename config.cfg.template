@@ -21,7 +21,7 @@ BenchmarkRun = {
   algorithms = ("SSI"); // concurrent algorithms
   history_num = 1024L; // number of histories to generate
 	with_abort = true; // generate history with Abort operation
-	tail_tcl = true; // generate TCL operation only on the tail of history
+	tcl_position = "TAIL"; // generate TCL operation in history position ("TAIL", "ANYWHERE", "NOWHERE")
   os = "cout"; // filename the benchmark result output to, "cout" means standard output
 };
 
@@ -35,9 +35,9 @@ TraversalGenerator = {
 	subtask_num = 10L; // number of subtasks
 	subtask_id = 0L; // the id of subtask to run
 	with_abort = true; // generate history with Abort operation
-  with_scan = "NO"; // generate history with ScanOdd operation ("NO", "SOME", "ALL")
-  with_write = "SOME"; // generate history with Write operation ("NO", "SOME", "ALL")
-	tail_tcl = false; // generate TCL operation only on the tail of history
+  with_scan = "NONE_HAVE"; // generate history with ScanOdd operation ("NONE_HAVE", "ALL_HAVE", "NO_LIMIT")
+  with_write = "NO_LIMIT"; // generate history with Write operation ("NONE_HAVE", "ALL_HAVE", "NO_LIMIT")
+	tcl_position = "ANYWHERE"; // generate TCL operation in history position ("TAIL", "ANYWHERE", "NOWHERE")
   allow_empty_trans = false; // transactions generated can be without DML operations
   dynamic_history_len = false; // number of DML operation can be less than <max_dml>
 };
@@ -54,8 +54,8 @@ RandomGenerator = {
 	max_dml = 2L; // max number of DML operations
   history_num = 100L; // number of histories to generate
 	with_abort = true; // generate history with Abort operation
-  with_scan = "NO"; // generate history with ScanOdd operation ("NO", "SOME", "ALL")
-	tail_tcl = true; // generate TCL operation only on the tail of history
+  with_scan = "NONE_HAVE"; // generate history with ScanOdd operation ("NONE_HAVE", "ALL_HAVE", "NO_LIMIT")
+	tcl_position = "TAIL"; // generate TCL operation in history position ("TAIL", "ANYWHERE", "NOWHERE")
   allow_empty_trans = false; // transactions generated can be without DML operations
   dynamic_history_len = false; // number of DML operation can be less than <max_dml>
 }

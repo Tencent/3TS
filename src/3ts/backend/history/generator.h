@@ -49,7 +49,7 @@ class RandomHistoryGenerator : public HistoryGenerator {
         dml_operation_num_(opt.max_dml),
         history_num_(history_num),
         with_abort_(opt.with_abort),
-        tail_tcl_(opt.tail_tcl),
+        tcl_position_(opt.tcl_position),
         rd_(),
         gen_(rd_()),
         rand_trans_id_(0, trans_num_ - 1),
@@ -60,10 +60,13 @@ class RandomHistoryGenerator : public HistoryGenerator {
 
   virtual void DeliverHistories(const std::function<void(History &&)> &handle) const {
     for (uint64_t history_no = 0; history_no < history_num_; ++history_no) {
-      if (tail_tcl_) {
+      if (tcl_position_ == TclPosition::TAIL) {
         handle(MakeDMLHistory() + MakeTCLHistory());
-      } else {
+      } else if (tcl_position_ == TclPosition::ANYWHERE) {
         handle(ShuffleHistory(MakeDMLHistory() + MakeTCLHistory()));
+      } else {
+        assert(tcl_position_ == TclPosition::NOWHERE);
+        handle(ShuffleHistory(MakeDMLHistory()));
       }
     }
   }
@@ -129,7 +132,7 @@ class RandomHistoryGenerator : public HistoryGenerator {
   const uint64_t dml_operation_num_;
   const uint64_t history_num_;
   const bool with_abort_;
-  const bool tail_tcl_;
+  const TclPosition tcl_position_;
   mutable std::random_device rd_;
   mutable std::mt19937 gen_;
   mutable std::uniform_int_distribution<uint64_t> rand_trans_id_;
@@ -146,7 +149,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
         subtask_num_(opt.subtask_num),
         dfs_cnt_(opt.subtask_num - opt.subtask_id),
         with_abort_(opt.with_abort),
-        tail_tcl_(opt.tail_tcl),
+        tcl_position_(opt.tcl_position),
         allow_empty_trans_(opt.allow_empty_trans),
         dynamic_history_len_(opt.dynamic_history_len),
         with_scan_(opt.with_scan),
@@ -155,8 +158,8 @@ class TraversalHistoryGenerator : public HistoryGenerator {
   void DeliverHistories(const std::function<void(History &&)> &handle) const {
     std::vector<Operation> tmp_operations;
     RecursiveFillDMLHistory(
-        [this, &handle](const History &dml_history, const uint64_t max_trans_id) {
-          HandleDMLHistory(handle, dml_history, max_trans_id);
+        [this, &handle](History&& dml_history, const uint64_t max_trans_id) {
+          HandleDMLHistory(handle, std::move(dml_history), max_trans_id);
         },
         tmp_operations, 0, 0);
   }
@@ -164,29 +167,29 @@ class TraversalHistoryGenerator : public HistoryGenerator {
   static uint64_t cut_down_;
 
  private:
-  void HandleHistory(const std::function<void(History &&)> &handle, const History &history) const {
-    History history_copy = history;  // copy History
-    handle(std::move(history_copy));
-  }
-
-  void HandleTCLHistory(const std::function<void(History &&)> &handle, const History &dml_history,
-                        const History &dtl_history) const {
-    // Firstly, append every dml_history with dtl_history.
+  void HandleTCLHistory(const std::function<void(History &&)> &handle, History&& dml_history,
+                        History&& dtl_history) const {
     History history_tot = dml_history + dtl_history;
-    // Then move dtl_history at a suitable location, forward.
-    RecursiveMoveForwardTCLOperation(
-        [this, &handle](const History &history) { HandleHistory(handle, history); }, history_tot,
-        dml_history.size());
+    if (tcl_position_ == TclPosition::TAIL) {
+      handle(std::move(history_tot));
+    } else {
+      assert(tcl_position_ == TclPosition::ANYWHERE);
+      RecursiveMoveForwardTCLOperation(handle, std::move(history_tot), dml_history.size());
+    }
   }
 
-  void HandleDMLHistory(const std::function<void(History &&)> &handle, const History &dml_history,
+  void HandleDMLHistory(const std::function<void(History&&)> &handle, History&& dml_history,
                         const uint64_t max_trans_id) const {
     std::vector<bool> is_commits;
-    RecursiveFillTCLHistory(
-        [this, &handle, &dml_history](const History &dtl_history) {
-          HandleTCLHistory(handle, dml_history, dtl_history);
-        },
-        is_commits, dml_history.trans_num());
+    if (tcl_position_ == TclPosition::NOWHERE) {
+      handle(std::move(dml_history));
+    } else {
+      RecursiveFillTCLHistory(
+          [this, &handle, &dml_history](History&& dtl_history) {
+            HandleTCLHistory(handle, std::move(dml_history), std::move(dtl_history));
+          },
+          is_commits, dml_history.trans_num());
+    }
   }
 
   bool OnlyOneTrans(const std::vector<Operation> &operations) const {
@@ -198,7 +201,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
     return true;
   }
 
-  void RecursiveFillDMLHistoryOver(const std::function<void(const History&, const uint64_t)> &handle,
+  void RecursiveFillDMLHistoryOver(const std::function<void(History&&, const uint64_t)> &handle,
                                    std::vector<Operation> &operations, uint64_t max_trans_id,
                                    uint64_t max_item_id) const {
     const auto check_has_operation = [this, &operations](const Operation::Type type) {
@@ -210,8 +213,8 @@ class TraversalHistoryGenerator : public HistoryGenerator {
     };
 
     if (dfs_cnt_ == subtask_num_) {
-      if ((with_scan_ != Options::Intensity::ALL || check_has_operation(Operation::Type::SCAN_ODD)) &&
-          (with_write_ != Options::Intensity::ALL || check_has_operation(Operation::Type::WRITE)) && // cannot all readonly transactions
+      if ((with_scan_ != Intensity::ALL_HAVE || check_has_operation(Operation::Type::SCAN_ODD)) &&
+          (with_write_ != Intensity::ALL_HAVE || check_has_operation(Operation::Type::WRITE)) && // cannot all readonly transactions
           (allow_empty_trans_ || max_trans_id == trans_num_)) {
         handle(History(max_trans_id, max_item_id, operations), max_trans_id);
       } else {
@@ -222,7 +225,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
     ++dfs_cnt_;
   }
 
-  void RecursiveFillDMLHistoryContinue(const std::function<void(const History&, const uint64_t)> &handle,
+  void RecursiveFillDMLHistoryContinue(const std::function<void(History&&, const uint64_t)> &handle,
                                        std::vector<Operation> &operations, uint64_t max_trans_id,
                                        uint64_t max_item_id) const {
     const size_t cur = operations.size();
@@ -243,11 +246,11 @@ class TraversalHistoryGenerator : public HistoryGenerator {
           }
         };
         fill_dml(Operation::ReadTypeConstant());
-        if (with_write_ != Options::Intensity::NO) {
+        if (with_write_ != Intensity::NONE_HAVE) {
           fill_dml(Operation::WriteTypeConstant());
         }
       }
-      if (with_scan_ != Options::Intensity::NO &&
+      if (with_scan_ != Intensity::NONE_HAVE &&
           !(cur > 0 && operations[cur - 1].type() == Operation::Type::SCAN_ODD &&
             trans_id == operations[cur - 1].trans_id())) {
         operations.emplace_back(Operation::ScanOddTypeConstant(), trans_id);
@@ -258,7 +261,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
   }
 
   // Generate all possible DML histories and pass each history to handle.
-  void RecursiveFillDMLHistory(const std::function<void(const History &, const uint64_t)> &handle,
+  void RecursiveFillDMLHistory(const std::function<void(History&&, const uint64_t)> &handle,
                                std::vector<Operation> &operations, uint64_t max_trans_id,
                                uint64_t max_item_id) const {
     if (dynamic_history_len_ || operations.size() == dml_operation_num_) {
@@ -269,7 +272,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
     }
   }
 
-  void RecursiveFillTCLHistoryOver(const std::function<void(const History &)> &handle,
+  void RecursiveFillTCLHistoryOver(const std::function<void(History&&)> &handle,
                                    const std::vector<bool> &is_commits) const {
     std::vector<Operation> dtl_operations;
     uint64_t abort_trans_num = 0;
@@ -288,7 +291,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
     } while (std::next_permutation(dtl_operations.begin(), dtl_operations.end()));
   }
 
-  void RecursiveFillTCLHistoryContinue(const std::function<void(const History &)> &handle,
+  void RecursiveFillTCLHistoryContinue(const std::function<void(History&&)> &handle,
                                        std::vector<bool> &is_commits, const uint64_t trans_num) const {
     // traverse all possible transaction commit/abort states
     for (const bool is_commit : { true, false }) {
@@ -299,7 +302,7 @@ class TraversalHistoryGenerator : public HistoryGenerator {
   }
 
   // Generate all possible TCL histories and pass each history to handle.
-  void RecursiveFillTCLHistory(const std::function<void(const History &)> &handle,
+  void RecursiveFillTCLHistory(const std::function<void(History&&)> &handle,
                                std::vector<bool> &is_commits, const uint64_t trans_num) const {
     if (!with_abort_) {
       is_commits.assign(trans_num, true);
@@ -312,10 +315,12 @@ class TraversalHistoryGenerator : public HistoryGenerator {
   }
 
   // Remix the DML operations and tailing TCL operations.
-  void RecursiveMoveForwardTCLOperation(const std::function<void(const History &)> &handle,
-                                        History &history, const size_t pos) const {
-    if (pos == history.size() || tail_tcl_) {
-      handle(history);
+  template <typename HistoryRef>
+  void RecursiveMoveForwardTCLOperation(const std::function<void(History&&)> &handle,
+                                        HistoryRef&& history, const size_t pos) const {
+    if (pos == history.size() || tcl_position_ == TclPosition::TAIL) {
+      // copy the history because we will go on moving forward tcl in this history
+      handle(History(history));
     } else {
       RecursiveMoveForwardTCLOperation(handle, history, pos + 1);
       size_t i = pos;
@@ -338,11 +343,11 @@ class TraversalHistoryGenerator : public HistoryGenerator {
   const uint64_t subtask_num_;
   mutable uint64_t dfs_cnt_;
   const bool with_abort_;
-  const bool tail_tcl_;
+  const TclPosition tcl_position_;
   const bool allow_empty_trans_;
   const bool dynamic_history_len_;
-  const Options::Intensity with_scan_;
-  const Options::Intensity with_write_;
+  const Intensity with_scan_;
+  const Intensity with_write_;
 };
 uint64_t TraversalHistoryGenerator::cut_down_ = 0;
 }  // namespace ttts
