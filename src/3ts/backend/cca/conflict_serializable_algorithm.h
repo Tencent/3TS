@@ -333,7 +333,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     std::cout << std::endl;
 
     std::vector<std::pair<AnomalyType, uint32_t>> sorted_anomaly_counts_;
-    for (const auto anomaly : AllAnomalyType) {
+    for (const auto anomaly : Members<AnomalyType>()) {
       sorted_anomaly_counts_.emplace_back(anomaly, anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
     }
     std::sort(sorted_anomaly_counts_.begin(), sorted_anomaly_counts_.end(), [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
@@ -468,7 +468,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     return AnomalyType::IAT_STEP;
   }
 
-  mutable std::array<std::atomic<uint64_t>, AnomalyTypeCount> anomaly_counts_;
+  mutable std::array<std::atomic<uint64_t>, Count<AnomalyType>()> anomaly_counts_;
   mutable std::atomic<uint64_t> no_anomaly_count_;
 };
 
