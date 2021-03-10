@@ -9,9 +9,6 @@
  *
  */
 
-#include <type_traits>
-
-
 #ifdef ENUM_FILE
 
 template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> constexpr uint32_t Count();
@@ -32,7 +29,7 @@ template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v
 #define ENUM_BEGIN(name)\
 template <> const char* ToString<name>(const name e)\
 {\
-  static std::vector<const char*> strings {
+  static std::array<const char*, Count<name>()> strings {
 #define ENUM_MEMBER(_, member) #member,
 #define ENUM_END(name)\
   };\
