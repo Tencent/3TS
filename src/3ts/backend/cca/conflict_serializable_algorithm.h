@@ -319,11 +319,13 @@ class ConflictGraph {
   std::vector<ConflictGraphNode> nodes_;
 };
 
+template <bool IDENTIFY_ANOMALY>
 class ConflictSerializableAlgorithm : public HistoryAlgorithm {
  public:
-  ConflictSerializableAlgorithm() : HistoryAlgorithm("Conflict Serializable"), anomaly_counts_{0}, no_anomaly_count_(0) {}
+  ConflictSerializableAlgorithm() : HistoryAlgorithm(IDENTIFY_ANOMALY ? "DLI_IDENTIFY OK" : "Conflict Serializable"), anomaly_counts_{0}, no_anomaly_count_(0) {}
   virtual ~ConflictSerializableAlgorithm()
   {
+    if (!IDENTIFY_ANOMALY) { return; }
     std::cout.setf(std::ios::right);
     std::cout.precision(4);
 
@@ -332,7 +334,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     };
 
     const auto anomaly_count = std::accumulate(anomaly_counts_.begin(), anomaly_counts_.end(), 0);
-    std::cout << "=== Conflict Serializable ===" << std::endl;
+    std::cout << "=== DLI_IDENTIFY ===" << std::endl;
 
     std::cout << std::setw(30) << "True Rollback: ";
     print_percent(anomaly_count, anomaly_count + no_anomaly_count_);
@@ -390,7 +392,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     }
 
     const bool has_cycle = graph.HasCycle();
-    if (has_cycle) {
+    if (IDENTIFY_ANOMALY && has_cycle) {
       const auto cycle = graph.MinCycleByFloyd();
       const auto anomaly = IdentifyAnomaly_(cycle.preces());
       TRY_LOG(os) << "[" << anomaly << "] " << cycle;

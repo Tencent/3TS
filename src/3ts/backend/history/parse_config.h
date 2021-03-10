@@ -126,7 +126,9 @@ void AlgorithmParseInternal_(const libconfig::Config &cfg, const std::string &al
         std::make_shared<ttts::HistorySerializableAlgorithm<SerializeLevel::FINAL_SAME,
                                                             SerializeReadPolicy::SI_READ>>());
   } else if (algorithm_name == "ConflictSerializableAlgorithm") {
-    add_algorithm(std::make_shared<ttts::ConflictSerializableAlgorithm>());
+    add_algorithm(std::make_shared<ttts::ConflictSerializableAlgorithm<false>>());
+  } else if (algorithm_name == "DLI_IDENTIFY") {
+    add_algorithm(std::make_shared<ttts::ConflictSerializableAlgorithm<true>>());
   } else {
     throw "Unknown algorithm name " + algorithm_name;
   }
