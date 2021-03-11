@@ -27,7 +27,7 @@ ENUM_END(PreceType)
 ENUM_BEGIN(AnomalyType)
 // ======== WAT - 1 =========
 ENUM_MEMBER(AnomalyType, WAT_1_DIRTY_WRITE)
-ENUM_MEMBER(AnomalyType, WAT_1_INTERMEDIATE_WRITE)
+ENUM_MEMBER(AnomalyType, WAT_1_FULL_WRITE)
 ENUM_MEMBER(AnomalyType, WAT_1_LOST_SELF_UPDATE)
 ENUM_MEMBER(AnomalyType, WAT_1_LOST_UPDATE)
 // ======== WAT - 2 =========
@@ -424,9 +424,9 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   // require type1 precedence happens before type2 precedence
   static AnomalyType IdentifyAnomalySingle_(const PreceType early_type, const PreceType later_type) {
     if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
-      return AnomalyType::WAT_1_INTERMEDIATE_WRITE; // WW-WW | WR-WW = WWW
+      return AnomalyType::WAT_1_FULL_WRITE; // WW-WW | WR-WW = WWW
     } else if (early_type == PreceType::WR && early_type == PreceType::WW) {
-      return AnomalyType::WAT_1_INTERMEDIATE_WRITE; // WR-WW = WWW
+      return AnomalyType::WAT_1_FULL_WRITE; // WR-WW = WWW
     } else if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
       return AnomalyType::WAT_1_LOST_SELF_UPDATE; // WW-WR = WWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
