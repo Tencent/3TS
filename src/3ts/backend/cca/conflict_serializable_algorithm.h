@@ -403,24 +403,23 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
 
   static AnomalyType IdentifyAnomaly_(const std::vector<PreceInfo>& preces) {
     assert(preces.size() >= 2);
-    const uint64_t item_count = ItemCount_(preces);
     if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
       // WA and WC precedence han only appear
       return AnomalyType::WAT_1_DIRTY_WRITE;
     } else if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
       return AnomalyType::RAT_1_DIRTY_READ;
-    } else if (item_count == 1) {
-      // when build path, later happened precedence is sorted to front
-      return IdentifyAnomalySimple_(preces.back().type(), preces.front().type());
-    } else if (item_count == 2) {
+    } else if (preces.size() >= 3) {
+      return IdentifyAnomalyMultiple_(preces);
+    // when build path, later happened precedence is sorted to front
+    } else if (preces.back().item_id() != preces.front().item_id()) {
       return IdentifyAnomalyDouble_(preces.back().type(), preces.front().type());
     } else {
-      return IdentifyAnomalyMultiple_(preces);
+      return IdentifyAnomalySingle_(preces.back().type(), preces.front().type());
     }
   }
 
   // require type1 precedence happens before type2 precedence
-  static AnomalyType IdentifyAnomalySimple_(const PreceType early_type, const PreceType later_type) {
+  static AnomalyType IdentifyAnomalySingle_(const PreceType early_type, const PreceType later_type) {
     if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
       return AnomalyType::WAT_1_INTERMEDIATE_WRITE; // WW-WW | WR-WW = WWW
     } else if (early_type == PreceType::WR && early_type == PreceType::WW) {
