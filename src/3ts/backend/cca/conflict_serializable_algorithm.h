@@ -79,7 +79,7 @@ namespace ttts {
 class PreceInfo {
  public:
   PreceInfo(const uint64_t pre_trans_id, const uint64_t trans_id, const uint64_t item_id, const PreceType type, const uint32_t order)
-    : pre_trans_id_(pre_trans_id), trans_id_(trans_id), item_id_(item_id), type_(type), order_(order), can_be_ww_(false) {}
+    : pre_trans_id_(pre_trans_id), trans_id_(trans_id), item_id_(item_id), type_(type), order_(order) {}
   PreceInfo(const PreceInfo&) = default;
 
   friend std::ostream& operator<<(std::ostream& os, const PreceInfo prece) {
@@ -92,16 +92,12 @@ class PreceInfo {
   uint64_t item_id() const { return item_id_; }
   PreceType type() const { return type_; }
 
-  void MarkWW() { can_be_ww_ = true; }
-  bool MarkedWW() const { return can_be_ww_; }
-
  private:
   uint64_t trans_id_;
   uint64_t pre_trans_id_;
   uint64_t item_id_;
   PreceType type_;
   uint32_t order_;
-  bool can_be_ww_;
 };
 
 class ConflictGraphNode {
@@ -112,15 +108,7 @@ class ConflictGraphNode {
   bool HasNoPreTrans() const { return pre_trans_set_.empty(); }
   void AddPreTrans(const uint64_t pre_trans_id, const uint64_t item_id, const PreceType type, const uint32_t order) {
     // we only record the first precedence between the two specific transactions
-    const auto& [it, inserted] = pre_trans_set_.try_emplace(pre_trans_id, PreceInfo{pre_trans_id, trans_id_, item_id, type, order});
-    const auto& current_prece = it->second;
-    if (!inserted && current_prece.item_id() == item_id && current_prece.type() == PreceType::WR && type == PreceType::WW) {
-      // e.g. W1a R2a W2a R1a, the pattern should be W1W2-W2R1 but not W1R2-W2R1 which cannot be identified to an anomaly
-      // We need add a WW flag on W1R2 precedence so that we can try regard W1R2 as W1W2
-      // Note that we cannot replace the precedence directly.
-      // e.g. R0a W1a W1b R0b W0b, the anomaly happens at R0b, but if we replace W1bR0b with W1bW0b, the anomaly is delayed to W0b
-      it->second.MarkWW();
-    }
+    pre_trans_set_.try_emplace(pre_trans_id, PreceInfo{pre_trans_id, trans_id_, item_id, type, order});
   }
   void RemovePreTrans(const uint64_t pre_trans_id) { pre_trans_set_.erase(pre_trans_id); }
   void Remove() { removed_ = true; }
@@ -422,12 +410,8 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     } else if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
       return AnomalyType::RAT_1_DIRTY_READ;
     } else if (item_count == 1) {
-      // when build path, later happened precedence is sorted to front. preces1 is happens before preces0
-      auto anomaly_type = IdentifyAnomalySimple_(preces.back().type(), preces.front().type());
-      if (anomaly_type == AnomalyType::UNKNOWN_1 && preces.back().MarkedWW()) {
-        anomaly_type = IdentifyAnomalySimple_(PreceType::WW, preces.front().type());
-      }
-      return anomaly_type;
+      // when build path, later happened precedence is sorted to front
+      return IdentifyAnomalySimple_(preces.back().type(), preces.front().type());
     } else if (item_count == 2) {
       return IdentifyAnomalyDouble_(preces.back().type(), preces.front().type());
     } else {
@@ -437,18 +421,20 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
 
   // require type1 precedence happens before type2 precedence
   static AnomalyType IdentifyAnomalySimple_(const PreceType early_type, const PreceType later_type) {
-    if (early_type == PreceType::WW && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
-      return AnomalyType::WAT_1_INTERMEDIATE_WRITE;
-    } else if (early_type == PreceType::WW && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-      return AnomalyType::WAT_1_LOST_SELF_UPDATE;
+    if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
+      return AnomalyType::WAT_1_INTERMEDIATE_WRITE; // WW-WW | WR-WW = WWW
+    } else if (early_type == PreceType::WR && early_type == PreceType::WW) {
+      return AnomalyType::WAT_1_INTERMEDIATE_WRITE; // WR-WW = WWW
+    } else if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
+      return AnomalyType::WAT_1_LOST_SELF_UPDATE; // WW-WR = WWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
-      return AnomalyType::WAT_1_LOST_UPDATE_1;
+      return AnomalyType::WAT_1_LOST_UPDATE_1; // RW-WW | RW-RW = RWW
     } else if (early_type == PreceType::WR && later_type == PreceType::RW) {
-      return AnomalyType::RAT_1_INTERMEDIATE_READ;
+      return AnomalyType::RAT_1_INTERMEDIATE_READ; // WR-RW = WRW
     } else if (early_type == PreceType::RW && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-      return AnomalyType::RAT_1_NON_REPEATABLE_READ;
+      return AnomalyType::RAT_1_NON_REPEATABLE_READ; // RW-WR = RWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
-      return AnomalyType::IAT_1_LOST_UPDATE_2;
+      return AnomalyType::IAT_1_LOST_UPDATE_2; // RW-WW(WCW) = RWW
     } else {
       return AnomalyType::UNKNOWN_1;
     }
