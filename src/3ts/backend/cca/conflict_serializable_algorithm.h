@@ -29,10 +29,12 @@ ENUM_BEGIN(AnomalyType)
 ENUM_MEMBER(AnomalyType, WAT_1_DIRTY_WRITE)
 ENUM_MEMBER(AnomalyType, WAT_1_INTERMEDIATE_WRITE)
 ENUM_MEMBER(AnomalyType, WAT_1_LOST_SELF_UPDATE)
-ENUM_MEMBER(AnomalyType, WAT_1_LOST_UPDATE_1)
+ENUM_MEMBER(AnomalyType, WAT_1_LOST_UPDATE)
 // ======== WAT - 2 =========
 ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_1)
+ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_2)
 ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_1)
+ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_2)
 ENUM_MEMBER(AnomalyType, WAT_2_FULL_WRITE_SKEW)
 // ======== WAT - 3 =========
 ENUM_MEMBER(AnomalyType, WAT_STEP)
@@ -42,14 +44,15 @@ ENUM_MEMBER(AnomalyType, RAT_1_INTERMEDIATE_READ)
 ENUM_MEMBER(AnomalyType, RAT_1_NON_REPEATABLE_READ)
 // ======== RAT - 2 =========
 ENUM_MEMBER(AnomalyType, RAT_2_WRITE_READ_SKEW)
-ENUM_MEMBER(AnomalyType, RAT_2_DOUBLE_WRITE_SKEW_2)
+ENUM_MEMBER(AnomalyType, RAT_2_DOUBLE_WRITE_SKEW_COMMITTED)
 ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW)
+ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW_2)
 // ======== RAT - 3 =========
 ENUM_MEMBER(AnomalyType, RAT_STEP)
 // ======== IAT - 1 =========
-ENUM_MEMBER(AnomalyType, IAT_1_LOST_UPDATE_2)
+ENUM_MEMBER(AnomalyType, IAT_1_LOST_UPDATE_COMMITTED)
 // ======== IAT - 2 =========
-ENUM_MEMBER(AnomalyType, IAT_2_READ_WRITE_SKEW_2)
+ENUM_MEMBER(AnomalyType, IAT_2_READ_WRITE_SKEW_COMMITTED)
 ENUM_MEMBER(AnomalyType, IAT_2_WRITE_SKEW)
 // ======== IAT - 3 =========
 ENUM_MEMBER(AnomalyType, IAT_STEP)
@@ -324,7 +327,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     const auto anomaly_count = std::accumulate(anomaly_counts_.begin(), anomaly_counts_.end(), 0);
     std::cout << "=== DLI_IDENTIFY ===" << std::endl;
 
-    std::cout << std::setw(30) << "True Rollback: ";
+    std::cout << std::setw(40) << "True Rollback: ";
     print_percent(anomaly_count, anomaly_count + no_anomaly_count_);
     std::cout << std::endl;
 
@@ -334,7 +337,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     }
     std::sort(sorted_anomaly_counts_.begin(), sorted_anomaly_counts_.end(), [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
     for (const auto& [anomaly, count] : sorted_anomaly_counts_) {
-      std::cout << std::setw(30) << (std::string("[") + ToString(anomaly) + "] ");
+      std::cout << std::setw(40) << (std::string("[") + ToString(anomaly) + "] ");
       print_percent(count, anomaly_count);
       std::cout << std::endl;
     }
@@ -427,37 +430,46 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     } else if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
       return AnomalyType::WAT_1_LOST_SELF_UPDATE; // WW-WR = WWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
-      return AnomalyType::WAT_1_LOST_UPDATE_1; // RW-WW | RW-RW = RWW
+      return AnomalyType::WAT_1_LOST_UPDATE; // RW-WW | RW-RW = RWW
     } else if (early_type == PreceType::WR && later_type == PreceType::RW) {
       return AnomalyType::RAT_1_INTERMEDIATE_READ; // WR-RW = WRW
     } else if (early_type == PreceType::RW && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
       return AnomalyType::RAT_1_NON_REPEATABLE_READ; // RW-WR = RWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
-      return AnomalyType::IAT_1_LOST_UPDATE_2; // RW-WW(WCW) = RWW
+      return AnomalyType::IAT_1_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
     } else {
       return AnomalyType::UNKNOWN_1;
     }
   }
 
   static AnomalyType IdentifyAnomalyDouble_(const PreceType early_type, const PreceType later_type) {
-    const auto any_order = [early_type, later_type](const PreceType type1, const PreceType type2) {
-      return ((early_type == type1 && later_type == type2) ||
-              (early_type == type2 && later_type == type1));
+    const auto any_order = [early_type, later_type](const PreceType type1, const PreceType type2) -> std::optional<bool> {
+      if (early_type == type1 && later_type == type2) {
+        return true;
+      } else if (early_type == type2 && later_type == type1) {
+        return false;
+      } else {
+        return {};
+      }
     };
-    if (any_order(PreceType::WR, PreceType::WW) || (early_type == PreceType::WW && later_type == PreceType::WCR)) {
-      return AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_1;
-    } else if (any_order(PreceType::RW, PreceType::WW)) {
-      return AnomalyType::WAT_2_READ_WRITE_SKEW_1;
+    if (const auto order = any_order(PreceType::WR, PreceType::WW); order.has_value()) {
+      return *order ? AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_1 : AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_2;
+    } else if (early_type == PreceType::WW && later_type == PreceType::WCR) {
+      return AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_2;
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WW); order.has_value()) {
+      return *order ? AnomalyType::WAT_2_READ_WRITE_SKEW_1 : AnomalyType::WAT_2_READ_WRITE_SKEW_2;
     } else if (early_type == PreceType::WW && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
       return AnomalyType::WAT_2_FULL_WRITE_SKEW;
     } else if (early_type == PreceType::WR && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
       return AnomalyType::RAT_2_WRITE_READ_SKEW;
     } else if (early_type == PreceType::WR && later_type == PreceType::WCW) {
-      return AnomalyType::RAT_2_DOUBLE_WRITE_SKEW_2;
-    } else if (any_order(PreceType::RW, PreceType::WR) || (early_type == PreceType::RW && later_type == PreceType::WCR)) {
+      return AnomalyType::RAT_2_DOUBLE_WRITE_SKEW_COMMITTED;
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {
+      return *order ? AnomalyType::RAT_2_READ_SKEW : AnomalyType::RAT_2_READ_SKEW_2;
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCR) {
       return AnomalyType::RAT_2_READ_SKEW;
     } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
-      return AnomalyType::IAT_2_READ_WRITE_SKEW_2;
+      return AnomalyType::IAT_2_READ_WRITE_SKEW_COMMITTED;
     } else if (early_type == PreceType::RW && later_type == PreceType::RW) {
       return AnomalyType::IAT_2_WRITE_SKEW;
     } else {
