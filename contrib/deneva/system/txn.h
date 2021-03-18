@@ -25,11 +25,13 @@
 #ifndef _TXN_H_
 #define _TXN_H_
 
+#include <mutex>
 #include "global.h"
 #include "helper.h"
 #include "semaphore.h"
 #include "array.h"
 #include "transport/message.h"
+#include "concurrency_control/dli_identify.h"
 //#include "wl.h"
 
 class Workload;
@@ -137,6 +139,38 @@ public:
     double lat_other_time_start;
 };
 
+template <int ALG> class AlgTxnManager;
+
+struct TxnNode;
+struct Path;
+template <> class AlgTxnManager<DLI_IDENTIFY>
+{
+  public:
+    void init(const uint64_t txn_id)
+    {
+        node_ = std::make_shared<TxnNode>(txn_id);
+        l_.release();
+    }
+
+    void reset()
+    {
+        node_ = nullptr;
+        l_.release();
+    }
+
+    void lock(std::mutex& m) { l_ = std::unique_lock(m); }
+
+    const std::shared_ptr<TxnNode>& node() const { return node_; }
+
+    void set_cycle(Path&& cycle);
+    const std::unique_ptr<Path>& cycle() const { return cycle_; }
+
+  private:
+    std::unique_lock<std::mutex> l_;
+    std::shared_ptr<TxnNode> node_;
+    std::unique_ptr<Path> cycle_;
+};
+
 /*
      Execution of transactions
      Manipulates/manages Transaction (contains txn-specific data)
@@ -161,7 +195,7 @@ public:
     uint64_t        get_thd_id();
     Workload *      get_wl();
     void            set_txn_id(txnid_t txn_id);
-    txnid_t         get_txn_id();
+    txnid_t         get_txn_id() const;
     void            set_query(BaseQuery * qry);
     BaseQuery *     get_query();
     bool            is_done();
@@ -298,6 +332,8 @@ public:
     DliValidatedTxn* dli_txn = nullptr;
     DliValidatedTxn* history_dli_txn_head = nullptr;
 #endif
+
+    AlgTxnManager<DLI_IDENTIFY> dli_identify_man_;
 
 protected:
 

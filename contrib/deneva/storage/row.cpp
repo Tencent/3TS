@@ -44,6 +44,7 @@
 #include "row_si.h"
 #include "row_dta.h"
 #include "row_dli_based.h"
+#include "row_prece.h"
 #include "dli.h"
 #include "mem_alloc.h"
 #include "manager.h"
@@ -99,6 +100,8 @@ void row_t::init_manager(row_t * row) {
     manager = (Row_dli_base *)mem_allocator.align_alloc(sizeof(Row_dli_base));
 #elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
     manager = (Row_si *)mem_allocator.align_alloc(sizeof(Row_si));
+#else
+    manager = (RowManager<CC_ALG> *)mem_allocator.align_alloc(sizeof(RowManager<CC_ALG>));
 #endif
 
 #if CC_ALG != HSTORE && CC_ALG != HSTORE_SPEC
@@ -265,7 +268,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
     goto end;
-#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI
+#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == DLI_IDENTIFY
     //uint64_t thd_id = txn->get_thd_id();
 // For TIMESTAMP RD, a new copy of the access->data will be returned.
 

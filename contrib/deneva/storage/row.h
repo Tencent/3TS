@@ -61,6 +61,8 @@ class Row_si;
 class Row_null;
 class Row_silo;
 class Row_dli_base;
+class Row_prece;
+template <int ALG> class RowManager;
 
 class row_t {
 public:
@@ -143,6 +145,8 @@ public:
     Row_dli_base *manager;
     #elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
     Row_si *manager;
+    #else
+    RowManager<CC_ALG> *manager;
     #endif
     char * data;
     int tuple_size;

@@ -5,9 +5,12 @@
 #include <vector>
 #include <mutex>
 
-#include "../system/txn.h"
+#include "storage/row.h"
+#include "system/global.h"
 
 class TxnManager;
+class row_t;
+
 struct SIEntry {
     SIEntry(row_t* const row, const ts_t w_ts, const ts_t commit_ts)
             : row(row), w_ts(w_ts), commit_ts(commit_ts) {}

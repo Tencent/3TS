@@ -28,7 +28,7 @@
 #define CREATOR_USE_T false
 
 //TraversalActionSequenceCreator
-#define TRANS_CNT 2
+#define TRANS_CNT 4
 #define ITEM_CNT 4
 #define SUBTASK_NUM 1
 #define SUBTASK_ID 0
@@ -152,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG DLI_OCC
+#define CC_ALG SSI
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.
@@ -399,6 +399,7 @@ enum PPSTxnType {
 
 #define SILO 27
 #define CNULL 28
+#define DLI_IDENTIFY 29
 // TIMESTAMP allocation method.
 #define TS_MUTEX          1
 #define TS_CAS            2

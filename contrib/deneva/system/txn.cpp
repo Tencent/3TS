@@ -36,6 +36,7 @@
 #include "row_occ.h"
 #include "dli.h"
 #include "dta.h"
+#include "dli_identify.h"
 #include "table.h"
 #include "catalog.h"
 #include "index_btree.h"
@@ -373,6 +374,10 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     history_dli_txn_head = dli_man.validated_txns_.load();
 #endif
 
+#if CC_ALG == DLI_IDENTIFY
+    dli_identify_man_.init(get_txn_id());
+#endif
+
     registed_ = false;
     txn_ready = true;
     twopl_wait_start = 0;
@@ -408,6 +413,10 @@ void TxnManager::reset() {
     phase = CALVIN_RW_ANALYSIS;
     locking_done = false;
     calvin_locked_rows.clear();
+#endif
+
+#if CC_ALG == DLI_IDENTIFY
+    dli_identify_man_.reset();
 #endif
 
     assert(txn);
@@ -737,7 +746,7 @@ void TxnManager::register_thread(Thread * h_thd) {
 
 void TxnManager::set_txn_id(txnid_t txn_id) { txn->txn_id = txn_id; }
 
-txnid_t TxnManager::get_txn_id() { return txn->txn_id; }
+txnid_t TxnManager::get_txn_id() const { return txn->txn_id; }
 
 Workload *TxnManager::get_wl() { return h_wl; }
 
@@ -883,6 +892,9 @@ void TxnManager::cleanup(RC rc) {
 #endif
 #if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC_BASE) && MODE == NORMAL_MODE
     dli_man.finish_trans(rc, this);
+#endif
+#if CC_ALG == DLI_IDENTIFY && MODE == NORMAL_MODE
+    alg_man<DLI_IDENTIFY>.finish(rc, this);
 #endif
     ts_t starttime = get_sys_clock();
     uint64_t row_cnt = txn->accesses.get_count();
@@ -1145,6 +1157,8 @@ RC TxnManager::validate() {
         if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
             rc = dta_man.find_bound(this);
         }
+    } else if (CC_ALG == DLI_IDENTIFY) {
+        rc = alg_man<DLI_IDENTIFY>.validate(this);
     }
 #if CC_ALG == SILO
     else if (CC_ALG == SILO) {

@@ -34,9 +34,7 @@ class Row_dli_base {
   };
   void init(row_t* row);
   RC access(TxnManager* txn, TsType type, uint64_t& version);
-  void latch();
   uint64_t write(row_t* data, TxnManager* txn, const access_t type);
-  void release();
   bool has_version(uint64_t version) const { return version < _rw_transs->size(); }
   Entry* get_version(uint64_t version) {
     assert(has_version(version));

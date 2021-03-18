@@ -5,8 +5,8 @@
 
 #include "hash.h"
 
-int hash_any(register const unsigned char *k, register int keylen) {
-    register uint32_t a, b, c, len;
+int hash_any(const unsigned char *k, int keylen) {
+    uint32_t a, b, c, len;
 
     /* Set up the internal state */
     len = keylen;
@@ -15,7 +15,7 @@ int hash_any(register const unsigned char *k, register int keylen) {
     /* If the source pointer is word-aligned, we use word-wide fetches */
     if (((uintptr_t)k & UINT32_ALIGN_MASK) == 0) {
         /* Code path for aligned source data */
-        register const uint32_t *ka = (const uint32_t *)k;
+        const uint32_t *ka = (const uint32_t *)k;
 
         /* handle most of the key */
         while (len >= 12) {
