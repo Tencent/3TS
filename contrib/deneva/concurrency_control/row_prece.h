@@ -156,6 +156,8 @@ class PreceInfo {
     const uint64_t to_ver_id_;
 };
 
+AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces);
+
 // A TxnNode can be released only when no more transactions build precedence before it. In this case, the
 // transaction cannot be a part of cycle anymore.
 //
@@ -173,6 +175,7 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
   public:
     TxnNode() : txn_id_() {}
 
+    // we use ver_id but not the count of operation to support snapshot read
     template <PreceType TYPE>
     void AddToTxn(const uint64_t to_txn_id, std::shared_ptr<TxnNode> to_txn_node, const uint64_t row_id,
             const uint64_t from_ver_id, const uint64_t to_ver_id) {

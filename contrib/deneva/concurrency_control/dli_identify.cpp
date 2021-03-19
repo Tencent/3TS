@@ -67,8 +67,13 @@ void AlgManager<DLI_IDENTIFY>::update_path_matrix_(std::vector<std::vector<Path>
     const uint64_t txn_num = matrix.size();
     for (uint64_t mid = 0; mid < txn_num; ++mid) {
         for (uint64_t start = 0; start < txn_num; ++start) {
+            if (start == mid) {
+                continue;
+            }
             for (uint64_t end = 0; end < txn_num; ++end) {
-                update_path(matrix[start][end], matrix[start][mid] + matrix[mid][end]);
+                if (end != mid && start != end) {
+                    update_path(matrix[start][end], matrix[start][mid] + matrix[mid][end]);
+                }
             }
         }
     }
@@ -81,10 +86,13 @@ Path AlgManager<DLI_IDENTIFY>::min_cycle_(std::vector<std::vector<Path>>& matrix
         if (start == this_idx) {
             continue;
         }
+        // We should try different order because the path may be impassable when order is wrong.
         update_path(min_cycle, matrix[start][this_idx] + matrix[this_idx][start]);
+        update_path(min_cycle, matrix[this_idx][start] + matrix[start][this_idx]);
         assert(!min_cycle.passable() || min_cycle.is_cycle());
         for (uint64_t end = 0; end < txn_num; ++end) {
             if (end != this_idx && start != end) {
+                // Here try once is ok because start and end will exchange later.
                 update_path(min_cycle, matrix[start][end] + matrix[end][this_idx] + matrix[this_idx][start]);
                 assert(!min_cycle.passable() || min_cycle.is_cycle());
             }
@@ -136,7 +144,7 @@ void AlgManager<DLI_IDENTIFY>::finish(RC rc, TxnManager* txn)
     }
     if (const std::unique_ptr<Path>& cycle = txn->dli_identify_man_.cycle()) {
 #if WORKLOAD == DA
-        g_da_cycle_info = cycle->to_string();
+        g_da_cycle_info = std::string(ToString(IdentifyAnomaly(cycle->preces()))) + " == " + cycle->to_string();
 #endif
         txn->dli_identify_man_.node()->abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
     } else {

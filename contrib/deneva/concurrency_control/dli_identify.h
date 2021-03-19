@@ -62,22 +62,26 @@ class Path {
         const uint64_t new_to_ver_id = append_front.to_ver_id();
         const OperationType new_from_op_type = current_back.from_op_type();
         const OperationType new_to_op_type = append_front.to_op_type();
-        if (current_back.row_id() == append_front.row_id() &&
-                current_back.from_txn_id() != append_front.to_txn_id() &&
-                (new_from_op_type != OperationType::R || new_to_op_type != OperationType::R)) {
+        bool merged = false;
+        if (current_back.row_id() == append_front.row_id()) {
             if (new_from_ver_id >= new_to_ver_id) {
                 // it breaks the operation order on the same row
                 preces_.clear();
                 return *this;
             }
             // merge two precedence on the same row
-            preces_.pop_back();
-            const auto new_prece_type = MergeOperationType(new_from_op_type, new_to_op_type);
-            preces_.emplace_back(current_back.from_txn_id(), append_front.to_txn(), new_prece_type,
-                current_back.row_id(), new_from_ver_id, new_to_ver_id);
-            // the first precedence in p.prece has already merged
-            cat_preces(std::next(p.preces_.begin()));
-        } else {
+            if (current_back.from_txn_id() != append_front.to_txn_id() &&
+                    (new_from_op_type != OperationType::R || new_to_op_type != OperationType::R)) {
+                preces_.pop_back();
+                const auto new_prece_type = MergeOperationType(new_from_op_type, new_to_op_type);
+                preces_.emplace_back(current_back.from_txn_id(), append_front.to_txn(), new_prece_type,
+                    current_back.row_id(), new_from_ver_id, new_to_ver_id);
+                // the first precedence in p.prece has already merged
+                cat_preces(std::next(p.preces_.begin()));
+                merged = true;
+            }
+        }
+        if (!merged) {
             cat_preces(p.preces_.begin());
         }
 #else
@@ -134,6 +138,7 @@ class AlgManager<DLI_IDENTIFY>
 #if WORKLOAD == DA
     void check_concurrency_txn_empty() {
         refresh_and_lock_txns_();
+        // assert failed here means there is actually a cycle but we miss it
         assert(txns_.empty());
     }
 #endif
