@@ -25,6 +25,7 @@ public:
     void * align_alloc(uint64_t size);
     void * realloc(void * ptr, uint64_t size);
     void free(void * block, uint64_t size);
+    void free(void * block);
 };
 
 #endif

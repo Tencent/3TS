@@ -100,11 +100,12 @@ void row_t::init_manager(row_t * row) {
     manager = (Row_dli_base *)mem_allocator.align_alloc(sizeof(Row_dli_base));
 #elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
     manager = (Row_si *)mem_allocator.align_alloc(sizeof(Row_si));
-#else
-    manager = (RowManager<CC_ALG> *)mem_allocator.align_alloc(sizeof(RowManager<CC_ALG>));
+#elif IS_GENERIC_ALG
+    void* const p = mem_allocator.align_alloc(sizeof(RowManager<CC_ALG>));
+    manager = new(p) RowManager<CC_ALG>();
 #endif
 
-#if CC_ALG != HSTORE && CC_ALG != HSTORE_SPEC
+#if CC_ALG != HSTORE && CC_ALG != HSTORE_SPEC && IS_GENERIC_ALG
     manager->init(this);
 #endif
 }
@@ -268,7 +269,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
     goto end;
-#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == DLI_IDENTIFY
+#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI
     //uint64_t thd_id = txn->get_thd_id();
 // For TIMESTAMP RD, a new copy of the access->data will be returned.
 
@@ -307,6 +308,24 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         newr->init(this->get_table(), get_part_id());
         newr->copy(access->data);
         access->data = newr;
+    }
+    goto end;
+#elif IS_GENERIC_ALG
+    txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
+    txn->cur_row->init(get_table(), this->get_part_id());
+    if (type == WR) {
+        rc = this->manager->prewrite(*txn->cur_row, *txn);
+    } else if (type == RD || type == SCAN) {
+        rc = this->manager->read(*txn->cur_row, *txn);
+    } else {
+        assert(false);
+    }
+    if (rc == RCOK) {
+        access->data = txn->cur_row;
+        assert(access->data->get_data() != NULL);
+        assert(access->data->get_table() != NULL);
+        assert(access->data->get_schema() == this->get_schema());
+        assert(access->data->get_table_name() != NULL);
     }
     goto end;
 #elif CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC
@@ -553,7 +572,25 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     DEBUG_M("row_t::return_row XP free \n");
     mem_allocator.free(row, sizeof(row_t));
     return 0;
+#elif IS_GENERIC_ALG
+    assert (row != NULL);
+    if (type == RD || type == SCAN) {
+        // We have copy the ver_row when get_row with R_REQ to prevent ver_row released.
+        // To prevent memory leak, we need release the duplication here.
+        row->free_row();
+        DEBUG_M("row_t::return_row GENERIC_ALG %d free \n", CC_ALG);
+        mem_allocator.free(row, sizeof(row_t));
+    } else if (type == XP) {
+        // ver_row should be released in row manager
+        manager->revoke(*row, *txn);
+    } else if (type == WR) {
+        assert(row != NULL);
+        assert(row->get_schema() == this->get_schema());
+        manager->write(*row, *txn);
+    }
+    return 0;
 #else
     assert(false);
 #endif
 }
+

@@ -143,32 +143,43 @@ template <int ALG> class AlgTxnManager;
 
 struct TxnNode;
 struct Path;
+class VersionInfo;
 template <> class AlgTxnManager<DLI_IDENTIFY>
 {
   public:
-    void init(const uint64_t txn_id)
+    AlgTxnManager() {}
+
+    void init()
     {
-        node_ = std::make_shared<TxnNode>(txn_id);
         l_.release();
+        node_ = std::make_shared<TxnNode>();
+        cycle_ = nullptr;
+        pre_versions_.clear();
     }
 
-    void reset()
+    void release()
     {
+        if (l_.owns_lock()) {
+            l_.unlock();
+        }
         node_ = nullptr;
-        l_.release();
+        cycle_ = nullptr;
+        pre_versions_.clear();
     }
 
     void lock(std::mutex& m) { l_ = std::unique_lock(m); }
+
+    void set_txn_id(const uint64_t txn_id) { node_->set_txn_id(txn_id); }
 
     const std::shared_ptr<TxnNode>& node() const { return node_; }
 
     void set_cycle(Path&& cycle);
     const std::unique_ptr<Path>& cycle() const { return cycle_; }
 
-  private:
     std::unique_lock<std::mutex> l_;
-    std::shared_ptr<TxnNode> node_;
+    std::shared_ptr<TxnNode> node_; // release condition (1) for TxnNode
     std::unique_ptr<Path> cycle_;
+    std::unordered_map<row_t*, std::shared_ptr<VersionInfo>> pre_versions_; // record for revoke
 };
 
 /*

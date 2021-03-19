@@ -375,7 +375,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
 #endif
 
 #if CC_ALG == DLI_IDENTIFY
-    dli_identify_man_.init(get_txn_id());
+    dli_identify_man_.init();
 #endif
 
     registed_ = false;
@@ -415,10 +415,6 @@ void TxnManager::reset() {
     calvin_locked_rows.clear();
 #endif
 
-#if CC_ALG == DLI_IDENTIFY
-    dli_identify_man_.reset();
-#endif
-
     assert(txn);
     assert(query);
     txn->reset(get_thd_id());
@@ -445,11 +441,12 @@ void TxnManager::release() {
 
 #if CC_ALG == CALVIN
     calvin_locked_rows.release();
-#endif
-#if CC_ALG == SILO
+#elif CC_ALG == SILO
     num_locks = 0;
     memset(write_set, 0, 100);
     // mem_allocator.free(write_set, sizeof(int) * 100);
+#elif CC_ALG == DLI_IDENTIFY
+    dli_identify_man_.release();
 #endif
     txn_ready = true;
 }
@@ -744,7 +741,12 @@ void TxnManager::register_thread(Thread * h_thd) {
 #endif
 }
 
-void TxnManager::set_txn_id(txnid_t txn_id) { txn->txn_id = txn_id; }
+void TxnManager::set_txn_id(txnid_t txn_id) {
+    txn->txn_id = txn_id;
+#if CC_ALG == DLI_IDENTIFY
+    dli_identify_man_.node()->set_txn_id(txn_id);
+#endif
+}
 
 txnid_t TxnManager::get_txn_id() const { return txn->txn_id; }
 
@@ -893,8 +895,8 @@ void TxnManager::cleanup(RC rc) {
 #if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC_BASE) && MODE == NORMAL_MODE
     dli_man.finish_trans(rc, this);
 #endif
-#if CC_ALG == DLI_IDENTIFY && MODE == NORMAL_MODE
-    alg_man<DLI_IDENTIFY>.finish(rc, this);
+#if IS_GENERIC_ALG && MODE == NORMAL_MODE
+    alg_man<CC_ALG>.finish(rc, this);
 #endif
     ts_t starttime = get_sys_clock();
     uint64_t row_cnt = txn->accesses.get_count();
@@ -1157,8 +1159,8 @@ RC TxnManager::validate() {
         if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
             rc = dta_man.find_bound(this);
         }
-    } else if (CC_ALG == DLI_IDENTIFY) {
-        rc = alg_man<DLI_IDENTIFY>.validate(this);
+    } else if (IS_GENERIC_ALG) {
+        rc = alg_man<CC_ALG>.validate(this);
     }
 #if CC_ALG == SILO
     else if (CC_ALG == SILO) {

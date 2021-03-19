@@ -106,11 +106,11 @@ set<uint64_t> already_abort_tab;
 #if WORKLOAD == DA
 std::string DA_history_mem;
 std::vector<Message*> DA_delayed_operations;
-#endif
-
 bool abort_history;
 ofstream commit_file;
 ofstream abort_file;
+std::string g_da_cycle_info;
+#endif
 
 bool volatile warmup_done = false;
 bool volatile enable_thread_mem_pool = false;
@@ -253,3 +253,4 @@ UInt32 g_repl_type = REPL_TYPE;
 UInt32 g_repl_cnt = REPLICA_CNT;
 
 map<string, string> g_params;
+

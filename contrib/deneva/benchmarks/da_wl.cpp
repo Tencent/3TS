@@ -64,8 +64,8 @@ RC DAWorkload::init_table() {
 
 void DAWorkload::init_tab_DAtab() {
   row_t *row;
-  uint64_t row_id;
   for (int64_t i = 0; i < ITEM_CNT; i++) {
+    uint64_t row_id = i;
     t_datab->get_new_row(row, 0, row_id);
     row->set_value(ID, i);
     row->set_value(VALUE, (int64_t)0);

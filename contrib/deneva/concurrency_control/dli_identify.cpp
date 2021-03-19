@@ -3,32 +3,39 @@
 #include "system/txn.h"
 
 static Path dirty_path(const PreceInfo& rw_prece, TxnNode& txn_to_finish, const PreceType type) {
-    PreceInfo dirty_prece(rw_prece.to_txn_id(), txn_to_finish.shared_from_this(), type, rw_prece.row_id());
+    PreceInfo dirty_prece(rw_prece.to_txn_id(), txn_to_finish.shared_from_this(), type, rw_prece.row_id(),
+            rw_prece.to_ver_id(), UINT64_MAX);
     return Path(std::vector<PreceInfo>{rw_prece, std::move(dirty_prece)});
 }
 
 template <>
 Path AlgManager<DLI_IDENTIFY>::dirty_cycle_<true>(TxnNode& txn_to_finish) const {
     std::lock_guard<std::mutex> l(txn_to_finish.mutex());
-    for (const auto& [_, rw_prece] : txn_to_finish.UnsafeGetToTxns()) {
-        if (rw_prece.type() == PreceType::WW) {
-            return dirty_path(rw_prece, txn_to_finish, PreceType::WC);
-        }
+    const auto& prece = txn_to_finish.UnsafeGetDirtyToTxn();
+    if (!prece.has_value()) {
+        return {};
+    } else if (prece->type() == PreceType::WW) {
+        return dirty_path(*prece, txn_to_finish, PreceType::WC);
+    } else {
+        assert(prece->type() == PreceType::WR);
+        return {};
     }
-    return {};
 }
 
 template <>
 Path AlgManager<DLI_IDENTIFY>::dirty_cycle_<false>(TxnNode& txn_to_finish) const {
     std::lock_guard<std::mutex> l(txn_to_finish.mutex());
-    for (const auto& [_, rw_prece] : txn_to_finish.UnsafeGetToTxns()) {
-        if (rw_prece.type() == PreceType::WW) {
-            return dirty_path(rw_prece, txn_to_finish, PreceType::WA);
-        } else if (rw_prece.type() == PreceType::WR) {
-            return dirty_path(rw_prece, txn_to_finish, PreceType::RA);
-        }
+    const auto& prece = txn_to_finish.UnsafeGetDirtyToTxn();
+    if (!prece.has_value()) {
+        return {};
+    } else if (prece->type() == PreceType::WW) {
+        return dirty_path(*prece, txn_to_finish, PreceType::WA);
+    } else if (prece->type() == PreceType::WR) {
+        return dirty_path(*prece, txn_to_finish, PreceType::RA);
+    } else {
+        assert(false);
+        return {};
     }
-    return {};
 }
 
 std::vector<std::vector<Path>> AlgManager<DLI_IDENTIFY>::init_path_matrix_(
@@ -89,11 +96,12 @@ void AlgManager<DLI_IDENTIFY>::init() {}
 
 RC AlgManager<DLI_IDENTIFY>::validate(TxnManager* txn)
 {
-    txn->dli_identify_man_.lock(m_); // release after build WC, WA or RA precedence
-
-    txns_.emplace_back(txn->dli_identify_man_.node());
-
-    const auto concurrent_txns = refresh_and_lock_txns_();
+    //txn->dli_identify_man_.lock(m_); // release after build WC, WA or RA precedence
+    const auto concurrent_txns = [this, txn] {
+        std::lock_guard<std::mutex> l(m_);
+        txns_.emplace_back(txn->dli_identify_man_.node());
+        return refresh_and_lock_txns_();
+    }();
     const auto txn_num = concurrent_txns.size();
     const auto this_idx = txn_num - 1; // this txn node is just emplaced to the end of txns_
 
@@ -107,7 +115,7 @@ RC AlgManager<DLI_IDENTIFY>::validate(TxnManager* txn)
     }
 
     if (!cycle.passable()) {
-        return Commit;
+        return RCOK;
     } else {
         txn->dli_identify_man_.set_cycle(std::move(cycle));
         return Abort;
@@ -116,7 +124,7 @@ RC AlgManager<DLI_IDENTIFY>::validate(TxnManager* txn)
 
 void AlgManager<DLI_IDENTIFY>::finish(RC rc, TxnManager* txn)
 {
-    if (rc == Commit) {
+    if (rc == RCOK) {
         txn->dli_identify_man_.node()->commit();
         return;
     }
@@ -124,9 +132,14 @@ void AlgManager<DLI_IDENTIFY>::finish(RC rc, TxnManager* txn)
     if (!txn->dli_identify_man_.cycle()) {
         // we can only identify the dirty write/read anomaly rather than avoiding it
         Path cycle = dirty_cycle_<false /*is_commit*/>(*txn->dli_identify_man_.node());
-        txn->dli_identify_man_.node()->abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
+        txn->dli_identify_man_.set_cycle(std::move(cycle));
     }
-    if (const std::unique_ptr<Path>& cycle = txn->dli_identify_man_.cycle(); !cycle) {
+    if (const std::unique_ptr<Path>& cycle = txn->dli_identify_man_.cycle()) {
+#if WORKLOAD == DA
+        g_da_cycle_info = cycle->to_string();
+#endif
+        txn->dli_identify_man_.node()->abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
+    } else {
         txn->dli_identify_man_.node()->abort(false /*clear_to_txns*/);
     }
 }

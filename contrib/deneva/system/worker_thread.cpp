@@ -859,7 +859,15 @@ RC WorkerThread::process_rtxn(Message * msg) {
             output_file << "[ERROR] remain delayed operations: ";
             DA_delayed_operations.clear();
         }
+#if WORKLOAD == DA
+        output_file << DA_history_mem << " | " << g_da_cycle_info << endl;
+        g_da_cycle_info.clear();
+#if CC_ALG == DLI_IDENTIFY
+        alg_man<DLI_IDENTIFY>.check_concurrency_txn_empty();
+#endif
+#else
         output_file << DA_history_mem << endl;
+#endif
         string().swap(DA_history_mem);
         abort_history = false;
         da_start_stamp_tab.clear();

@@ -33,6 +33,17 @@ void mem_alloc::free(void * ptr, uint64_t size) {
 #endif
 }
 
+void mem_alloc::free(void * ptr) {
+    if (NO_FREE) {
+    }
+    DEBUG_M("free 0x%lx\n", (uint64_t)ptr);
+#ifdef N_MALLOC
+    std::free(ptr);
+#else
+    je_free(ptr);
+#endif
+}
+
 void * mem_alloc::alloc(uint64_t size) {
     void * ptr;
 

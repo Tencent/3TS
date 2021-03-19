@@ -152,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG SSI
+#define CC_ALG DLI_IDENTIFY
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.
@@ -400,6 +400,9 @@ enum PPSTxnType {
 #define SILO 27
 #define CNULL 28
 #define DLI_IDENTIFY 29
+
+#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY)
+
 // TIMESTAMP allocation method.
 #define TS_MUTEX          1
 #define TS_CAS            2

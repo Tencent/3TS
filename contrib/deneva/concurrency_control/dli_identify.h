@@ -42,21 +42,53 @@ class Path {
 #endif
     }
 
-    Path operator+(const Path& p) const {
+    Path& operator+=(const Path& p) {
         if (!passable() || !p.passable()) {
-            return {};
+            preces_.clear();
+            return *this;
         }
 #if CYCLE_ORDER
-        assert(preces_.back().to_txn_id() == p.preces_.front().from_txn_id());
-        std::vector<PreceInfo> preces = preces_;
-        for (const auto& prece : p.preces_) {
-            preces.emplace_back(prece);
+        const auto& current_back = preces_.back();
+        const auto& append_front = p.preces_.front();
+        assert(current_back.to_txn_id() == append_front.from_txn_id());
+
+        const auto cat_preces = [&](auto&& begin) {
+            for (auto it = begin; it != p.preces_.end(); ++it) {
+                preces_.emplace_back(*it);
+            }
+        };
+
+        const uint64_t new_from_ver_id = current_back.from_ver_id();
+        const uint64_t new_to_ver_id = append_front.to_ver_id();
+        const OperationType new_from_op_type = current_back.from_op_type();
+        const OperationType new_to_op_type = append_front.to_op_type();
+        if (current_back.row_id() == append_front.row_id() &&
+                current_back.from_txn_id() != append_front.to_txn_id() &&
+                (new_from_op_type != OperationType::R || new_to_op_type != OperationType::R)) {
+            if (new_from_ver_id >= new_to_ver_id) {
+                // it breaks the operation order on the same row
+                preces_.clear();
+                return *this;
+            }
+            // merge two precedence on the same row
+            preces_.pop_back();
+            const auto new_prece_type = MergeOperationType(new_from_op_type, new_to_op_type);
+            preces_.emplace_back(current_back.from_txn_id(), append_front.to_txn(), new_prece_type,
+                current_back.row_id(), new_from_ver_id, new_to_ver_id);
+            // the first precedence in p.prece has already merged
+            cat_preces(std::next(p.preces_.begin()));
+        } else {
+            cat_preces(p.preces_.begin());
         }
 #else
         std::vector<PreceInfo> preces;
         std::merge(preces_.begin(), preces_.end(), p.preces_.begin(), p.preces_.end(), std::back_inserter(preces), std::greater<PreceInfo>());
 #endif
-        return preces;
+        return *this;
+    }
+
+    Path operator+(const Path& p) const {
+        return Path(*this) += p;
     }
 
     friend std::ostream& operator<<(std::ostream& os, const Path& path) {
@@ -66,6 +98,12 @@ class Path {
             std::copy(path.preces_.begin(), path.preces_.end(), std::ostream_iterator<PreceInfo>(os, ", "));
         }
         return os;
+    }
+
+    std::string to_string() const {
+        std::stringstream ss;
+        ss << *this;
+        return ss.str();
     }
 
     bool passable() const { return !preces_.empty(); }
@@ -93,6 +131,12 @@ class AlgManager<DLI_IDENTIFY>
     void init();
     RC validate(TxnManager* txn);
     void finish(RC rc, TxnManager* txn);
+#if WORKLOAD == DA
+    void check_concurrency_txn_empty() {
+        refresh_and_lock_txns_();
+        assert(txns_.empty());
+    }
+#endif
 
   private:
     std::vector<std::shared_ptr<TxnNode>> refresh_and_lock_txns_();

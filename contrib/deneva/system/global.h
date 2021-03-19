@@ -98,6 +98,8 @@ class RtsCache;
 class TcpTimestamp;
 class Message;
 
+class Path;
+
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
 typedef uint64_t UInt64;
@@ -273,10 +275,11 @@ extern set<uint64_t> already_abort_tab;
 #if WORKLOAD == DA
 extern std::string DA_history_mem;
 extern std::vector<Message*> DA_delayed_operations;
-#endif
 extern bool abort_history;
 extern ofstream commit_file;
 extern ofstream abort_file;
+extern std::string g_da_cycle_info;
+#endif
 // CALVIN
 extern UInt32 g_seq_thread_cnt;
 
