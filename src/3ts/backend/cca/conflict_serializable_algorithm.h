@@ -341,6 +341,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       print_percent(count, anomaly_count);
       std::cout << std::endl;
     }
+    std::cout << "=== DLI_IDENTIFY END ===" << std::endl;
   }
 
   virtual bool Check(const History& history, std::ostream* const os) const override {

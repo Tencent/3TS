@@ -349,6 +349,7 @@ static void print_anomaly_type_rates() {
       print_percent(count, anomaly_count);
       std::cout << std::endl;
     }
+    std::cout << "=== DLI_IDENTIFY END ===" << std::endl;
 }
 #endif
 
@@ -896,20 +897,19 @@ RC WorkerThread::process_rtxn(Message * msg) {
             output_file << "[ERROR] remain delayed operations: ";
             DA_delayed_operations.clear();
         }
-#if WORKLOAD == DA
+#if CC_ALG == DLI_IDENTIFY
         if (g_da_cycle.has_value()) {
             const auto anomaly_type = IdentifyAnomaly(g_da_cycle->preces());
-            output_file << DA_history_mem << " |  " << anomaly_type << "  |  " << *g_da_cycle << endl;
+            output_file << DA_history_mem << " |  " << anomaly_type << "  |  " << *g_da_cycle << std::endl;
             ++(g_anomaly_counts.at(static_cast<uint32_t>(anomaly_type)));
             g_da_cycle.reset();
         } else {
+            output_file << DA_history_mem << std::endl;
             ++g_no_anomaly_count;
         }
-#if CC_ALG == DLI_IDENTIFY
         alg_man<DLI_IDENTIFY>.check_concurrency_txn_empty();
-#endif
 #else
-        output_file << DA_history_mem << endl;
+        output_file << DA_history_mem << std::endl;
 #endif
         string().swap(DA_history_mem);
         abort_history = false;
