@@ -1,5 +1,5 @@
 CC=/usr/local/bin/gcc10/bin/g++
-CFLAGS=-Wall -Werror -std=c++17 -g3 -ggdb -O0 -fno-strict-aliasing -fno-omit-frame-pointer -D_GLIBCXX_USE_CXX11_ABI=0 -static-libasan -fsanitize=address
+CFLAGS=-Wall -Werror -std=c++17 -static-libstdc++ -g3 -ggdb -O0 -fno-strict-aliasing -fno-omit-frame-pointer -D_GLIBCXX_USE_CXX11_ABI=0 -static-libasan -fsanitize=address
 #CFLAGS += -fsanitize=address -fno-stack-protector -fno-omit-frame-pointer
 NNMSG=./nanomsg-0.5-beta
 

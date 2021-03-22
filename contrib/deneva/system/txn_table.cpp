@@ -144,6 +144,10 @@ TxnManager * TxnTable::get_transaction_manager(uint64_t thd_id, uint64_t txn_id,
     return txn_man;
 }
 
+#if WORKLOAD == DA
+extern std::vector<Message*> DA_delayed_operations;
+#endif
+
 void TxnTable::restart_txn(uint64_t thd_id, uint64_t txn_id,uint64_t batch_id){
     uint64_t pool_id = txn_id % pool_size;
     // set modify bit for this pool: txn_id % pool_size

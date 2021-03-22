@@ -50,6 +50,11 @@
 #include "dta.h"
 #include "da.h"
 
+#if CC_ALG == DLI_IDENTIFY && WORKLOAD == DA
+static std::array<std::atomic<uint64_t>, Count<AnomalyType>()> g_anomaly_counts = {0};
+static uint64_t g_no_anomaly_count = 0;
+#endif
+
 void WorkerThread::setup() {
     if( get_thd_id() == 0) {
         send_init_done_to_all_nodes();
@@ -318,6 +323,35 @@ char type2char(DATxnType txn_type)
     }
 }
 
+#if CC_ALG == DLI_IDENTIFY && WORKLOAD == DA
+static void print_anomaly_type_rates() {
+    std::cout.setf(std::ios::right);
+    std::cout.precision(4);
+
+    static auto print_percent = [](auto&& value, auto&& total) {
+      std::cout << std::setw(10) << static_cast<double>(value) / total * 100 << "% = " << std::setw(5) << value << " / " << std::setw(5) << total;
+    };
+
+    const auto anomaly_count = std::accumulate(g_anomaly_counts.begin(), g_anomaly_counts.end(), 0);
+    std::cout << "=== DLI_IDENTIFY ===" << std::endl;
+
+    std::cout << std::setw(40) << "True Rollback: ";
+    print_percent(anomaly_count, anomaly_count + g_no_anomaly_count);
+    std::cout << std::endl;
+
+    std::vector<std::pair<AnomalyType, uint32_t>> sorted_g_anomaly_counts;
+    for (const auto anomaly : Members<AnomalyType>()) {
+      sorted_g_anomaly_counts.emplace_back(anomaly, g_anomaly_counts.at(static_cast<uint32_t>(anomaly)));
+    }
+    std::sort(sorted_g_anomaly_counts.begin(), sorted_g_anomaly_counts.end(), [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
+    for (const auto& [anomaly, count] : sorted_g_anomaly_counts) {
+      std::cout << std::setw(40) << (std::string("[") + ToString(anomaly) + "] ");
+      print_percent(count, anomaly_count);
+      std::cout << std::endl;
+    }
+}
+#endif
+
 RC WorkerThread::run() {
     tsetup();
     printf("Running WorkerThread %ld\n",_thd_id);
@@ -436,6 +470,9 @@ RC WorkerThread::run() {
 #endif
         INC_STATS(get_thd_id(),worker_release_msg_time,get_sys_clock() - ready_starttime);
     }
+#if CC_ALG == DLI_IDENTIFY && WORKLOAD == DA
+    print_anomaly_type_rates();
+#endif
     printf("FINISH %ld:%ld\n",_node_id,_thd_id);
     fflush(stdout);
     return FINISH;
@@ -860,8 +897,14 @@ RC WorkerThread::process_rtxn(Message * msg) {
             DA_delayed_operations.clear();
         }
 #if WORKLOAD == DA
-        output_file << DA_history_mem << " | " << g_da_cycle_info << endl;
-        g_da_cycle_info.clear();
+        if (g_da_cycle.has_value()) {
+            const auto anomaly_type = IdentifyAnomaly(g_da_cycle->preces());
+            output_file << DA_history_mem << " |  " << anomaly_type << "  |  " << *g_da_cycle << endl;
+            ++(g_anomaly_counts.at(static_cast<uint32_t>(anomaly_type)));
+            g_da_cycle.reset();
+        } else {
+            ++g_no_anomaly_count;
+        }
 #if CC_ALG == DLI_IDENTIFY
         alg_man<DLI_IDENTIFY>.check_concurrency_txn_empty();
 #endif

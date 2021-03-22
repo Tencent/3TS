@@ -272,14 +272,6 @@ extern map<uint64_t, ts_t> da_start_stamp_tab;
 extern set<uint64_t> da_start_trans_tab;
 extern map<uint64_t, ts_t> da_stamp_tab;
 extern set<uint64_t> already_abort_tab;
-#if WORKLOAD == DA
-extern std::string DA_history_mem;
-extern std::vector<Message*> DA_delayed_operations;
-extern bool abort_history;
-extern ofstream commit_file;
-extern ofstream abort_file;
-extern std::string g_da_cycle_info;
-#endif
 // CALVIN
 extern UInt32 g_seq_thread_cnt;
 

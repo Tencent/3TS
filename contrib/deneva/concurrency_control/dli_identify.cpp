@@ -2,6 +2,10 @@
 #include "concurrency_control/row_prece.h"
 #include "system/txn.h"
 
+#if WORKLOAD == DA
+extern std::optional<Path> g_da_cycle;
+#endif
+
 static Path dirty_path(const PreceInfo& rw_prece, TxnNode& txn_to_finish, const PreceType type) {
     PreceInfo dirty_prece(rw_prece.to_txn_id(), txn_to_finish.shared_from_this(), type, rw_prece.row_id(),
             rw_prece.to_ver_id(), UINT64_MAX);
@@ -144,7 +148,10 @@ void AlgManager<DLI_IDENTIFY>::finish(RC rc, TxnManager* txn)
     }
     if (const std::unique_ptr<Path>& cycle = txn->dli_identify_man_.cycle()) {
 #if WORKLOAD == DA
-        g_da_cycle_info = std::string(ToString(IdentifyAnomaly(cycle->preces()))) + " == " + cycle->to_string();
+        if (!g_da_cycle.has_value()) {
+            //g_da_cycle = std::string(ToString(IdentifyAnomaly(cycle->preces()))) + " == " + cycle->to_string();
+            g_da_cycle.emplace(*cycle);
+        }
 #endif
         txn->dli_identify_man_.node()->abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
     } else {

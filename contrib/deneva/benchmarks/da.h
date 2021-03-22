@@ -7,6 +7,7 @@
 #include "wl.h"
 #include "creator.h"
 #include "da_query.h"
+#include <optional>
 
 class DAQuery;
 class DAQueryMessage;
@@ -15,6 +16,13 @@ struct Item_no;
 class table_t;
 class INDEX;
 class DAQuery;
+
+extern std::string DA_history_mem;
+extern std::vector<Message*> DA_delayed_operations;
+extern bool abort_history;
+extern ofstream commit_file;
+extern ofstream abort_file;
+extern std::optional<Path> g_da_cycle;
 
 class DAWorkload : public Workload {
   public:

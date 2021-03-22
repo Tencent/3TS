@@ -103,15 +103,6 @@ set<uint64_t> da_start_trans_tab;
 map<uint64_t, ts_t> da_stamp_tab;
 set<uint64_t> already_abort_tab;
 
-#if WORKLOAD == DA
-std::string DA_history_mem;
-std::vector<Message*> DA_delayed_operations;
-bool abort_history;
-ofstream commit_file;
-ofstream abort_file;
-std::string g_da_cycle_info;
-#endif
-
 bool volatile warmup_done = false;
 bool volatile enable_thread_mem_pool = false;
 pthread_barrier_t warmup_bar;
