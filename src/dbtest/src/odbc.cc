@@ -2,6 +2,18 @@
 #include <sql.h>
 #include <sqlext.h>
 #include <sqltypes.h>
+
+void ErrInfoWithStmt(std::string handle_type, SQLHANDLE& handle, SQLCHAR ErrInfo[], SQLCHAR SQLState[]) {
+    SQLINTEGER NativeErrorPtr = 0;
+    SQLSMALLINT TextLengthPtr = 0;
+    if ("stmt" == handle_type) {
+        SQLGetDiagRec(SQL_HANDLE_STMT, handle, 1, SQLState, &NativeErrorPtr, ErrInfo, 256, &TextLengthPtr);
+    }
+    if ("dbc" == handle_type) {
+        SQLGetDiagRec(SQL_HANDLE_DBC, handle, 1, SQLState, &NativeErrorPtr, ErrInfo, 256, &TextLengthPtr);
+    }
+}
+
 void exec_sql() {
     SQLHENV m_hEnviroment;
     SQLHDBC m_hDatabaseConnection;
@@ -20,7 +32,7 @@ void exec_sql() {
         std::cout << "get conn failed" << std::endl;
     }
     ret = SQLConnect( m_hDatabaseConnection
-                            ,(SQLCHAR*)"mysql", SQL_NTS
+                            ,(SQLCHAR*)"mongodb", SQL_NTS
                             ,(SQLCHAR*)"test123", SQL_NTS
                             ,(SQLCHAR*)"Ly.123456", SQL_NTS);
 
@@ -33,15 +45,27 @@ void exec_sql() {
         std::cout << "get stmt failed" << std::endl;
     }
     // execute sql
-    ret = SQLExecDirect(m_hStatement, (SQLCHAR*)"INSERT INTO t1 VALUES (1, 1);", SQL_NTS);
-    ret = SQLExecDirect(m_hStatement, (SQLCHAR*)"SELECT * from t1 WHERE k = 1;", SQL_NTS);
+    //ret = SQLExecDirect(m_hStatement, (SQLCHAR*)"BEGIN TRANSACTION;", SQL_NTS);
+    //std::cout << "BEGIN TRANSACTION;" << std::endl;
+    //ret = SQLExecDirect(m_hStatement, (SQLCHAR*)"update t1 set v=1 where k=1;", SQL_NTS);
+    //std::cout << "update t1 set v=1 where k=1;" << std::endl;
+    //ret = SQLExecDirect(m_hStatement, (SQLCHAR*)"COMMIT TRANSACTION;", SQL_NTS);
+    //std::cout << "COMMIT TRANSACTION;" << std::endl;
+    if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+        std::cout << "success" << std::endl;
+    } else if (ret == SQL_ERROR) {
+        SQLCHAR ErrInfo[256];
+        SQLCHAR SQLState[256];
+        ErrInfoWithStmt("stmt", m_hStatement, ErrInfo, SQLState);
+        std::cerr << "execute sql: 'SELECT * from t1 WHERE k = 1;' failed, reason: " << ErrInfo << " errcode: " << SQLState << std::endl;
+    }
     SQLCHAR k[20]={0}, v[20]={0};
     SQLBindCol(m_hStatement, 1, SQL_C_CHAR, (void*)k, sizeof(k), &length);
     SQLBindCol(m_hStatement, 2, SQL_C_CHAR, (void*)v, sizeof(v), &length);
     // get next row
-    while(SQL_NO_DATA != SQLFetch(m_hStatement)) {
-        std::cout << "k:" << k << "v:" << v << std::endl;
-    }
+    //while(SQL_NO_DATA != SQLFetch(m_hStatement)) {
+    //    std::cout << "k:" << k << "v:" << v << std::endl;
+    //}
     // release
     SQLFreeHandle(SQL_HANDLE_STMT, m_hStatement);
     SQLFreeHandle(SQL_HANDLE_DBC, m_hDatabaseConnection);
