@@ -314,8 +314,9 @@ template <bool IDENTIFY_ANOMALY>
 class ConflictSerializableAlgorithm : public HistoryAlgorithm {
  public:
   ConflictSerializableAlgorithm() : HistoryAlgorithm(IDENTIFY_ANOMALY ? "DLI_IDENTIFY OK" : "Conflict Serializable"), anomaly_counts_{0}, no_anomaly_count_(0) {}
-  virtual ~ConflictSerializableAlgorithm()
-  {
+  virtual ~ConflictSerializableAlgorithm(){}
+
+  void Statistics() const override{
     if (!IDENTIFY_ANOMALY) { return; }
     std::cout.setf(std::ios::right);
     std::cout.precision(4);
@@ -342,6 +343,115 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       std::cout << std::endl;
     }
     std::cout << "=== DLI_IDENTIFY END ===" << std::endl;
+  }
+
+  void PrintOneHisRetInfo() {
+
+    const auto anomaly_count = std::accumulate(anomaly_counts_.begin(), anomaly_counts_.end(), 0);
+
+    std::vector<std::pair<AnomalyType, uint32_t>> sorted_anomaly_counts_;
+    for (const auto anomaly : Members<AnomalyType>()) {
+      sorted_anomaly_counts_.emplace_back(anomaly, anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
+    }
+    std::sort(sorted_anomaly_counts_.begin(), sorted_anomaly_counts_.end(), [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
+    for (const auto& [anomaly, count] : sorted_anomaly_counts_) {
+      if (count != 0) {
+        std::vector<std::string> anomaly_info = AnomalyInfo(ToString(anomaly));
+        std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1] << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3]<< std::endl;
+      }
+    }
+  }
+
+  std::vector<std::string> AnomalyInfo(const std::string& anomaly) {
+    auto index = anomaly.find_first_of("_");
+    std::vector<std::string> anomaly_info;
+    if (index != anomaly.npos) {
+      // get anomaly_type
+      anomaly_info.emplace_back(anomaly.substr(0, index));
+      // get anomaly_subtype
+      std::string anomaly_subtype = "";
+      std::string m = anomaly.substr(index + 1, 1);
+      if ("1" == m) {
+        anomaly_subtype = "SDA";
+      } else if ("2" == m) {
+        anomaly_subtype = "DDA";
+      } else {
+        anomaly_subtype = "MDA";
+      }
+      anomaly_info.emplace_back(anomaly_subtype);
+      // get anomaly_name
+      std::string name = anomaly.substr(index + 3);
+      int is_head = 0;
+      for (int i = 0;i < name.size();i++) {
+        if (i == 0) {
+          continue;
+        }
+        if (name[i] == '_') {
+          name[i] = 32;
+          is_head = 1;
+          continue;
+        }
+        if (is_head == 1) {
+          is_head = 0;
+          continue;
+        }
+        if (name[i] >= 'A' && name[i] <= 'Z') {
+            name[i] += 32;
+        }
+      }
+      anomaly_info.emplace_back(name);
+      // get anomaly_format
+      std::string format = "";
+      if ("Dirty Write" == name) {
+        format = "Wi[xm]...Wj[xm+1]";
+      } else if ("Full Write" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Wi[xm+2]";
+      } else if ("Lost Self Update" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Ri[xm+1]";
+      } else if ("Lost Update" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Wi[xm+2]";
+      } else if ("Double Write Skew 1" == name) {
+        format = "Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]";
+      } else if ("Double Write Skew 2" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
+      } else if ("Read Write Skew 1" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
+      } else if ("Read Write Skew 2" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
+      } else if ("Full Write Skew" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
+      } else if ("WAT_STEP" == anomaly) {
+        format = "...Wi[xm]...Wj[xm+1]...";
+      } else if ("Dirty Read" == name) {
+        format = "Wi[xm]...Rj[xm+1]";
+      } else if ("Non-Repeatable Read" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Ri[xm+1]";
+      } else if ("Intermediate Reads" == name) {
+        format = "Wi[xm]...Rj[xm+1]...Wi[xm+2]";
+      } else if ("Write Read Skew" == name) {
+        format = "Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]";
+      } else if ("DOUBLE_WRITE_SKEW_COMMITTED" == name) {
+        format = "Wi[xm]...Rj[xm+1]...Wj[yn]...Wi[yn+1]";
+      } else if ("Read Skew" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
+      } else if ("Read Skew 2" == name) {
+        format = "Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]";
+      } else if ("RAT_STEP" == anomaly) {
+        format = "...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)";
+      } else if ("LOST_UPDATE_COMMITTED" == name) {
+        format = "Ri[xm]...Wj[xm]...Wj[yn]...Wi[yn+1]";
+      } else if ("READ_WRITE_SKEW_COMMITTED" == name) {
+        format = "Ri[xm]...Wj[xm]...Wj[yn]...Wi[yn+1]";
+      } else if ("Write Skew" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
+      } else if ("IAT_STEP" == anomaly) {
+        format = "...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)";
+      }
+      anomaly_info.emplace_back(format);
+    } else {
+      std::cerr << "get AnomalyType failed" << std::endl;
+    }
+    return anomaly_info;
   }
 
   virtual bool Check(const History& history, std::ostream* const os) const override {

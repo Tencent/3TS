@@ -24,6 +24,7 @@ class HistoryAlgorithm {
   virtual ~HistoryAlgorithm() {}
 
   virtual bool Check(const History& history, std::ostream* const os = nullptr) const = 0;
+  virtual void Statistics() const {};
   std::string name() const { return name_; }
 
   const std::string name_;

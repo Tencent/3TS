@@ -204,18 +204,28 @@ class Operation {
         break;
       default:
         type = Operation::Type::UNKNOWN;
+        if (c != '\0') {
+          std::cerr << "Unknonw operation type character: " << c << ". Supported operations: R W C A" << std::endl;
+        }
         is.setstate(std::ios::failbit);
     }
     return is;
   }
 
   friend std::istream& operator>>(std::istream& is, Operation& operation) {
-    if (!(is >> operation.type_) || !(is >> operation.trans_id_)) {
+    if (!(is >> operation.type_)) {
+      is.setstate(std::ios::failbit);
+      return is;
+    }
+    if (!(is >> operation.trans_id_)) {
+      is.setstate(std::ios::failbit);
+      std::cerr << "Transaction ID character must be a number" << std::endl;
       return is;
     }
     if (char item_c; operation.type_ == Type::WRITE || operation.type_ == Type::READ) {
       if (!(is >> item_c) || !std::islower(item_c)) {
         is.setstate(std::ios::failbit);
+        std::cerr << "Data Item must be lowercase letter" << std::endl;
         return is;
       }
       operation.item_id_ = item_c - 'a';
@@ -307,22 +317,33 @@ class History {
     if (std::getline(is, s)) {
       std::stringstream ss(s);
       std::vector<Operation> operations;
-      std::set<uint64_t> trans_num_set;
-      std::set<uint64_t> item_num_set;
       uint64_t trans_num = 0;
       uint64_t item_num = 0;
+      std::unordered_map<uint64_t, uint64_t> trans_num_map;
+      std::unordered_map<uint64_t, uint64_t> item_num_map;
       for (std::stringstream ss(s); !ss.eof() && !ss.fail();) {
         Operation operation;
         if (Operation operation; ss >> operation) {
           operations.emplace_back(operation);
-          trans_num_set.insert(operation.trans_id());
+          if (trans_num_map.count(operation.trans_id()) == 0) {
+            trans_num_map[operation.trans_id()] = trans_num_map.size();
+            operation.SetTransId(trans_num_map[operation.trans_id()]);
+            std::cout << operation.trans_id() << std::endl;
+          }
           if (operation.IsPointDML()) {
-            item_num_set.insert(operation.item_id());
+            if (item_num_map.count(operation.item_id()) == 0) {
+              item_num_map[operation.item_id()] = item_num_map.size();
+              operation.SetItemId(item_num_map[operation.item_id()]);
+              std::cout << operation.item_id() << std::endl;
+            }
           }
         }
       }
-      trans_num = trans_num_set.size();
-      item_num = item_num_set.size();
+      trans_num = trans_num_map.size();
+      item_num = item_num_map.size();
+      for (auto k: item_num_map) {
+        std::cout << k.first << k.second << std::endl;
+      }
       if (ss.fail()) {
         std::cout << "Invalid history: \'" << s << "\'" << std::endl;
       } else {
