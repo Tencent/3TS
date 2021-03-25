@@ -17,7 +17,10 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     {
         txn.node_->state() = TxnNode::State::PREPARING;
 
-        std::scoped_lock l(m_);
+        {
+            std::scoped_lock l(m_);
+            cc_txns_.emplace_back(txn.node_);
+        }
 
         Path cycle_part = DirtyCycle<true /*is_commit*/>(*txn.node_);
 
@@ -53,11 +56,16 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     }
 
     void CheckConcurrencyTxnEmpty() {
-        for (const auto& [txn_id, prece] : cc_txns_) {
-            // assert failed here means there is actually a cycle but we miss it
-            assert(prece.expired());
-            cc_txns_.erase(txn_id);
+        std::scoped_lock l(m_);
+        bool is_empty = true;
+        for (const auto& weak_txn : cc_txns_) {
+            if (const auto txn = weak_txn.lock()) {
+                std::cerr << "** Txn Leak ** " << *txn;
+                is_empty = false;
+            }
         }
+        // assert failed here means there is actually a cycle but we miss it
+        assert(is_empty);
     }
 
   private:
@@ -66,23 +74,22 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         // Validate failed if has a from_txn and a to_txn which are both finished but not released.
         std::scoped_lock l(txn.node_->mutex());
         std::shared_ptr<PreceInfo> from_prece;
-        for (const auto& [from_txn_id, weak_from_prece] : txn.node_->UnsafeGetFromPreces()) {
-            const auto it = cc_txns_.find(from_txn_id);
-            if (it != cc_txns_.end()) {
-                if (it->second.expired()) {
-                    cc_txns_.erase(it);
-                } else {
-                    from_prece = weak_from_prece.lock();
-                    assert(from_prece != nullptr);
-                    break;
-                }
+        for (const auto& [_, weak_from_prece] : txn.node_->UnsafeGetFromPreces()) {
+            from_prece = weak_from_prece.lock();
+            if (from_prece == nullptr) {
+                continue;
             }
+            const auto& from_txn = from_prece->from_txn();
+            if (from_txn == nullptr || from_txn->state() == TxnNode::State::ACTIVE) {
+                from_prece = nullptr;
+                continue;
+            }
+            break;
         }
 
         std::shared_ptr<PreceInfo> to_prece;
-        for (const auto& [to_txn_id, to_prece_tmp] : txn.node_->UnsafeGetToPreces()) {
-            const auto it = cc_txns_.find(to_txn_id);
-            if (it != cc_txns_.end()) {
+        for (const auto& [_, to_prece_tmp] : txn.node_->UnsafeGetToPreces()) {
+            if (to_prece_tmp->to_txn()->state() != TxnNode::State::ACTIVE) {
                 to_prece = to_prece_tmp;
                 break;
             }
@@ -95,7 +102,7 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     }
 
     std::mutex m_;
-    std::unordered_map<uint64_t, std::weak_ptr<TxnNode>> cc_txns_;
+    std::vector<std::weak_ptr<TxnNode>> cc_txns_; // only for debug
 };
 
 }

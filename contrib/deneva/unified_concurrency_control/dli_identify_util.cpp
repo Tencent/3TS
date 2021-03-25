@@ -7,7 +7,7 @@
 namespace ttts {
 
 static Path DirtyPath_(const PreceInfo& rw_prece, TxnNode& txn_to_finish, const PreceType type) {
-    PreceInfo dirty_prece(rw_prece.to_txn_id(), txn_to_finish.shared_from_this(), type, rw_prece.row_id(),
+    PreceInfo dirty_prece(rw_prece.to_txn(), txn_to_finish.shared_from_this(), type, rw_prece.row_id(),
             rw_prece.to_ver_id(), UINT64_MAX);
     return Path(std::vector<PreceInfo>{rw_prece, std::move(dirty_prece)});
 }
@@ -103,7 +103,7 @@ Path& Path::operator+=(const Path& p) {
                 (new_from_op_type != OperationType::R || new_to_op_type != OperationType::R)) {
             preces_.pop_back();
             const auto new_prece_type = MergeOperationType(new_from_op_type, new_to_op_type);
-            preces_.emplace_back(current_back.from_txn_id(), append_front.to_txn(), new_prece_type,
+            preces_.emplace_back(current_back.from_txn(), append_front.to_txn(), new_prece_type,
                 current_back.row_id(), new_from_ver_id, new_to_ver_id);
             // the first precedence in p.prece has already merged
             cat_preces(std::next(p.preces_.begin()));

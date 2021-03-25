@@ -66,33 +66,17 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     void CheckConcurrencyTxnEmpty()
     {
-        RefreshAndLockTxns_();
-        if (!cc_txns_.empty()) {
-            // assert failed here means there is actually a cycle but we miss it
-            std::cerr << "**** Has Txn Leak ****" << std::endl;
-            for (const auto txn_weak : cc_txns_) {
-                if (const auto txn = txn_weak.lock()) {
-                    std::cerr << "Leak Txn: " << txn->txn_id() << std::endl;
-                    std::scoped_lock l(txn->mutex());
-                    std::cerr << "From Txns: ";
-                    for (const auto& [from_txn_id, from_prece_weak] : txn->UnsafeGetFromPreces()) {
-                        if (const auto from_prece = from_prece_weak.lock()) {
-                            std::cerr << from_txn_id << "(" << *from_prece << ") ";
-                        } else {
-                            std::cerr << from_txn_id << "(null prece) ";
-                        }
-                    }
-                    std::cerr << std::endl;
-                    std::cerr << "To Txns: ";
-                    for (const auto& [to_txn_id, to_prece] : txn->UnsafeGetToPreces()) {
-                        std::cerr << to_txn_id << "(" << *to_prece << ") ";
-                    }
-                    std::cerr << std::endl;
-                }
+        std::scoped_lock l(m_);
+        for (auto it = cc_txns_.begin(); it != cc_txns_.end(); ) {
+            if (const auto txn = it->lock()) {
+                std::cerr << "** Txn Leak ** " << *txn;
+                ++it;
+            } else {
+                it = cc_txns_.erase(it);
             }
-            std::cerr << "**** Txn Leak Info End ****" << std::endl;
-            assert(false);
         }
+        // assert failed here means there is actually a cycle but we miss it
+        assert(cc_txns_.empty());
     }
 
     static AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces)

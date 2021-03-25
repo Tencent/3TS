@@ -134,10 +134,8 @@ inline PreceType MergeOperationType(const OperationType o1, const OperationType 
 
 class PreceInfo {
   public:
-    PreceInfo(const uint64_t from_txn_id, std::shared_ptr<TxnNode> to_txn, const PreceType type,
-            const uint64_t row_id, const uint64_t from_ver_id, const uint64_t to_ver_id)
-        : from_txn_id_(from_txn_id), to_txn_(std::move(to_txn)), type_(type), row_id_(row_id),
-          from_ver_id_(from_ver_id), to_ver_id_(to_ver_id) {}
+    inline PreceInfo(std::shared_ptr<TxnNode> from_txn, std::shared_ptr<TxnNode> to_txn, const PreceType type,
+            const uint64_t row_id, const uint64_t from_ver_id, const uint64_t to_ver_id);
     PreceInfo(const PreceInfo&) = default;
     PreceInfo(PreceInfo&&) = default;
 
@@ -153,10 +151,12 @@ class PreceInfo {
     OperationType to_op_type() const { return DividePreceType(type_).second; }
     uint64_t row_id() const { return row_id_; }
     PreceType type() const { return type_; }
+    std::shared_ptr<TxnNode> from_txn() const { return from_txn_.lock(); }
     std::shared_ptr<TxnNode> to_txn() const { return to_txn_; }
 
   private:
     const uint64_t from_txn_id_;
+    const std::weak_ptr<TxnNode> from_txn_;
     const std::shared_ptr<TxnNode> to_txn_; // release condition (2) for TxnNode
     const PreceType type_;
     const uint64_t row_id_;
@@ -186,13 +186,14 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
     // We use ver_id but not the count of operation to support snapshot read.
     // [Note] Should ensure to_txn_node thread safe.
     template <PreceType TYPE>
-    void AddToTxn(const uint64_t to_txn_id, std::shared_ptr<TxnNode> to_txn_node, const uint64_t row_id,
-            const uint64_t from_ver_id, const uint64_t to_ver_id)
+    void AddToTxn(std::shared_ptr<TxnNode> to_txn_node, const uint64_t row_id, const uint64_t from_ver_id,
+            const uint64_t to_ver_id)
     {
+        const uint64_t to_txn_id = to_txn_node->txn_id();
         if (const auto& type = RealPreceType_<TYPE>(); txn_id_ != to_txn_id && type.has_value()) {
             std::lock_guard<std::mutex> l(m_);
-            std::shared_ptr<PreceInfo> prece = std::make_shared<PreceInfo>(txn_id_, to_txn_node, *type,
-                    row_id, from_ver_id, to_ver_id);
+            std::shared_ptr<PreceInfo> prece = std::make_shared<PreceInfo>(shared_from_this(), to_txn_node,
+                    *type, row_id, from_ver_id, to_ver_id);
             // For read/write precedence, only record the first precedence between the two transactions
             to_preces_.try_emplace(to_txn_id, prece);
             to_txn_node->from_preces_.try_emplace(txn_id_, prece);
@@ -232,6 +233,25 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
 
     const auto& state() const { return state_; }
     auto& state() { return state_; }
+
+    friend std::ostream& operator<<(std::ostream& os, const TxnNode& txn)
+    {
+        os << "[Leak Txn] T" << txn.txn_id();
+        std::scoped_lock l(txn.mutex());
+        os << " [From Txns] T";
+        for (const auto& [from_txn_id, from_prece_weak] : txn.UnsafeGetFromPreces()) {
+            if (const auto from_prece = from_prece_weak.lock()) {
+                os << from_txn_id << "(" << *from_prece << ") ";
+            } else {
+                os << from_txn_id << "(null prece) ";
+            }
+        }
+        os << " [To Txns] T";
+        for (const auto& [to_txn_id, to_prece] : txn.UnsafeGetToPreces()) {
+            os << to_txn_id << "(" << *to_prece << ") ";
+        }
+        return os;
+    }
 
   private:
     std::optional<PreceType> RealPreceType_(const std::optional<PreceType>& active_prece_type,
@@ -275,7 +295,10 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
 };
 
 inline uint64_t PreceInfo::to_txn_id() const { return to_txn_->txn_id(); }
-
+inline PreceInfo::PreceInfo(std::shared_ptr<TxnNode> from_txn, std::shared_ptr<TxnNode> to_txn,
+        const PreceType type, const uint64_t row_id, const uint64_t from_ver_id, const uint64_t to_ver_id)
+    : from_txn_id_(from_txn->txn_id()), from_txn_(std::move(from_txn)), to_txn_(std::move(to_txn)), type_(type), row_id_(row_id),
+        from_ver_id_(from_ver_id), to_ver_id_(to_ver_id) {}
 // Not thread safe. Protected by RowManager<DLI_IDENTIFY>::m_
 //
 // A VersionInfo can be released when it will not be read anymore.
@@ -394,8 +417,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     void build_prece(TxnNode& from_txn, const Txn& to_txn, const uint64_t from_ver_id,
             const uint64_t to_ver_id) const
     {
-        from_txn.AddToTxn<TYPE>(to_txn.txn_id(), to_txn.node_, row_id_, from_ver_id,
-                to_ver_id);
+        from_txn.AddToTxn<TYPE>(to_txn.node_, row_id_, from_ver_id, to_ver_id);
     }
 
   private:
