@@ -400,8 +400,9 @@ enum PPSTxnType {
 #define SILO 27
 #define CNULL 28
 #define DLI_IDENTIFY 29
+#define DLI_IDENTIFY_2 30
 
-#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY)
+#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
 
 // TIMESTAMP allocation method.
 #define TS_MUTEX          1

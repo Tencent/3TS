@@ -51,7 +51,7 @@
 #include "da.h"
 
 #if CC_ALG == DLI_IDENTIFY && WORKLOAD == DA
-static std::array<std::atomic<uint64_t>, Count<AnomalyType>()> g_anomaly_counts = {0};
+static std::array<std::atomic<uint64_t>, ttts::Count<ttts::AnomalyType>()> g_anomaly_counts = {0};
 static uint64_t g_no_anomaly_count = 0;
 #endif
 
@@ -339,8 +339,8 @@ static void print_anomaly_type_rates() {
     print_percent(anomaly_count, anomaly_count + g_no_anomaly_count);
     std::cout << std::endl;
 
-    std::vector<std::pair<AnomalyType, uint32_t>> sorted_g_anomaly_counts;
-    for (const auto anomaly : Members<AnomalyType>()) {
+    std::vector<std::pair<ttts::AnomalyType, uint32_t>> sorted_g_anomaly_counts;
+    for (const auto anomaly : ttts::Members<ttts::AnomalyType>()) {
       sorted_g_anomaly_counts.emplace_back(anomaly, g_anomaly_counts.at(static_cast<uint32_t>(anomaly)));
     }
     std::sort(sorted_g_anomaly_counts.begin(), sorted_g_anomaly_counts.end(), [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
@@ -899,7 +899,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
         }
 #if CC_ALG == DLI_IDENTIFY
         if (g_da_cycle.has_value()) {
-            const auto anomaly_type = IdentifyAnomaly(g_da_cycle->preces());
+            const auto anomaly_type = UniAlgManager<CC_ALG>::IdentifyAnomaly(g_da_cycle->Preces());
             output_file << DA_history_mem << " |  " << anomaly_type << "  |  " << *g_da_cycle << std::endl;
             ++(g_anomaly_counts.at(static_cast<uint32_t>(anomaly_type)));
             g_da_cycle.reset();
@@ -907,7 +907,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
             output_file << DA_history_mem << std::endl;
             ++g_no_anomaly_count;
         }
-        alg_man<DLI_IDENTIFY>.check_concurrency_txn_empty();
+        uni_alg_man.CheckConcurrencyTxnEmpty();
 #else
         output_file << DA_history_mem << std::endl;
 #endif

@@ -44,7 +44,7 @@
 #include "row_si.h"
 #include "row_dta.h"
 #include "row_dli_based.h"
-#include "row_prece.h"
+#include "row_unified.h"
 #include "dli.h"
 #include "mem_alloc.h"
 #include "manager.h"
@@ -101,8 +101,8 @@ void row_t::init_manager(row_t * row) {
 #elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
     manager = (Row_si *)mem_allocator.align_alloc(sizeof(Row_si));
 #elif IS_GENERIC_ALG
-    void* const p = mem_allocator.align_alloc(sizeof(RowManager<CC_ALG>));
-    manager = new(p) RowManager<CC_ALG>();
+    void* const p = mem_allocator.align_alloc(sizeof(Row_unified<CC_ALG>));
+    manager = new(p) Row_unified<CC_ALG>();
 #endif
 
 #if CC_ALG != HSTORE && CC_ALG != HSTORE_SPEC && IS_GENERIC_ALG
@@ -311,12 +311,10 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     }
     goto end;
 #elif IS_GENERIC_ALG
-    txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
-    txn->cur_row->init(get_table(), this->get_part_id());
     if (type == WR) {
-        rc = this->manager->prewrite(*txn->cur_row, *txn);
+        rc = this->manager->prewrite(*txn);
     } else if (type == RD || type == SCAN) {
-        rc = this->manager->read(*txn->cur_row, *txn);
+        rc = this->manager->read(*txn);
     } else {
         assert(false);
     }
@@ -582,11 +580,11 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
         mem_allocator.free(row, sizeof(row_t));
     } else if (type == XP) {
         // ver_row should be released in row manager
-        manager->revoke(*row, *txn);
+        manager->revoke(row, *txn);
     } else if (type == WR) {
         assert(row != NULL);
         assert(row->get_schema() == this->get_schema());
-        manager->write(*row, *txn);
+        manager->write(row, *txn);
     }
     return 0;
 #else

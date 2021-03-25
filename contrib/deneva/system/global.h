@@ -51,6 +51,7 @@
 #include <boost/lockfree/queue.hpp>
 #include "da_block_queue.h"
 //#include "maat.h"
+#include "../concurrency_control/unified_util.h"
 
 using namespace std;
 
@@ -68,7 +69,6 @@ class Maat;
 class Sundial;
 class Dta;
 class Dli;
-template <int ALG> class AlgManager;
 class Transport;
 class Remote_query;
 class TxnManPool;
@@ -125,7 +125,9 @@ extern Maat maat_man;
 extern Sundial sundial_man;
 extern Dta dta_man;
 extern Dli dli_man;
-template <int ALG> extern AlgManager<ALG> alg_man;
+#if IS_GENERIC_ALG
+extern UniAlgManager<CC_ALG> uni_alg_man;
+#endif
 extern Transport tport_man;
 extern TxnManPool txn_man_pool;
 extern TxnPool txn_pool;

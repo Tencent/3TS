@@ -31,7 +31,7 @@
 #include "semaphore.h"
 #include "array.h"
 #include "transport/message.h"
-#include "concurrency_control/dli_identify.h"
+#include "../concurrency_control/unified_util.h"
 //#include "wl.h"
 
 class Workload;
@@ -139,48 +139,9 @@ public:
     double lat_other_time_start;
 };
 
-template <int ALG> class AlgTxnManager;
-
 struct TxnNode;
 struct Path;
 class VersionInfo;
-template <> class AlgTxnManager<DLI_IDENTIFY>
-{
-  public:
-    AlgTxnManager() {}
-
-    void init()
-    {
-        l_.release();
-        node_ = std::make_shared<TxnNode>();
-        cycle_ = nullptr;
-        pre_versions_.clear();
-    }
-
-    void release()
-    {
-        if (l_.owns_lock()) {
-            l_.unlock();
-        }
-        node_ = nullptr;
-        cycle_ = nullptr;
-        pre_versions_.clear();
-    }
-
-    void lock(std::mutex& m) { l_ = std::unique_lock(m); }
-
-    void set_txn_id(const uint64_t txn_id) { node_->set_txn_id(txn_id); }
-
-    const std::shared_ptr<TxnNode>& node() const { return node_; }
-
-    void set_cycle(Path&& cycle);
-    const std::unique_ptr<Path>& cycle() const { return cycle_; }
-
-    std::unique_lock<std::mutex> l_;
-    std::shared_ptr<TxnNode> node_; // release condition (1) for TxnNode
-    std::unique_ptr<Path> cycle_;
-    std::unordered_map<row_t*, std::shared_ptr<VersionInfo>> pre_versions_; // record for revoke
-};
 
 /*
      Execution of transactions
@@ -344,7 +305,9 @@ public:
     DliValidatedTxn* history_dli_txn_head = nullptr;
 #endif
 
-    AlgTxnManager<DLI_IDENTIFY> dli_identify_man_;
+#if IS_GENERIC_ALG
+    std::unique_ptr<ttts::TxnManager<uni_alg<CC_ALG>, row_t*>> uni_txn_man_;
+#endif
 
 protected:
 

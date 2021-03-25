@@ -5,8 +5,8 @@ NNMSG=./nanomsg-0.5-beta
 
 .SUFFIXES: .o .cpp .h .cc
 
-SRC_DIRS = ./ ./benchmarks/ ./client/ ./concurrency_control/ ./storage/ ./transport/ ./system/ ./statistics/#./unit_tests/
-DEPS = -I. -I./benchmarks -I./client/ -I./concurrency_control -I./storage -I./transport -I./system -I./statistics #-I./unit_tests
+SRC_DIRS = ./ ./benchmarks/ ./client/ ./concurrency_control/ ./unified_concurrency_control/ ./storage/ ./transport/ ./system/ ./statistics/#./unit_tests/
+DEPS = -I. -I./benchmarks -I./client/ -I./concurrency_control -I./unified_concurrency_control/ -I./storage -I./transport -I./system -I./statistics #-I./unit_tests
 
 CFLAGS += $(DEPS) -D NOGRAPHITE=1 -Wno-sizeof-pointer-memaccess
 LDFLAGS = -Wall -L. -L$(NNMSG) -Wl,-rpath -pthread -lrt -lnanomsg -lanl -lcurl -lprotobuf -lpthread
@@ -55,6 +55,8 @@ unit_test : $(OBJS_UNIT)
 	$(CC) -c -DSTATS_ENABLE=false $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: concurrency_control/%.cpp
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
+./obj/%.o: unified_concurrency_control/%.cpp
+	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: client/%.cpp
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: %.cpp
@@ -79,6 +81,8 @@ rundb : $(OBJS_DB)
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: concurrency_control/%.cpp
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
+./obj/%.o: unified_concurrency_control/%.cpp
+	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: client/%.cpp
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: %.cpp
@@ -102,6 +106,8 @@ runcl : $(OBJS_CL)
 ./obj/%.o: statistics/%.cpp
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: concurrency_control/%.cpp
+	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
+./obj/%.o: unified_concurrency_control/%.cpp
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<
 ./obj/%.o: client/%.cpp
 	$(CC) -c $(CFLAGS) $(INCLUDE) -o $@ $<

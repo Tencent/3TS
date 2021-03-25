@@ -28,7 +28,6 @@
 #include "wsi.h"
 #include "dta.h"
 #include "dli.h"
-#include "dli_identify.h"
 #include "transport.h"
 #include "work_queue.h"
 #include "abort_queue.h"
@@ -74,7 +73,9 @@ wsi wsi_man;
 Sundial sundial_man;
 Dta dta_man;
 Dli dli_man;
-template <> AlgManager<DLI_IDENTIFY> alg_man<DLI_IDENTIFY>;
+#if IS_GENERIC_ALG
+UniAlgManager<CC_ALG> uni_alg_man;
+#endif
 Transport tport_man;
 TxnManPool txn_man_pool;
 TxnPool txn_pool;

@@ -76,21 +76,28 @@ ENUM_END(AnomalyType)
 #endif
 #endif
 #endif
+
 #ifndef ROW_PRECE_H
 #define ROW_PRECE_H
 
 #include <mutex>
 #include <unordered_map>
-#include "../storage/row.h"
+#include <atomic>
+#include <cassert>
+#include <memory>
+#include <iostream>
+#include <vector>
+#include "util.h"
 
-class TxnManager;
+namespace ttts {
 
-#define ENUM_FILE "concurrency_control/row_prece.h"
-#include "system/extend_enum.h"
+#define ENUM_FILE "../unified_concurrency_control/row_prece.h"
+#include "../system/extend_enum.h"
 
 class TxnNode;
 
-inline std::pair<OperationType, OperationType> DividePreceType(const PreceType prece) {
+inline std::pair<OperationType, OperationType> DividePreceType(const PreceType prece)
+{
     if (prece == PreceType::WR) {
         return {OperationType::W, OperationType::R};
     } else if (prece == PreceType::WCR) {
@@ -107,7 +114,8 @@ inline std::pair<OperationType, OperationType> DividePreceType(const PreceType p
     }
 }
 
-inline PreceType MergeOperationType(const OperationType o1, const OperationType o2) {
+inline PreceType MergeOperationType(const OperationType o1, const OperationType o2)
+{
     if (o1 == OperationType::W && o2 == OperationType::R) {
         return PreceType::WR;
     } else if (o1 == OperationType::C && o2 == OperationType::R) {
@@ -138,7 +146,7 @@ class PreceInfo {
     }
 
     uint64_t from_txn_id() const { return from_txn_id_; }
-    uint64_t to_txn_id() const;
+    inline uint64_t to_txn_id() const;
     uint64_t from_ver_id() const { return from_ver_id_; }
     uint64_t to_ver_id() const { return to_ver_id_; }
     OperationType from_op_type() const { return DividePreceType(type_).first; }
@@ -156,8 +164,6 @@ class PreceInfo {
     const uint64_t to_ver_id_;
 };
 
-AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces);
-
 // A TxnNode can be released only when no more transactions build precedence before it. In this case, the
 // transaction cannot be a part of cycle anymore.
 //
@@ -173,69 +179,80 @@ AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces);
 class TxnNode : public std::enable_shared_from_this<TxnNode>
 {
   public:
-    TxnNode() : txn_id_() {}
+    enum class State { ACTIVE, PREPARING, COMMITTED, ABORTED };
 
-    // we use ver_id but not the count of operation to support snapshot read
+    TxnNode(const uint64_t txn_id) : txn_id_(txn_id), state_(State::ACTIVE) {}
+
+    // We use ver_id but not the count of operation to support snapshot read.
+    // [Note] Should ensure to_txn_node thread safe.
     template <PreceType TYPE>
     void AddToTxn(const uint64_t to_txn_id, std::shared_ptr<TxnNode> to_txn_node, const uint64_t row_id,
-            const uint64_t from_ver_id, const uint64_t to_ver_id) {
+            const uint64_t from_ver_id, const uint64_t to_ver_id)
+    {
         if (const auto& type = RealPreceType_<TYPE>(); txn_id_ != to_txn_id && type.has_value()) {
             std::lock_guard<std::mutex> l(m_);
-            PreceInfo prece = PreceInfo(txn_id_, std::move(to_txn_node), *type, row_id, from_ver_id, to_ver_id);
+            std::shared_ptr<PreceInfo> prece = std::make_shared<PreceInfo>(txn_id_, to_txn_node, *type,
+                    row_id, from_ver_id, to_ver_id);
             // For read/write precedence, only record the first precedence between the two transactions
-            to_txns_.try_emplace(to_txn_id, prece);
+            to_preces_.try_emplace(to_txn_id, prece);
+            to_txn_node->from_preces_.try_emplace(txn_id_, prece);
             // For dirty precedence, W1W2 has higher priority than W1R2 because W1R2C1 is not dirty read
             if ((type == PreceType::WR || type == PreceType::WW) &&
-                (!dirty_to_txn_.has_value() || (dirty_to_txn_->type() == PreceType::WR &&
+                (!dirty_to_prece_ || (dirty_to_prece_->type() == PreceType::WR &&
                                                 type == PreceType::WW))) {
-                dirty_to_txn_.emplace(prece);
+                dirty_to_prece_ = prece;
             }
         }
     }
 
     uint64_t txn_id() const { return txn_id_; }
-    void set_txn_id(const uint64_t txn_id) { txn_id_ = txn_id; }
 
-    const std::unordered_map<uint64_t, PreceInfo>& UnsafeGetToTxns() const { return to_txns_; }
-    const std::optional<PreceInfo>& UnsafeGetDirtyToTxn() const { return dirty_to_txn_; }
+    const auto& UnsafeGetToPreces() const { return to_preces_; }
+    const auto& UnsafeGetFromPreces() const { return from_preces_; }
+    const std::shared_ptr<PreceInfo>& UnsafeGetDirtyToTxn() const { return dirty_to_prece_; }
 
     std::mutex& mutex() const { return m_; }
 
-    void commit() {
+    void Commit()
+    {
         std::lock_guard<std::mutex> l(m_);
-        is_committed_ = true;
-        dirty_to_txn_.reset();
+        state_ = State::COMMITTED;
+        dirty_to_prece_ = nullptr;
     }
 
-    void abort(bool clear_to_txns) {
+    void Abort(const bool clear_to_preces)
+    {
         std::lock_guard<std::mutex> l(m_);
-        is_committed_ = false;
-        dirty_to_txn_.reset();
-        if (clear_to_txns) {
-            to_txns_.clear();
+        state_ = State::ABORTED;
+        dirty_to_prece_ = nullptr;
+        if (clear_to_preces) {
+            to_preces_.clear();
         }
     }
 
-    bool is_committed() const { return is_committed_.has_value() && *is_committed_; }
-    bool is_aborted() const { return is_committed_.has_value() && !(*is_committed_); }
-    bool is_active() const { return !is_committed_.has_value(); }
+    const auto& state() const { return state_; }
+    auto& state() { return state_; }
 
   private:
     std::optional<PreceType> RealPreceType_(const std::optional<PreceType>& active_prece_type,
             const std::optional<PreceType>& committed_prece_type,
-            const std::optional<PreceType>& aborted_prece_type) const {
-        if (!is_committed_.has_value()) {
+            const std::optional<PreceType>& aborted_prece_type) const
+    {
+        const auto state = state_.load();
+        if (state == State::ACTIVE || state == State::PREPARING) {
             return active_prece_type;
-        } else if (is_committed_.value()) {
+        } else if (state == State::COMMITTED) {
             return committed_prece_type;
         } else {
+            assert(state == State::ABORTED);
             return aborted_prece_type;
         }
     }
 
     template <PreceType TYPE,
              typename = typename std::enable_if_t<TYPE != PreceType::WCW && TYPE != PreceType::WCR>>
-    std::optional<PreceType> RealPreceType_() const {
+    std::optional<PreceType> RealPreceType_() const
+    {
         if constexpr (TYPE == PreceType::WW) {
             return RealPreceType_(PreceType::WW, PreceType::WCW, {});
         } else if constexpr (TYPE == PreceType::WR) {
@@ -247,11 +264,17 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
 
     mutable std::mutex m_;
     uint64_t txn_id_;
-    std::optional<bool> is_committed_;
-    std::unordered_map<uint64_t, PreceInfo> to_txns_; // key is txn_id
-    std::optional<PreceInfo> dirty_to_txn_;
-    //std::vector<std::weak_ptr<TxnNode>> from_txns_;
+    std::atomic<State> state_;
+    // Key is txn_id.
+    std::unordered_map<uint64_t, std::shared_ptr<PreceInfo>> to_preces_;
+    // We can not use std::shared_ptr because PreceInfo has a use count to this which will cause cycle
+    // reference. Key is txn_id;
+    std::unordered_map<uint64_t, std::weak_ptr<PreceInfo>> from_preces_;
+    // The prece may also stored in to_preces_.
+    std::shared_ptr<PreceInfo> dirty_to_prece_;
 };
+
+inline uint64_t PreceInfo::to_txn_id() const { return to_txn_->txn_id(); }
 
 // Not thread safe. Protected by RowManager<DLI_IDENTIFY>::m_
 //
@@ -263,11 +286,12 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
 //
 // For snapshot read, it should also satisfies:
 // (3) Minimum active transaction snapshot timestamp (start timestamp) > the later version's write timestamp.
+template <typename Data>
 class VersionInfo
 {
   public:
-    VersionInfo(std::weak_ptr<TxnNode> w_txn, row_t* const ver_row, const uint64_t ver_id)
-        : w_txn_(std::move(w_txn)), ver_row_(ver_row), ver_id_(ver_id) {}
+    VersionInfo(std::weak_ptr<TxnNode> w_txn, Data&& data, const uint64_t ver_id)
+        : w_txn_(std::move(w_txn)), data_(std::move(data)), ver_id_(ver_id) {}
     VersionInfo(const VersionInfo&) = default;
     VersionInfo(VersionInfo&&) = default;
     ~VersionInfo() {}
@@ -275,7 +299,8 @@ class VersionInfo
     std::shared_ptr<TxnNode> w_txn() const { return w_txn_.lock(); }
 
     template <typename Task>
-    void foreach_r_txn(Task&& task) const {
+    void foreach_r_txn(Task&& task) const
+    {
         for (const auto& r_txn_weak : r_txns_) {
             if (const auto r_txn = r_txn_weak.lock()) {
                 task(*r_txn);
@@ -285,50 +310,101 @@ class VersionInfo
 
     void add_r_txn(std::weak_ptr<TxnNode> txn) { r_txns_.emplace_back(std::move(txn)); }
 
-    row_t* ver_row() const { return ver_row_; }
+    const Data& data() const { return data_; }
 
     uint64_t ver_id() const { return ver_id_; }
 
   private:
     const std::weak_ptr<TxnNode> w_txn_;
-    row_t* const ver_row_;
+    Data const data_;
     // There may be two versions on same the row which have the same ver_id due to version revoking
     const uint64_t ver_id_;
     std::vector<std::weak_ptr<TxnNode>> r_txns_;
 };
 
-template <int ALG> class RowManager;
-
-template <>
-class RowManager<DLI_IDENTIFY>
+template <UniAlgs ALG, typename Data>
+class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_CYCLE ||
+                                                      ALG == UniAlgs::UNI_DLI_IDENTIFY_MERGE>>
 {
   public:
-    void init(row_t* const orig_row);
+    using Txn = TxnManager<ALG, Data>;
 
-    RC read(row_t& ver_row, TxnManager& txn);
-    RC prewrite(row_t& ver_row, TxnManager& txn);
-    void write(row_t& ver_row, TxnManager& txn);
-    void revoke(row_t& ver_row, TxnManager& txn);
+    RowManager(const uint64_t row_id, Data init_data)
+        : row_id_(row_id),
+          latest_version_(std::make_shared<VersionInfo<Data>>(std::weak_ptr<TxnNode>(), std::move(init_data),
+                      0))
+    {}
+
+    std::optional<Data> Read(Txn& txn)
+    {
+        std::lock_guard<std::mutex> l(m_);
+        const uint64_t to_ver_id = latest_version_->ver_id();
+        build_prece_from_w_txn_<PreceType::WR>(*latest_version_, txn, to_ver_id);
+        latest_version_->add_r_txn(txn.node_);
+        return latest_version_->data();
+    }
+
+    bool Prewrite(Data data, Txn& txn)
+    {
+        std::lock_guard<std::mutex> l(m_);
+        const uint64_t to_ver_id = latest_version_->ver_id() + 1;
+        const auto pre_version = std::exchange(latest_version_,
+                std::make_shared<VersionInfo<Data>>(txn.node_, std::move(data),
+                    to_ver_id));
+        build_prece_from_w_txn_<PreceType::WW>(*pre_version, txn, to_ver_id);
+        build_preces_from_r_txns_<PreceType::RW>(*pre_version, txn, to_ver_id);
+        // If transaction writes multiple versions for the same row, only record the first pre_version
+        txn.pre_versions_.emplace(row_id_, std::move(pre_version));
+        return true;
+    }
+
+    void Write(Data data, Txn& txn)
+    {
+        // do nothing
+    }
+
+    void Revoke(Data data, Txn& txn)
+    {
+        std::lock_guard<std::mutex> l(m_);
+        const auto it = txn.pre_versions_.find(row_id_);
+        assert(it != txn.pre_versions_.end());
+        latest_version_ = it->second; // revoke version
+    }
 
   private:
-    uint64_t row_id_() const;
+    template <PreceType TYPE>
+    void build_prece_from_w_txn_(VersionInfo<Data>& version, const Txn& to_txn,
+            const uint64_t to_ver_id) const
+    {
+        if (const std::shared_ptr<TxnNode> from_txn = version.w_txn()) {
+            build_prece<TYPE>(*from_txn, to_txn, version.ver_id(), to_ver_id);
+        }
+    }
 
     template <PreceType TYPE>
-    void build_prece_from_w_txn_(VersionInfo& version, const TxnManager& txn, const uint64_t to_ver_id) const;
+    void build_preces_from_r_txns_(VersionInfo<Data>& version, const Txn& to_txn,
+            const uint64_t to_ver_id) const
+    {
+        version.foreach_r_txn([&to_txn, to_ver_id, from_ver_id = version.ver_id(), this](TxnNode& from_txn) {
+            build_prece<TYPE>(from_txn, to_txn, from_ver_id, to_ver_id);
+        });
+    }
 
     template <PreceType TYPE>
-    void build_preces_from_r_txns_(VersionInfo& version, const TxnManager& txn,
-            const uint64_t to_ver_id) const;
-
-    template <PreceType TYPE>
-    void build_prece(TxnNode& from_txn, const TxnManager& txn, const uint64_t from_ver_id,
-            const uint64_t to_ver_id) const;
+    void build_prece(TxnNode& from_txn, const Txn& to_txn, const uint64_t from_ver_id,
+            const uint64_t to_ver_id) const
+    {
+        from_txn.AddToTxn<TYPE>(to_txn.txn_id(), to_txn.node_, row_id_, from_ver_id,
+                to_ver_id);
+    }
 
   private:
-    row_t* orig_row_;
+    const uint64_t row_id_;
     std::mutex m_;
     //std::map<uint64_t, std::shared_ptr<VersionInfo>> versions_; // key is write timestamp (snapshot read)
-    std::shared_ptr<VersionInfo> latest_version_;
+    std::shared_ptr<VersionInfo<Data>> latest_version_;
 };
+
+}
 
 #endif

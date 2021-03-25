@@ -22,7 +22,7 @@ extern std::vector<Message*> DA_delayed_operations;
 extern bool abort_history;
 extern ofstream commit_file;
 extern ofstream abort_file;
-extern std::optional<Path> g_da_cycle;
+extern std::optional<ttts::Path> g_da_cycle;
 
 class DAWorkload : public Workload {
   public:

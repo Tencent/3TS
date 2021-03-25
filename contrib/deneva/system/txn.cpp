@@ -36,7 +36,6 @@
 #include "row_occ.h"
 #include "dli.h"
 #include "dta.h"
-#include "dli_identify.h"
 #include "table.h"
 #include "catalog.h"
 #include "index_btree.h"
@@ -58,6 +57,11 @@
 #include "ssi.h"
 #include "wsi.h"
 #include "manager.h"
+#include "../unified_concurrency_control/txn_dli_identify.h"
+
+#if WORKLOAD == DA
+extern std::optional<ttts::Path> g_da_cycle;
+#endif
 
 void TxnStats::init() {
     starttime=0;
@@ -374,10 +378,6 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     history_dli_txn_head = dli_man.validated_txns_.load();
 #endif
 
-#if CC_ALG == DLI_IDENTIFY
-    dli_identify_man_.init();
-#endif
-
     registed_ = false;
     txn_ready = true;
     twopl_wait_start = 0;
@@ -445,8 +445,8 @@ void TxnManager::release() {
     num_locks = 0;
     memset(write_set, 0, 100);
     // mem_allocator.free(write_set, sizeof(int) * 100);
-#elif CC_ALG == DLI_IDENTIFY
-    dli_identify_man_.release();
+#elif IS_GENERIC_ALG
+    uni_txn_man_ = nullptr;
 #endif
     txn_ready = true;
 }
@@ -743,8 +743,8 @@ void TxnManager::register_thread(Thread * h_thd) {
 
 void TxnManager::set_txn_id(txnid_t txn_id) {
     txn->txn_id = txn_id;
-#if CC_ALG == DLI_IDENTIFY
-    dli_identify_man_.node()->set_txn_id(txn_id);
+#if IS_GENERIC_ALG
+    uni_txn_man_ = std::make_unique<UniTxnManager<CC_ALG>>(txn_id);
 #endif
 }
 
@@ -896,8 +896,21 @@ void TxnManager::cleanup(RC rc) {
     dli_man.finish_trans(rc, this);
 #endif
 #if IS_GENERIC_ALG && MODE == NORMAL_MODE
-    alg_man<CC_ALG>.finish(rc, this);
+    if (rc == RCOK) {
+        uni_alg_man.Commit(*uni_txn_man_);
+    } else {
+        assert(rc == Abort);
+        uni_alg_man.Abort(*uni_txn_man_);
+    }
 #endif
+
+
+#if WORKLOAD == DA && (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
+    if (uni_txn_man_->cycle_ != nullptr && !g_da_cycle.has_value()) {
+        g_da_cycle.emplace(*uni_txn_man_->cycle_);
+    }
+#endif
+
     ts_t starttime = get_sys_clock();
     uint64_t row_cnt = txn->accesses.get_count();
     assert(txn->accesses.get_count() == txn->row_cnt);
@@ -1159,9 +1172,12 @@ RC TxnManager::validate() {
         if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
             rc = dta_man.find_bound(this);
         }
-    } else if (IS_GENERIC_ALG) {
-        rc = alg_man<CC_ALG>.validate(this);
     }
+#if IS_GENERIC_ALG
+    else if (IS_GENERIC_ALG) {
+        rc = uni_alg_man.Validate(*this->uni_txn_man_) ? RCOK : Abort;
+    }
+#endif
 #if CC_ALG == SILO
     else if (CC_ALG == SILO) {
         rc = validate_silo();
