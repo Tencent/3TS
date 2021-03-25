@@ -330,7 +330,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     using Txn = TxnManager<ALG, Data>;
 
     RowManager(const uint64_t row_id, Data init_data)
-        : row_id_(row_id),
+        : row_id_(row_id), cur_ver_id_(0),
           latest_version_(std::make_shared<VersionInfo<Data>>(std::weak_ptr<TxnNode>(), std::move(init_data),
                       0))
     {}
@@ -347,7 +347,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     bool Prewrite(Data data, Txn& txn)
     {
         std::lock_guard<std::mutex> l(m_);
-        const uint64_t to_ver_id = latest_version_->ver_id() + 1;
+        const uint64_t to_ver_id = (++cur_ver_id_);
         const auto pre_version = std::exchange(latest_version_,
                 std::make_shared<VersionInfo<Data>>(txn.node_, std::move(data),
                     to_ver_id));
@@ -401,6 +401,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
   private:
     const uint64_t row_id_;
     std::mutex m_;
+    uint64_t cur_ver_id_;
     //std::map<uint64_t, std::shared_ptr<VersionInfo>> versions_; // key is write timestamp (snapshot read)
     std::shared_ptr<VersionInfo<Data>> latest_version_;
 };
