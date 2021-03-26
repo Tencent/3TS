@@ -50,7 +50,9 @@
 #include "dta.h"
 #include "da.h"
 
-#if CC_ALG == DLI_IDENTIFY && WORKLOAD == DA
+#define SUPPORT_ANOMALY_IDENTIFY (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
+
+#if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
 static std::array<std::atomic<uint64_t>, ttts::Count<ttts::AnomalyType>()> g_anomaly_counts = {0};
 static uint64_t g_no_anomaly_count = 0;
 #endif
@@ -323,7 +325,7 @@ char type2char(DATxnType txn_type)
     }
 }
 
-#if CC_ALG == DLI_IDENTIFY && WORKLOAD == DA
+#if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
 static void print_anomaly_type_rates() {
     std::cout.setf(std::ios::right);
     std::cout.precision(4);
@@ -471,7 +473,7 @@ RC WorkerThread::run() {
 #endif
         INC_STATS(get_thd_id(),worker_release_msg_time,get_sys_clock() - ready_starttime);
     }
-#if CC_ALG == DLI_IDENTIFY && WORKLOAD == DA
+#if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
     print_anomaly_type_rates();
 #endif
     printf("FINISH %ld:%ld\n",_node_id,_thd_id);
@@ -897,7 +899,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
             output_file << "[ERROR] remain delayed operations: ";
             DA_delayed_operations.clear();
         }
-#if CC_ALG == DLI_IDENTIFY
+#if SUPPORT_ANOMALY_IDENTIFY
         if (g_da_cycle.has_value()) {
             const auto anomaly_type = UniAlgManager<CC_ALG>::IdentifyAnomaly(g_da_cycle->Preces());
             output_file << DA_history_mem << " |  " << anomaly_type << "  |  " << *g_da_cycle << std::endl;

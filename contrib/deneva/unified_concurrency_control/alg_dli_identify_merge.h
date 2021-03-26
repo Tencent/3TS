@@ -68,6 +68,28 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         assert(is_empty);
     }
 
+    static AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces)
+    {
+        assert(preces.size() == 2);
+        const auto& p1 = preces.front();
+        const auto& p2 = preces.back();
+        if (std::any_of(preces.begin(), preces.end(),
+                    [](const PreceInfo& prece) { return prece.type() == PreceType::WA ||
+                                                        prece.type() == PreceType::WC; })) {
+            return AnomalyType::WAT_1_DIRTY_WRITE;
+        } else if (std::any_of(preces.begin(), preces.end(),
+                    [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
+            return AnomalyType::RAT_1_DIRTY_READ;
+        } else if (p1.from_txn_id() != p2.to_txn_id()) {
+            return IdentifyAnomalyMultiple(preces);
+        // [Note] When build path, later happened precedence is sorted to back, which is DIFFERENT from 3TS-DA
+        } else if (p1.row_id() != p2.row_id()) {
+            return IdentifyAnomalyDouble(p1.type(), p2.type());
+        } else {
+            return IdentifyAnomalySingle(p1.type(), p2.type());
+        }
+    }
+
   private:
     Path CyclePart_(Txn& txn)
     {

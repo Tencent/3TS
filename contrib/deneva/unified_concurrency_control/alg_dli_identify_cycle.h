@@ -82,18 +82,22 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     static AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces)
     {
         assert(preces.size() >= 2);
-        if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
-            // WA and WC precedence han only appear
+        const auto& p1 = preces.front();
+        const auto& p2 = preces.back();
+        if (std::any_of(preces.begin(), preces.end(),
+                    [](const PreceInfo& prece) { return prece.type() == PreceType::WA ||
+                                                        prece.type() == PreceType::WC; })) {
             return AnomalyType::WAT_1_DIRTY_WRITE;
-        } else if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
+        } else if (std::any_of(preces.begin(), preces.end(),
+                    [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
             return AnomalyType::RAT_1_DIRTY_READ;
         } else if (preces.size() >= 3) {
-            return IdentifyAnomalyMultiple_(preces);
+            return IdentifyAnomalyMultiple(preces);
         // [Note] When build path, later happened precedence is sorted to back, which is DIFFERENT from 3TS-DA
-        } else if (preces.back().row_id() != preces.front().row_id()) {
-            return IdentifyAnomalyDouble_(preces.front().type(), preces.back().type());
+        } else if (p1.row_id() != p2.row_id()) {
+            return IdentifyAnomalyDouble(p1.type(), p2.type());
         } else {
-            return IdentifyAnomalySingle_(preces.front().type(), preces.back().type());
+            return IdentifyAnomalySingle(p1.type(), p2.type());
         }
     }
 
@@ -176,78 +180,6 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
             }
         }
         return min_cycle;
-    }
-
-    // require type1 precedence happens before type2 precedence
-    static AnomalyType IdentifyAnomalySingle_(const PreceType early_type, const PreceType later_type) {
-        if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
-            return AnomalyType::WAT_1_FULL_WRITE; // WW-WW | WR-WW = WWW
-        } else if (early_type == PreceType::WR && early_type == PreceType::WW) {
-            return AnomalyType::WAT_1_FULL_WRITE; // WR-WW = WWW
-        } else if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-            return AnomalyType::WAT_1_LOST_SELF_UPDATE; // WW-WR = WWR
-        } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
-            return AnomalyType::WAT_1_LOST_UPDATE; // RW-WW | RW-RW = RWW
-        } else if (early_type == PreceType::RW && later_type == PreceType::RW) {
-            return AnomalyType::WAT_1_LOST_UPDATE; // RW-WW | RW-RW = RWW
-        } else if (early_type == PreceType::WR && later_type == PreceType::RW) {
-            return AnomalyType::RAT_1_INTERMEDIATE_READ; // WR-RW = WRW
-        } else if (early_type == PreceType::RW && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-            return AnomalyType::RAT_1_NON_REPEATABLE_READ; // RW-WR = RWR
-        } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
-            return AnomalyType::IAT_1_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
-        } else {
-            return AnomalyType::UNKNOWN_1;
-        }
-    }
-
-    static AnomalyType IdentifyAnomalyDouble_(const PreceType early_type, const PreceType later_type) {
-        const auto any_order = [early_type, later_type](const PreceType type1, const PreceType type2) -> std::optional<bool> {
-            if (early_type == type1 && later_type == type2) {
-                return true;
-            } else if (early_type == type2 && later_type == type1) {
-                return false;
-            } else {
-                return {};
-            }
-        };
-        if (const auto order = any_order(PreceType::WR, PreceType::WW); order.has_value()) {
-            return *order ? AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_1 : AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_2;
-        } else if (any_order(PreceType::WW, PreceType::WCR)) {
-            return AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_2;
-        } else if (const auto order = any_order(PreceType::RW, PreceType::WW); order.has_value()) {
-            return *order ? AnomalyType::WAT_2_READ_WRITE_SKEW_1 : AnomalyType::WAT_2_READ_WRITE_SKEW_2;
-        } else if (any_order(PreceType::WW, PreceType::WW)) {
-            return AnomalyType::WAT_2_FULL_WRITE_SKEW;
-        } else if (any_order(PreceType::WW, PreceType::WCW)) {
-            return AnomalyType::WAT_2_FULL_WRITE_SKEW;
-        } else if (any_order(PreceType::WR, PreceType::WR)) {
-            return AnomalyType::RAT_2_WRITE_READ_SKEW;
-        } else if (any_order(PreceType::WR, PreceType::WCR)) {
-            return AnomalyType::RAT_2_WRITE_READ_SKEW;
-        } else if (any_order(PreceType::WR, PreceType::WCW)) {
-            return AnomalyType::RAT_2_DOUBLE_WRITE_SKEW_COMMITTED;
-        } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {
-            return *order ? AnomalyType::RAT_2_READ_SKEW : AnomalyType::RAT_2_READ_SKEW_2;
-        } else if (any_order(PreceType::RW, PreceType::WCR)) {
-            return AnomalyType::RAT_2_READ_SKEW;
-        } else if (any_order(PreceType::RW, PreceType::WCW)) {
-            return AnomalyType::IAT_2_READ_WRITE_SKEW_COMMITTED;
-        } else if (any_order(PreceType::RW, PreceType::RW)) {
-            return AnomalyType::IAT_2_WRITE_SKEW;
-        } else {
-            return AnomalyType::UNKNOWN_2;
-        }
-    }
-
-    static AnomalyType IdentifyAnomalyMultiple_(const std::vector<PreceInfo>& preces) {
-        if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WW; })) {
-            return AnomalyType::WAT_STEP;
-        }
-        if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WR || prece.type() == PreceType::WCR; })) {
-            return AnomalyType::RAT_STEP;
-        }
-        return AnomalyType::IAT_STEP;
     }
 
     std::mutex m_;
