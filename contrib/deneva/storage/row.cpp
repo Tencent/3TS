@@ -105,7 +105,7 @@ void row_t::init_manager(row_t * row) {
     manager = new(p) Row_unified<CC_ALG>();
 #endif
 
-#if CC_ALG != HSTORE && CC_ALG != HSTORE_SPEC && IS_GENERIC_ALG
+#if CC_ALG != HSTORE && CC_ALG != HSTORE_SPEC
     manager->init(this);
 #endif
 }
