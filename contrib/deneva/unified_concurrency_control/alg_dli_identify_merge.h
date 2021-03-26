@@ -86,8 +86,11 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         // [Note] When build path, later happened precedence is sorted to back, which is DIFFERENT from 3TS-DA
         } else if (p1.row_id() != p2.row_id()) {
             return IdentifyAnomalyDouble(p1.type(), p2.type());
-        } else {
+        } else if (p1.to_ver_id() < p2.to_ver_id() ||
+                  (p1.to_ver_id() == p2.to_ver_id() && p1.from_ver_id() < p2.from_ver_id())) {
             return IdentifyAnomalySingle(p1.type(), p2.type());
+        } else {
+            return IdentifyAnomalySingle(p2.type(), p1.type());
         }
     }
 

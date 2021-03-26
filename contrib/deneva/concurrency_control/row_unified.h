@@ -31,10 +31,7 @@ class Row_unified
 template <int ALG>
 void Row_unified<ALG>::init(row_t* orig_row) {
     orig_row_ = orig_row;
-    row_t* orig_row_copy = mem_allocator.construct<row_t>();
-    orig_row_copy->init(orig_row->get_table(), orig_row->get_part_id());
-    orig_row_copy->copy(orig_row);
-    row_man_ = std::make_unique<UniRowManager<ALG>>(orig_row->get_row_id(), orig_row_copy);
+    row_man_ = std::make_unique<UniRowManager<ALG>>(orig_row->get_row_id(), orig_row);
 }
 
 template <int ALG>
