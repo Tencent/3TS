@@ -357,7 +357,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     for (const auto& [anomaly, count] : sorted_anomaly_counts_) {
       if (count != 0) {
         std::vector<std::string> anomaly_info = AnomalyInfo(ToString(anomaly));
-        std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1] << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3]<< std::endl;
+        std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1] << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3] << "\n" << std::endl;
       }
     }
   }
