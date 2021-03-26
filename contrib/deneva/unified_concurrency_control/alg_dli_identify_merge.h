@@ -66,6 +66,7 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         }
         // assert failed here means there is actually a cycle but we miss it
         assert(is_empty);
+        cc_txns_.clear();
     }
 
     static AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces)
