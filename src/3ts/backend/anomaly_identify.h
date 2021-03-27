@@ -113,7 +113,7 @@ public:
   static void PrintHelpInfo() {
     std::cout << "List of all 3TS-DAI commands:" << std::endl;
     std::cout << "definition   (\\d) Output precise definitions of History and Anomaly, including History Operation WAT RAT IAT SDA DDA MDA, such as '\\d WAT'" << std::endl;
-    std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI CCA ALL, such as '\\g DLI'" << std::endl;
+    std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI DLI2 ALL, such as '\\g DLI'" << std::endl;
     std::cout << "anomaly      (\\a) Output history sequence of anomaly, including " << std::endl;
     std::cout << "                  WAT: Dirty Write, Lost Update, Lost Self Update, Full-Write, Read-Write Skew 1, Read-Write Skew 2, Double-Write Skew 1, Double-Write Skew 2, Full-Write Skew, Step WAT" << std::endl;
     std::cout << "                  RAT: Dirty Read, Unrepeatable Read, Intermediate Read, Read Skew, Read Skew 2, Write-Read Skew, Step RAT" << std::endl;
