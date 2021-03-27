@@ -6,6 +6,5 @@ __*
 *.o
 *.bak
 core*
-3ts
 rundb
 runcl
