@@ -22,46 +22,38 @@ enum class AlgType {
 
 class Printer {
 public:
-  std::unordered_map<std::string, std::string> InitInfoMap() {
-    std::unordered_map<std::string, std::string> info_map;
-    info_map["History"] = "The sequence of operations that produces the data anomaly, one history contains several operations.";
-    info_map["Operation"] = "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> R: Read, W: Write, C: Commit, A: Aort\n    Transaction ID -> such as 0 1 2 ...\n    Data Item -> such as a b c ...";
-    info_map["WAT"] = "There is a WW partial order in the ring.";
-    info_map["RAT"] = "There is a WR or WCR partial order in the ring.";
-    info_map["IAT"] = "Anomalies other than WAT and RAT.";
-    info_map["SDA"] = "Two transactions occur in a single variable.";
-    info_map["DDA"] = "Two transactions occur in a double variable.";
-    info_map["MDA"] = "Two transactions occur in a multi variable.";
+  Printer() : anomaly_map_{
+    {"DirtyWrite",         "WAT   SDA     'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]"},
+    {"LostUpdate",         "WAT   SDA     'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]"},
+    {"LostSelfUpdate",     "WAT   SDA     'R0a W0a R0a W1a R0a W1a C0 C1'      Wi[xm]...Wj[xm+1]...Ri[xm+1]"},
+    {"Full-Write",         "WAT   SDA     'R0a W0a R1a W1a W0a C0 W1a C1'      Wi[xm]...Wj[xm+1]...Wi[xm+2]"},
+    {"Read-WriteSkew1",    "WAT   DDA     'R0a W0a R0a R1b W0b W1a A0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
+    {"Read-WriteSkew2",    "WAT   DDA     'R0a W0a W0b W1a R1b W0b C0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]"},
+    {"Double-WriteSkew1",  "WAT   DDA     'R0a W0a R1a W1a W1b W0b A1 C0'      Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]"},
+    {"Double-WriteSkew2",  "WAT   DDA     'R0a W0a R0a W1a W1b R0b C1 C0'      Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]"},
+    {"Full-WriteSkew",     "WAT   DDA     'R0a W0a W1a W1b W0b R1a A0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
+    {"StepWAT",            "WAT   MDA     'R0a R0b W1b W2c W0c A0 C1 W2b C2'   ...Wi[xm]...Wj[xm+1]..."},
+    {"DirtyRead",          "RAT   SDA     'R0a W0a R1a R0a R1a R0a C1 A0'      Wi[xm]...Rj[xm+1]"},
+    {"UnrepeatableRead",   "RAT   SDA     'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]"},
+    {"IntermediateRead",   "RAT   SDA     'R0a W0a R1a W0a R1a W0a C1 C0'      Wi[xm]...Rj[xm+1]...Wi[xm+2]"},
+    {"ReadSkew",           "RAT   DDA     'R0a W0a R1b R0b W0b R1a C0 A1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]"},
+    {"ReadSkew2",          "RAT   DDA     'R0a W0a W0b R1b R1a C1 W0a C0'      Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]"},
+    {"Write-ReadSkew",     "RAT   DDA     'R0a W0a R1a W1b R0b R1a A0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]"},
+    {"StepRAT",            "RAT   MDA     'R0a R0b W1a R2a R2c W0c C0 C1 C2'   ...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)"},
+    {"WriteSkew",          "IAT   DDA     'R0a R0b R1a W0a R1b W1b C1 C0'      Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]"},
+    {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
+  }, info_map_{
+    {"History",   "The sequence of operations that produces the data anomaly, one history contains several operations."},
+    {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> R: Read, W: Write, C: Commit, A: Aort\n    Transaction ID -> such as 0 1 2 ...\n    Data Item -> such as a b c ..."},
+    {"WAT",       "There is a WW partial order in the ring."},
+    {"RAT",       "There is a WR or WCR partial order in the ring."},
+    {"IAT",       "Anomalies other than WAT and RAT."},
+    {"SDA",       "Two transactions occur in a single variable."},
+    {"DDA",       "Two transactions occur in a double variable."},
+    {"MDA",       "Two transactions occur in a multi variable."}
+  } {};
 
-    return info_map;
-  }
-
-  std::unordered_map<std::string, std::string> InitAnomalyMap() {
-    std::unordered_map<std::string, std::string> anomaly_map;
-    anomaly_map["DirtyWrite"] =         "WAT   SDA   'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]";
-    anomaly_map["LostUpdate"] =         "WAT   SDA   'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]";
-    anomaly_map["LostSelfUpdate"] =     "WAT   SDA   'R0a W0a R0a W1a R0a W1a C0 C1'      Wi[xm]...Wj[xm+1]...Ri[xm+1]";
-    anomaly_map["Full-Write"] =         "WAT   SDA   'R0a W0a R1a W1a W0a C0 W1a C1'      Wi[xm]...Wj[xm+1]...Wi[xm+2]";
-    anomaly_map["Read-WriteSkew1"] =    "WAT   DDA   'R0a W0a R0a R1b W0b W1a A0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
-    anomaly_map["Read-WriteSkew2"] =    "WAT   DDA   'R0a W0a W0b W1a R1b W0b C0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
-    anomaly_map["Double-WriteSkew1"] =  "WAT   DDA   'R0a W0a R1a W1a W1b W0b A1 C0'      Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]";
-    anomaly_map["Double-WriteSkew2"] =  "WAT   DDA   'R0a W0a R0a W1a W1b R0b C1 C0'      Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
-    anomaly_map["Full-WriteSkew"] =     "WAT   DDA   'R0a W0a W1a W1b W0b R1a A0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
-    anomaly_map["StepWAT"] =            "WAT   MDA   'R0a R0b W1b W2c W0c A0 C1 W2b C2'   ...Wi[xm]...Wj[xm+1]...";
-    anomaly_map["DirtyRead"] =          "RAT   SDA   'R0a W0a R1a R0a R1a R0a C1 A0'      Wi[xm]...Rj[xm+1]";
-    anomaly_map["UnrepeatableRead"] =   "RAT   SDA   'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]";
-    anomaly_map["IntermediateRead"] =   "RAT   SDA   'R0a W0a R1a W0a R1a W0a C1 C0'      Wi[xm]...Rj[xm+1]...Wi[xm+2]";
-    anomaly_map["ReadSkew"] =           "RAT   DDA   'R0a W0a R1b R0b W0b R1a C0 A1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
-    anomaly_map["ReadSkew2"] =          "RAT   DDA   'R0a W0a W0b R1b R1a C1 W0a C0'      Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]";
-    anomaly_map["Write-ReadSkew"] =     "RAT   DDA   'R0a W0a R1a W1b R0b R1a A0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]";
-    anomaly_map["StepRAT"] =            "RAT   MDA   'R0a R0b W1a R2a R2c W0c C0 C1 C2'   ...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)";
-    anomaly_map["WriteSkew"] =          "IAT   DDA   'R0a R0b R1a W0a R1b W1b C1 C0'      Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
-    anomaly_map["StepIAT"] =            "IAT   MDA   'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)";
-
-    return anomaly_map;
-  }
-
-  std::vector<std::string> InitAnomalyList() {
+  static std::vector<std::string> InitAnomalyList() {
     std::vector<std::string> anomaly_list;
     anomaly_list.emplace_back("Dirty Write          WAT   SDA      'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]");
     anomaly_list.emplace_back("Lost Update          WAT   SDA      'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]");
@@ -88,12 +80,12 @@ public:
 
   }
 
-  void Print(const std::string& info) {
+  static void Print(const std::string& info) {
       std::cout << info << std::endl;
       std::cout << std::endl;
   }
 
-  void PrintAnomalyTableInfo(std::vector<std::string>& anomaly_list) {
+  static void PrintAnomalyTableInfo(std::vector<std::string>& anomaly_list) {
     std::cout << "DA Name               Type  SubType   History Example                             Definition" << std::endl;
     std::cout << "-------------------------------------------------------------------------------------------------------------" << std::endl;
     for (auto info : anomaly_list) {
@@ -102,7 +94,7 @@ public:
     std::cout << "-------------------------------------------------------------------------------------------------------------\n" << std::endl;
   }
 
-  void PrintStartInfo() {
+  static void PrintStartInfo() {
     std::cout << "Welcome to the 3TS-DAI." << std::endl;
     std::cout << "version: 1.0.0" << std::endl;
     std::cout << "Tencent is pleased to support the open source community by making 3TS available.\n" << std::endl;
@@ -110,7 +102,7 @@ public:
     std::cout << "Type 'help' or 'h' for help.\n" << std::endl;
   }
 
-  void PrintAuthorInfo() {
+  static void PrintAuthorInfo() {
     std::cout << "Authors:" << std::endl;
     std::cout << "Chang Liu" << std::endl;
     std::cout << "Yu Li" << std::endl;
@@ -118,7 +110,7 @@ public:
     std::cout << std::endl;
   }
 
-  void PrintHelpInfo() {
+  static void PrintHelpInfo() {
     std::cout << "List of all 3TS-DAI commands:" << std::endl;
     std::cout << "definition   (\\d) Output precise definitions of History and Anomaly, including History Operation WAT RAT IAT SDA DDA MDA, such as '\\d WAT'" << std::endl;
     std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI CCA ALL, such as '\\g DLI'" << std::endl;
@@ -133,22 +125,25 @@ public:
     std::cout << std::endl;
   }
 
-  void TrimSpace(std::string& str) {
+  static void TrimSpace(std::string& str) {
       auto itor = remove_if(str.begin(), str.end(), ::isspace);
       str.erase(itor, str.end());
   }
 
-  AlgType Alg() { return alg_; };
-
+  AlgType Alg() const { return alg_; };
   void SetAlg(AlgType alg) { alg_ = alg; };
 
+  std::unordered_map<std::string, std::string> InfoMap() const { return info_map_; };
+  std::unordered_map<std::string, std::string> AnomalyMap() const { return anomaly_map_; };
 private:
   AlgType alg_ = AlgType::DLI;
+  std::unordered_map<std::string, std::string> info_map_;
+  std::unordered_map<std::string, std::string> anomaly_map_;
 };
 
 class Checker {
 public:
-  void ExecDLI(std::string text) {
+  void ExecDLI(const std::string& text) {
     ttts::History history;
     std::istringstream is(text);
     if ((is >> history)) {
@@ -183,22 +178,17 @@ public:
         anomaly_info.emplace_back(anomaly_subtype);
         // get anomaly_name
         std::string name = anomaly.substr(index + 3);
-        int is_head = 0;
-        for (int i = 0;i < name.size();i++) {
+        bool is_head = false;
+        for (size_t i = 0;i < name.size();i++) {
           if (i == 0) {
             continue;
-          }
-          if (name[i] == '_') {
-            name[i] = 32;
-            is_head = 1;
-            continue;
-          }
-          if (is_head == 1) {
-            is_head = 0;
-            continue;
-          }
-          if (name[i] >= 'A' && name[i] <= 'Z') {
-              name[i] += 32;
+          } else if (name[i] == '_') {
+            name[i] = 32; // '_' to ' '
+            is_head = true;
+          } else if (is_head == true) {
+            is_head = false;
+          } else if (name[i] >= 'A' && name[i] <= 'Z') {
+              name[i] += 32; // Convert to lowercase
           }
         }
         anomaly_info.emplace_back(name);
