@@ -14,6 +14,12 @@
 #include "util/generic.h"
 #include "cca/conflict_serializable_algorithm.h"
 
+enum class AlgType {
+  DLI,
+  DLI2,
+  ALL
+};
+
 class Printer {
 public:
   std::unordered_map<std::string, std::string> InitInfoMap() {
@@ -122,7 +128,7 @@ public:
     std::cout << "                  IAT: Write Skew, Step IAT" << std::endl;
     std::cout << "                  such as '\\a Dirty Write'" << std::endl;
     std::cout << "table        (\\t) Output table information, including anomaly, such as '\\t Anomalies'" << std::endl;
-    std::cout << "authors      (\\A) Output author information" << std::endl;
+    std::cout << "authors      (\\A) Output author information, such as '\\A'" << std::endl;
     std::cout << "quit         (\\q) quit 3TS-DAI, such as '\\q'" << std::endl;
     std::cout << std::endl;
   }
@@ -132,12 +138,12 @@ public:
       str.erase(itor, str.end());
   }
 
-  int Alg() {return alg_;};
+  AlgType Alg() { return alg_; };
 
-  void SetAlg(const int alg) {alg_ = alg;};
+  void SetAlg(AlgType alg) { alg_ = alg; };
 
 private:
-  int alg_ = 0; //0: DLI 1: 2:ALL
+  AlgType alg_ = AlgType::DLI;
 };
 
 class Checker {
@@ -148,7 +154,7 @@ public:
     if ((is >> history)) {
       ttts::ConflictSerializableAlgorithm<true> alg;
       const std::optional<ttts::AnomalyType> anomaly = alg.GetAnomaly(history, nullptr);
-      if (!anomaly) {
+      if (!anomaly.has_value()) {
         std::cout << "No Data Anomaly\n" << std::endl;
       } else {
         const std::vector<std::string> anomaly_info = AnomalyInfo(ttts::ToString(anomaly.value()));

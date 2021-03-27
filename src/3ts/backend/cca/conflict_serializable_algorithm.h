@@ -398,12 +398,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   }
 
   virtual bool Check(const History& history, std::ostream* const os) const override {
-      std::optional<AnomalyType> anomaly = GetAnomaly(history, os);
-      if (anomaly) {
-        return false;
-      } else {
-        return true;
-      }
+      return !(GetAnomaly(history, os).has_value());
   }
 
  private:

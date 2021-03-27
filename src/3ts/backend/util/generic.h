@@ -320,8 +320,6 @@ class History {
       uint64_t item_num = 0;
       std::unordered_map<uint64_t, uint64_t> trans_num_map;
       std::unordered_map<uint64_t, uint64_t> item_num_map;
-      //std::set<uint64_t> trans_num_set;
-      //std::set<uint64_t> item_num_set;
       for (std::stringstream ss(s); !ss.eof() && !ss.fail();) {
         Operation operation;
         if (Operation operation; ss >> operation) {

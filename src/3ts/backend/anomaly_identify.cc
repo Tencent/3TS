@@ -22,22 +22,12 @@ int main() {
     std::cout << "3ts> ";
     std::string text = "";
     std::getline(std::cin, text);
-    auto index_d1 = text.find("\\d");
-    auto index_d2 = text.find("definition");
-    auto index_a1 = text.find("\\a");
-    auto index_a2 = text.find("anomaly");
-    auto index_g1 = text.find("\\g");
-    auto index_g2 = text.find("algorithm");
-    auto index_t1 = text.find("\\t");
-    auto index_t2 = text.find("table");
-    auto index_A1 = text.find("authors");
-    auto index_A2 = text.find("A");
-    auto index_space = text.find_first_of(" ");
     if ("help" == text || "h" == text) {
         printer.PrintHelpInfo();
     } else if ("\\q" == text || "quit" == text) {
       break;
-    } else if (index_d1 != text.npos || index_d2 != text.npos) {
+    } else if (text.find("\\d") != text.npos || text.find("definition") != text.npos) {
+      const auto index_space = text.find_first_of(" ");
       if (index_space != text.npos) {
         std::string input = text.substr(index_space);
         printer.TrimSpace(input);
@@ -49,7 +39,8 @@ int main() {
       } else {
         printer.Print("Please check input format, such as \\d History");
       }
-    } else if (index_a1 != text.npos || index_a2 != text.npos) {
+    } else if (text.find("\\a") != text.npos || text.find("anomaly") != text.npos) {
+      const auto index_space = text.find_first_of(" ");
       if (index_space != text.npos) {
         std::string input = text.substr(index_space);
         printer.TrimSpace(input);
@@ -61,23 +52,25 @@ int main() {
       } else {
         printer.Print("Please check input format, such as \\a Dirty Write");
       }
-    } else if (index_g1 != text.npos || index_g2 != text.npos) {
+    } else if (text.find("\\g") != text.npos || text.find("algorithm") != text.npos) {
+      const auto index_space = text.find_first_of(" "); 
       if (index_space != text.npos) {
         std::string input = text.substr(index_space);
         printer.TrimSpace(input);
         if ("DLI" == input) {
-          printer.SetAlg(0);
-        } else if ("CCA" == input) {
-          printer.SetAlg(1);
+          printer.SetAlg(AlgType::DLI);
+        } else if ("DLI2" == input) {
+          printer.SetAlg(AlgType::DLI2);
         } else if ("All" == input) {
-          printer.SetAlg(2);
+          printer.SetAlg(AlgType::ALL);
         } else {
           printer.Print("Unknonw Algorithm");
         }
       } else {
         printer.Print("Please check input format, such as \\g DLI");
       }
-    } else if (index_t1 != text.npos || index_t2 != text.npos) {
+    } else if (text.find("\\t") != text.npos || text.find("table") != text.npos) {
+      const auto index_space = text.find_first_of(" ");
       if (index_space != text.npos) {
         std::string input = text.substr(index_space);
         printer.TrimSpace(input);
@@ -87,14 +80,14 @@ int main() {
           printer.Print("Unknonw Table");
         }
       }
-    } else if (index_A1 != text.npos || index_A2 != text.npos) {
+    } else if (text.find("\\A") != text.npos || text.find("authors") != text.npos) {
       printer.PrintAuthorInfo();
     } else {
-        if (printer.Alg() == 0) {
+        if (printer.Alg() == AlgType::DLI) {
           checker.ExecDLI(text);
-        } else if (printer.Alg() == 1) {
+        } else if (printer.Alg() == AlgType::DLI2) {
           // to do
-        } else if (printer.Alg() == 2) {
+        } else if (printer.Alg() == AlgType::ALL) {
          // to do
         } else {
           printer.Print("alg has Unknonw value");
