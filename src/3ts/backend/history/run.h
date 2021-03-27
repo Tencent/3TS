@@ -95,6 +95,11 @@ void FilterRun(
   signal(SIGTERM, handler);
   outs = outputters;
   ThreadRunBase(generator, task, thread_num);
+  for (const auto& [variant_alg, _] : algorithms) {
+      std::visit([](auto&& alg){
+        alg->Statistics();
+      }, variant_alg);
+  }
 }
 
 // Each algorithm check the histories and record the time cost.

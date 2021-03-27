@@ -314,8 +314,9 @@ template <bool IDENTIFY_ANOMALY>
 class ConflictSerializableAlgorithm : public HistoryAlgorithm {
  public:
   ConflictSerializableAlgorithm() : HistoryAlgorithm(IDENTIFY_ANOMALY ? "DLI_IDENTIFY OK" : "Conflict Serializable"), anomaly_counts_{0}, no_anomaly_count_(0) {}
-  virtual ~ConflictSerializableAlgorithm()
-  {
+  virtual ~ConflictSerializableAlgorithm() {}
+
+  void Statistics() const override {
     if (!IDENTIFY_ANOMALY) { return; }
     std::cout.setf(std::ios::right);
     std::cout.precision(4);
@@ -344,7 +345,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     std::cout << "=== DLI_IDENTIFY END ===" << std::endl;
   }
 
-  virtual bool Check(const History& history, std::ostream* const os) const override {
+  std::optional<AnomalyType> GetAnomaly(const History& history, std::ostream* const os) const {
     ConflictGraph graph(history.trans_num());
     std::vector<std::set<uint64_t>> read_trans_set_for_items(history.item_num());
     std::vector<std::set<uint64_t>> write_trans_set_for_items(history.item_num());
@@ -389,11 +390,15 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       const auto anomaly = IdentifyAnomaly_(cycle.preces());
       TRY_LOG(os) << "[" << anomaly << "] " << cycle;
       ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
+      return anomaly;
     } else {
       ++no_anomaly_count_;
+      return {};
     }
+  }
 
-    return !has_cycle;
+  virtual bool Check(const History& history, std::ostream* const os) const override {
+      return !(GetAnomaly(history, os).has_value());
   }
 
  private:

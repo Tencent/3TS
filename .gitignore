@@ -6,6 +6,7 @@ __*
 *.o
 *.bak
 core*
-3ts
 rundb
 runcl
+3TS
+3TS-DAI
