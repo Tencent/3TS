@@ -366,12 +366,10 @@ void Row_mvcc::update_buffer(TxnManager * txn) {
         assert(row->get_schema() == _row->get_schema());
 
         req->txn->ts_ready = true;
-        #if WORKLOAD!=DA //DA do not need restart
         uint64_t timespan = get_sys_clock() - req->starttime;
         req->txn->txn_stats.cc_block_time += timespan;
         req->txn->txn_stats.cc_block_time_short += timespan;
         txn_table.restart_txn(txn->get_thd_id(),req->txn->get_txn_id(),0);
-        #endif
         tofree = req;
         req = req->next;
         // free ready_read

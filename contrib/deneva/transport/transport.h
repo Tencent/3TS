@@ -38,7 +38,7 @@ Data:    MSG_SIZE - HDR_SIZE bytes
 class Socket {
 public:
     Socket () : sock(AF_SP,NN_PAIR) {}
-    ~Socket () { delete &sock;}
+    ~Socket () {}
     char _pad1[CL_SIZE];
     nn::socket sock;
     char _pad[CL_SIZE - sizeof(nn::socket)];
@@ -49,6 +49,7 @@ public:
     void read_ifconfig(const char * ifaddr_file);
     void init();
     void shutdown();
+    void destroy();
     uint64_t get_socket_count();
     string get_path();
     Socket * get_socket();

@@ -118,13 +118,14 @@ void MessageThread::run() {
 
 #if WORKLOAD == DA
     if(!is_server&&false)
-        printf("cl seq_id:%lu type:%c trans_id:%lu item:%c state:%lu next_state:%lu\n",
+        printf("cl seq_id:%lu type:%c trans_id:%lu item:%c state:%lu next_state:%lu write_version:%lu\n",
             ((DAClientQueryMessage*)msg)->seq_id,
             type2char1(((DAClientQueryMessage*)msg)->txn_type),
             ((DAClientQueryMessage*)msg)->trans_id,
             static_cast<char>('x'+((DAClientQueryMessage*)msg)->item_id),
             ((DAClientQueryMessage*)msg)->state,
-            (((DAClientQueryMessage*)msg)->next_state));
+            (((DAClientQueryMessage*)msg)->next_state),
+            ((DAClientQueryMessage*)msg)->write_version);
             fflush(stdout);
 #endif
 

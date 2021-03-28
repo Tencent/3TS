@@ -34,6 +34,8 @@
 #include "focc.h"
 #include "bocc.h"
 #include "row_occ.h"
+#include "dli.h"
+#include "dta.h"
 #include "table.h"
 #include "catalog.h"
 #include "index_btree.h"
@@ -55,6 +57,11 @@
 #include "ssi.h"
 #include "wsi.h"
 #include "manager.h"
+#include "../unified_concurrency_control/txn_dli_identify.h"
+
+#if WORKLOAD == DA
+extern std::optional<ttts::Path> g_da_cycle;
+#endif
 
 void TxnStats::init() {
     starttime=0;
@@ -293,8 +300,8 @@ void Transaction::release_accesses(uint64_t thd_id) {
 void Transaction::release_inserts(uint64_t thd_id) {
     for(uint64_t i = 0; i < insert_rows.size(); i++) {
         row_t * row = insert_rows[i];
-#if CC_ALG != MAAT && CC_ALG != OCC && \
-        CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC
+#if CC_ALG != MAAT && CC_ALG != OCC && CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC
+// TODO: does DLI need free row->manager?
         DEBUG_M("TxnManager::cleanup row->manager free\n");
         mem_allocator.free(row->manager, 0);
 #endif
@@ -367,6 +374,10 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
   // write_set = (int *) mem_allocator.alloc(sizeof(int) * 100);
 #endif
 
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    history_dli_txn_head = dli_man.validated_txns_.load();
+#endif
+
     registed_ = false;
     txn_ready = true;
     twopl_wait_start = 0;
@@ -430,11 +441,12 @@ void TxnManager::release() {
 
 #if CC_ALG == CALVIN
     calvin_locked_rows.release();
-#endif
-#if CC_ALG == SILO
+#elif CC_ALG == SILO
     num_locks = 0;
     memset(write_set, 0, 100);
     // mem_allocator.free(write_set, sizeof(int) * 100);
+#elif IS_GENERIC_ALG
+    uni_txn_man_ = nullptr;
 #endif
     txn_ready = true;
 }
@@ -499,7 +511,9 @@ RC TxnManager::abort() {
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
 #endif
-
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    dta_time_table.release(get_thd_id(), get_txn_id());
+#endif
     uint64_t timespan = get_sys_clock() - txn_stats.restart_starttime;
     if (IS_LOCAL(get_txn_id()) && warmup_done) {
         INC_STATS_ARR(get_thd_id(),start_abort_commit_latency, timespan);
@@ -564,7 +578,7 @@ RC TxnManager::start_commit() {
                 send_prepare_messages();
                 rc = WAIT_REM;
             }
-        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI) {
+        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == DLI_BASE || CC_ALG == DLI_OCC) {
             // send prepare messages
 #if CC_ALG == FOCC
             rc = focc_man.start_critical_section(this);
@@ -727,9 +741,14 @@ void TxnManager::register_thread(Thread * h_thd) {
 #endif
 }
 
-void TxnManager::set_txn_id(txnid_t txn_id) { txn->txn_id = txn_id; }
+void TxnManager::set_txn_id(txnid_t txn_id) {
+    txn->txn_id = txn_id;
+#if IS_GENERIC_ALG
+    uni_txn_man_ = std::make_unique<UniTxnManager<CC_ALG>>(txn_id);
+#endif
+}
 
-txnid_t TxnManager::get_txn_id() { return txn->txn_id; }
+txnid_t TxnManager::get_txn_id() const { return txn->txn_id; }
 
 Workload *TxnManager::get_wl() { return h_wl; }
 
@@ -834,6 +853,17 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
         }
     }
 #endif
+
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    Dli::RWSet::iterator it;
+    if (type == WR && dli_txn && (it = dli_txn->wset_.find(orig_r)) != dli_txn->wset_.end()) {
+      // We need not lock wset_ because once dli_txn can be visiable to other transactions, the size
+      // of wset will not be changed. We only update the version of each row has been written.
+      // TODO: the value of wset should be atomical
+      it->second = version;
+    }
+#endif
+
 #endif
     if (type == WR) txn->accesses[rid]->version = version;
 #if CC_ALG == SUNDIAL
@@ -862,6 +892,25 @@ void TxnManager::cleanup(RC rc) {
 #if (CC_ALG == WSI) && MODE == NORMAL_MODE
     wsi_man.finish(rc,this);
 #endif
+#if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC_BASE) && MODE == NORMAL_MODE
+    dli_man.finish_trans(rc, this);
+#endif
+#if IS_GENERIC_ALG && MODE == NORMAL_MODE
+    if (rc == RCOK) {
+        uni_alg_man.Commit(*uni_txn_man_);
+    } else {
+        assert(rc == Abort);
+        uni_alg_man.Abort(*uni_txn_man_);
+    }
+#endif
+
+
+#if WORKLOAD == DA && (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
+    if (uni_txn_man_->cycle_ != nullptr && !g_da_cycle.has_value()) {
+        g_da_cycle.emplace(*uni_txn_man_->cycle_);
+    }
+#endif
+
     ts_t starttime = get_sys_clock();
     uint64_t row_cnt = txn->accesses.get_count();
     assert(txn->accesses.get_count() == txn->row_cnt);
@@ -879,6 +928,10 @@ void TxnManager::cleanup(RC rc) {
         row_t * row = calvin_locked_rows[i];
         row->return_row(rc,RD,this,row);
     }
+#endif
+
+#if CC_ALG == DTA
+    dta_man.finish(rc, this);
 #endif
 
     if (rc == Abort) {
@@ -926,14 +979,14 @@ RC TxnManager::get_row(row_t * row, access_t type, row_t *& row_rtn) {
     if (!access) {
         access_pool.get(get_thd_id(),access);
         rc = row->get_row(type, this, access->data, access->orig_wts, access->orig_rts);
-        if (!OCC_WAW_LOCK || type == RD) {
+        if (!OCC_WAW_LOCK || type == RD || type == SCAN) {
             _min_commit_ts = _min_commit_ts > access->orig_wts ? _min_commit_ts : access->orig_wts;
         } else {
             if (rc == WAIT) ATOM_ADD_FETCH(_num_lock_waits, 1);
             if (rc == Abort || rc == WAIT) return rc;
         }
     }
-    if (!OCC_WAW_LOCK || type == RD) {
+    if (!OCC_WAW_LOCK || type == RD || type == SCAN) {
         access->locked = false;
     } else {
         _min_commit_ts = _min_commit_ts > access->orig_rts + 1 ? _min_commit_ts : access->orig_rts + 1;
@@ -1083,32 +1136,52 @@ RC TxnManager::validate() {
 #if MODE != NORMAL_MODE
     return RCOK;
 #endif
-    if (CC_ALG != OCC && CC_ALG != MAAT  &&
-            CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC && CC_ALG != WSI &&
-            CC_ALG != SSI && CC_ALG != SILO) {
-        return RCOK;
-    }
     RC rc = RCOK;
     uint64_t starttime = get_sys_clock();
-    if (CC_ALG == OCC && rc == RCOK) rc = occ_man.validate(this);
-    if(CC_ALG == BOCC && rc == RCOK) rc = bocc_man.validate(this);
-    if(CC_ALG == FOCC && rc == RCOK) rc = focc_man.validate(this);
-    if(CC_ALG == SSI && rc == RCOK) rc = ssi_man.validate(this);
-    if(CC_ALG == WSI && rc == RCOK) rc = wsi_man.validate(this);
-    if(CC_ALG == MAAT  && rc == RCOK) {
+    if (CC_ALG == OCC) {
+        rc = occ_man.validate(this);
+    } else if (CC_ALG == BOCC) {
+        rc = bocc_man.validate(this);
+    } else if (CC_ALG == FOCC) {
+        rc = focc_man.validate(this);
+    } else if (CC_ALG == SSI) {
+        rc = ssi_man.validate(this);
+    } else if (CC_ALG == WSI) {
+        rc = wsi_man.validate(this);
+    } else if (CC_ALG == MAAT) {
         rc = maat_man.validate(this);
         // Note: home node must be last to validate
         if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
             rc = maat_man.find_bound(this);
         }
-    }
-    if(CC_ALG == SUNDIAL  && rc == RCOK) {
+    } else if (CC_ALG == SUNDIAL) {
         rc = sundial_man.validate(this);
+    } else if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC ||
+          CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC) {
+        rc = dli_man.validate(this);
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+            rc = dli_man.find_bound(this);
+#else
+            set_commit_timestamp(glob_manager.get_ts(get_thd_id()));
+#endif
+        }
+    } else if (CC_ALG == DTA) {
+        rc = dta_man.validate(this);
+        // Note: home node must be last to validate
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
+            rc = dta_man.find_bound(this);
+        }
     }
+#if IS_GENERIC_ALG
+    else if (IS_GENERIC_ALG) {
+        rc = uni_alg_man.Validate(*this->uni_txn_man_) ? RCOK : Abort;
+    }
+#endif
 #if CC_ALG == SILO
-    if(CC_ALG == SILO && rc == RCOK) {
+    else if (CC_ALG == SILO) {
         rc = validate_silo();
-        if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
             _cur_tid ++;
             commit_timestamp = _cur_tid;
             DEBUG("Validate success: %ld, cts: %ld \n", get_txn_id(), commit_timestamp);

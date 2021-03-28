@@ -28,7 +28,7 @@
 #define CREATOR_USE_T false
 
 //TraversalActionSequenceCreator
-#define TRANS_CNT 2
+#define TRANS_CNT 4
 #define ITEM_CNT 4
 #define SUBTASK_NUM 1
 #define SUBTASK_ID 0
@@ -50,14 +50,18 @@
 // #define NO_REMOTE // remove all remote txn
 #define TXN_QUEUE_PERCENT 0.9 // The proportion of the transaction to take from txn_queue firstly.
 // ! end of these parameters
+//
+
+// print detail log for each operation execution
+#define DA_PRINT_LOG false
 
 /***********************************************/
 // Simulation + Hardware
 /***********************************************/
-#define NODE_CNT 2
-#define THREAD_CNT 4 //trans_num
-#define REM_THREAD_CNT 2
-#define SEND_THREAD_CNT 2
+#define NODE_CNT 1
+#define THREAD_CNT 1 //trans_num
+#define REM_THREAD_CNT 1
+#define SEND_THREAD_CNT 1
 #define CORE_CNT 2
 // PART_CNT should be at least NODE_CNT
 #define PART_CNT NODE_CNT
@@ -88,7 +92,7 @@
 // # of transactions to run for warmup
 #define WARMUP            0
 // YCSB or TPCC or PPS or DA
-#define WORKLOAD YCSB
+#define WORKLOAD DA
 // print the transaction latency distribution
 #define PRT_LAT_DISTR false
 #define STATS_ENABLE        true
@@ -148,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG BOCC
+#define CC_ALG DLI_IDENTIFY
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.
@@ -383,8 +387,23 @@ enum PPSTxnType {
 #define BOCC       16
 #define SSI        17
 #define WSI        18
+
+#define DLI_BASE 19
+#define DLI_OCC 20
+#define DLI_MVCC_OCC 21
+#define DLI_DTA 22
+#define DLI_MVCC 23
+#define DLI_DTA2 24
+#define DLI_DTA3 25
+#define DTA 26
+
 #define SILO 27
 #define CNULL 28
+#define DLI_IDENTIFY 29
+#define DLI_IDENTIFY_2 30
+
+#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
+
 // TIMESTAMP allocation method.
 #define TS_MUTEX          1
 #define TS_CAS            2

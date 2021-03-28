@@ -210,6 +210,12 @@ public:
     uint64_t sched_epoch_cnt;
     double sched_epoch_diff;
 
+    // DLI_MVCC_OCC
+    double dli_mvcc_occ_validate_time;
+    uint64_t dli_mvcc_occ_check_cnt;
+    uint64_t dli_mvcc_occ_abort_check_cnt;
+    uint64_t dli_mvcc_occ_ts_abort_cnt;
+
     // OCC
     double occ_validate_time;
     double occ_cs_wait_time;

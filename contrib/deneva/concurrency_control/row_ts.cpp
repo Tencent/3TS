@@ -280,17 +280,17 @@ void Row_ts::update_buffer(uint64_t thd_id) {
         // for each debuffered readreq, perform read.
         TsReqEntry * req = ready_read;
         while (req != NULL) {
-            req->txn->cur_row->copy(_row);
-            if (rts < req->ts) {
-                rts = req->ts;
-            }
-            req->txn->ts_ready = true;
+            if (req->txn->txn && req->ts == req->txn->get_timestamp()) {
+                req->txn->cur_row->copy(_row);
+                if (rts < req->ts) {
+                    rts = req->ts;
+                }
+                req->txn->ts_ready = true;
                 uint64_t timespan = get_sys_clock() - req->starttime;
                 req->txn->txn_stats.cc_block_time += timespan;
                 req->txn->txn_stats.cc_block_time_short += timespan;
-            #if WORKLOAD!=DA
-            txn_table.restart_txn(thd_id,req->txn->get_txn_id(),0);
-            #endif
+                txn_table.restart_txn(thd_id,req->txn->get_txn_id(),0);
+            }
             req = req->next;
         }
         // return all the req_entry back to freelist

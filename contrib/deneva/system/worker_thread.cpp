@@ -46,6 +46,16 @@
 #include "ssi.h"
 #include "focc.h"
 #include "bocc.h"
+#include "dli.h"
+#include "dta.h"
+#include "da.h"
+
+#define SUPPORT_ANOMALY_IDENTIFY (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
+
+#if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
+static std::array<std::atomic<uint64_t>, ttts::Count<ttts::AnomalyType>()> g_anomaly_counts = {0};
+static uint64_t g_no_anomaly_count = 0;
+#endif
 
 void WorkerThread::setup() {
     if( get_thd_id() == 0) {
@@ -275,12 +285,15 @@ void WorkerThread::abort() {
     INC_STATS(get_thd_id(), trans_finish_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_abort_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_total_run_time, timespan_short);
-    #if WORKLOAD != DA //actually DA do not need real abort. Just count it and do not send real abort msg.
-    uint64_t penalty =
-        abort_queue.enqueue(get_thd_id(), txn_man->get_txn_id(), txn_man->get_abort_cnt());
-
+#if WORKLOAD == DA
+    // DA do not need retry abort transactions. Just count it and do not send real abort msg.
+    // If not release txn man, later transactions will use the same txn_man which remains the
+    // current data and will not be initialized.
+    release_txn_man();
+#else
+    abort_queue.enqueue(get_thd_id(), txn_man->get_txn_id(), txn_man->get_abort_cnt());
     txn_man->txn_stats.total_abort_time += penalty;
-    #endif
+#endif
 }
 
 TxnManager * WorkerThread::get_transaction_manager(Message * msg) {
@@ -311,6 +324,36 @@ char type2char(DATxnType txn_type)
         return 'U';
     }
 }
+
+#if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
+static void print_anomaly_type_rates() {
+    std::cout.setf(std::ios::right);
+    std::cout.precision(4);
+
+    static auto print_percent = [](auto&& value, auto&& total) {
+      std::cout << std::setw(10) << static_cast<double>(value) / total * 100 << "% = " << std::setw(5) << value << " / " << std::setw(5) << total;
+    };
+
+    const auto anomaly_count = std::accumulate(g_anomaly_counts.begin(), g_anomaly_counts.end(), 0);
+    std::cout << "=== DLI_IDENTIFY ===" << std::endl;
+
+    std::cout << std::setw(40) << "True Rollback: ";
+    print_percent(anomaly_count, anomaly_count + g_no_anomaly_count);
+    std::cout << std::endl;
+
+    std::vector<std::pair<ttts::AnomalyType, uint32_t>> sorted_g_anomaly_counts;
+    for (const auto anomaly : ttts::Members<ttts::AnomalyType>()) {
+      sorted_g_anomaly_counts.emplace_back(anomaly, g_anomaly_counts.at(static_cast<uint32_t>(anomaly)));
+    }
+    std::sort(sorted_g_anomaly_counts.begin(), sorted_g_anomaly_counts.end(), [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
+    for (const auto& [anomaly, count] : sorted_g_anomaly_counts) {
+      std::cout << std::setw(40) << (std::string("[") + ToString(anomaly) + "] ");
+      print_percent(count, anomaly_count);
+      std::cout << std::endl;
+    }
+    std::cout << "=== DLI_IDENTIFY END ===" << std::endl;
+}
+#endif
 
 RC WorkerThread::run() {
     tsetup();
@@ -351,7 +394,7 @@ RC WorkerThread::run() {
             continue;
         }
         simulation->last_da_query_time = get_sys_clock();
-#if WORKLOAD == DA
+#if WORKLOAD == DA && DA_PRINT_LOG == true
         printf("thd_id:%lu stxn_id:%lu batch_id:%lu seq_id:%lu type:%c rtype:%d trans_id:%lu item:%c laststate:%lu state:%lu next_state:%lu\n",
             this->_thd_id,
             ((DAClientQueryMessage*)msg)->txn_id,
@@ -430,6 +473,9 @@ RC WorkerThread::run() {
 #endif
         INC_STATS(get_thd_id(),worker_release_msg_time,get_sys_clock() - ready_starttime);
     }
+#if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
+    print_anomaly_type_rates();
+#endif
     printf("FINISH %ld:%ld\n",_node_id,_thd_id);
     fflush(stdout);
     return FINISH;
@@ -486,6 +532,23 @@ RC WorkerThread::process_rack_prep(Message * msg) {
             time_table.get_upper(get_thd_id(), msg->get_txn_id()));
     if(((AckMessage*)msg)->rc != RCOK) {
         time_table.set_state(get_thd_id(),msg->get_txn_id(),MAAT_ABORTED);
+    }
+#endif
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    // Integrate bounds
+    uint64_t lower = ((AckMessage*)msg)->lower;
+    uint64_t upper = ((AckMessage*)msg)->upper;
+    if (lower > dta_time_table.get_lower(get_thd_id(), msg->get_txn_id())) {
+      dta_time_table.set_lower(get_thd_id(), msg->get_txn_id(), lower);
+    }
+    if (upper < dta_time_table.get_upper(get_thd_id(), msg->get_txn_id())) {
+      dta_time_table.set_upper(get_thd_id(), msg->get_txn_id(), upper);
+    }
+    DEBUG("%ld bound set: [%ld,%ld] -> [%ld,%ld]\n", msg->get_txn_id(), lower, upper,
+          dta_time_table.get_lower(get_thd_id(), msg->get_txn_id()),
+          dta_time_table.get_upper(get_thd_id(), msg->get_txn_id()));
+    if (((AckMessage*)msg)->rc != RCOK) {
+      dta_time_table.set_state(get_thd_id(), msg->get_txn_id(), DTA_ABORTED);
     }
 #endif
 
@@ -590,6 +653,14 @@ RC WorkerThread::process_rqry(Message * msg) {
 #if CC_ALG == MAAT
     time_table.init(get_thd_id(),txn_man->get_txn_id());
 #endif
+#if CC_ALG == DTA
+    txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_timestamp());
+    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_timestamp());
+#endif
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_start_timestamp());
+    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
+#endif
     rc = txn_man->run_txn();
 
     // Send response
@@ -662,114 +733,194 @@ RC WorkerThread::process_rtxn(Message * msg) {
     RC rc = RCOK;
     uint64_t txn_id = UINT64_MAX;
 
-    if(msg->get_rtype() == CL_QRY) {
-        // This is a new transaction
-        // Only set new txn_id when txn first starts
-    #if WORKLOAD == DA
-        msg->txn_id=((DAClientQueryMessage*)msg)->trans_id;
-        txn_id=((DAClientQueryMessage*)msg)->trans_id;
-    #else
-        txn_id = get_next_txn_id();
-        msg->txn_id = txn_id;
-    #endif
-        // Put txn in txn_table
-        txn_man = txn_table.get_transaction_manager(get_thd_id(),txn_id,0);
-        txn_man->register_thread(this);
-        uint64_t ready_starttime = get_sys_clock();
-        bool ready = txn_man->unset_ready();
-        INC_STATS(get_thd_id(),worker_activate_txn_time,get_sys_clock() - ready_starttime);
-        assert(ready);
-        if (CC_ALG == WAIT_DIE) {
-        #if WORKLOAD == DA //mvcc use timestamp
-            if (da_stamp_tab.count(txn_man->get_txn_id())==0)
+#if WORKLOAD == DA && DA_PRINT_LOG == true
+    printf("thd_id:%lu check: state:%lu nextstate:%lu \n",h_thd->_thd_id, da_query->state, _wl->nextstate);
+    fflush(stdout);
+#endif
+
+#if WORKLOAD == DA
+    auto da_wl = static_cast<DAWorkload*>(_wl);
+    if (da_wl->nextstate != 0) {
+        while (((DAClientQueryMessage*)msg)->state != da_wl->nextstate && !simulation->is_done());
+    }
+
+    if (already_abort_tab.find(((DAClientQueryMessage*)msg)->trans_id) == already_abort_tab.end()) {
+#endif
+
+        if (msg->get_rtype() == CL_QRY) {
+            // This is a new transaction
+            // Only set new txn_id when txn first starts
+#if WORKLOAD == DA
+            msg->txn_id=((DAClientQueryMessage*)msg)->trans_id;
+            txn_id=((DAClientQueryMessage*)msg)->trans_id;
+#else
+            txn_id = get_next_txn_id();
+            msg->txn_id = txn_id;
+#endif
+            // Put txn in txn_table
+            //
+            txn_man = txn_table.get_transaction_manager(get_thd_id(),txn_id,0);
+            txn_man->register_thread(this);
+            uint64_t ready_starttime = get_sys_clock();
+            bool ready = txn_man->unset_ready();
+            INC_STATS(get_thd_id(),worker_activate_txn_time,get_sys_clock() - ready_starttime);
+            assert(ready);
+            if (CC_ALG == WAIT_DIE) {
+#if WORKLOAD == DA //mvcc use timestamp
+                if (da_stamp_tab.count(txn_man->get_txn_id())==0)
+                {
+                da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+                }
+                else
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+#else
+                txn_man->set_timestamp(get_next_ts());
+#endif
+            }
+            txn_man->txn_stats.starttime = get_sys_clock();
+            txn_man->txn_stats.restart_starttime = txn_man->txn_stats.starttime;
+            msg->copy_to_txn(txn_man);
+            DEBUG("START %ld %f %lu\n", txn_man->get_txn_id(),
+                simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
+#if WORKLOAD==DA
+            if(da_start_trans_tab.count(txn_man->get_txn_id())==0)
             {
-            da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+                da_start_trans_tab.insert(txn_man->get_txn_id());
+                INC_STATS(get_thd_id(),local_txn_start_cnt,1);
+            }
+#else
+            INC_STATS(get_thd_id(), local_txn_start_cnt, 1);
+#endif
+
+        } else {
+            txn_man->txn_stats.restart_starttime = get_sys_clock();
+            DEBUG("RESTART %ld %f %lu\n", txn_man->get_txn_id(),
+                simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
+        }
+        // Get new timestamps
+        if(is_cc_new_timestamp()) {
+#if WORKLOAD==DA //mvcc use timestamp
+            if(da_stamp_tab.count(txn_man->get_txn_id())==0)
+            {
+                da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
             }
             else
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
-        #else
+                txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
+#else
             txn_man->set_timestamp(get_next_ts());
-        #endif
+#endif
         }
-        txn_man->txn_stats.starttime = get_sys_clock();
-        txn_man->txn_stats.restart_starttime = txn_man->txn_stats.starttime;
-        msg->copy_to_txn(txn_man);
-        DEBUG("START %ld %f %lu\n", txn_man->get_txn_id(),
-            simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
-    #if WORKLOAD==DA
-        if(da_start_trans_tab.count(txn_man->get_txn_id())==0)
-        {
-            da_start_trans_tab.insert(txn_man->get_txn_id());
-            INC_STATS(get_thd_id(),local_txn_start_cnt,1);
-        }
-    #else
-        INC_STATS(get_thd_id(), local_txn_start_cnt, 1);
-    #endif
-
-    } else {
-        txn_man->txn_stats.restart_starttime = get_sys_clock();
-        DEBUG("RESTART %ld %f %lu\n", txn_man->get_txn_id(),
-            simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
-    }
-    // Get new timestamps
-    if(is_cc_new_timestamp()) {
-    #if WORKLOAD==DA //mvcc use timestamp
-        if(da_stamp_tab.count(txn_man->get_txn_id())==0)
-        {
-            da_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
-        }
-        else
-            txn_man->set_timestamp(da_stamp_tab[txn_man->get_txn_id()]);
-    #else
-         txn_man->set_timestamp(get_next_ts());
-    #endif
-    }
 
 #if CC_ALG == MVCC
-    txn_table.update_min_ts(get_thd_id(),txn_id,0,txn_man->get_timestamp());
+        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
 #endif
 #if CC_ALG == WSI || CC_ALG == SSI
-    txn_table.update_min_ts(get_thd_id(),txn_id,0,txn_man->get_start_timestamp());
+        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
-    #if WORKLOAD==DA
-    if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
-    {
-        da_start_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
-        txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
-    }
-    else
-        txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
-    #else
-        txn_man->set_start_timestamp(get_next_ts());
-    #endif
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI ||\
+        CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA ||\
+        CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
+#if WORKLOAD==DA
+        if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
+        {
+            da_start_stamp_tab[txn_man->get_txn_id()]=get_next_ts();
+            txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
+        }
+        else
+            txn_man->set_start_timestamp(da_start_stamp_tab[txn_man->get_txn_id()]);
+#else
+            txn_man->set_start_timestamp(get_next_ts());
+#endif
 #endif
 #if CC_ALG == MAAT
-    #if WORKLOAD==DA
-    if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
-    {
-        da_start_stamp_tab[txn_man->get_txn_id()]=1;
-        time_table.init(get_thd_id(), txn_man->get_txn_id());
-        assert(time_table.get_lower(get_thd_id(), txn_man->get_txn_id()) == 0);
-        assert(time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
-        assert(time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == MAAT_RUNNING);
-    }
-    #else
-    time_table.init(get_thd_id(),txn_man->get_txn_id());
-    assert(time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
-    assert(time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
-    assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == MAAT_RUNNING);
-    #endif
+#if WORKLOAD==DA
+        if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
+        {
+            da_start_stamp_tab[txn_man->get_txn_id()]=1;
+            time_table.init(get_thd_id(), txn_man->get_txn_id());
+            assert(time_table.get_lower(get_thd_id(), txn_man->get_txn_id()) == 0);
+            assert(time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
+            assert(time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == MAAT_RUNNING);
+        }
+#else
+        time_table.init(get_thd_id(),txn_man->get_txn_id());
+        assert(time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
+        assert(time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
+        assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == MAAT_RUNNING);
 #endif
+#endif
+#if CC_ALG == DTA
+        txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_timestamp());
+        dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_timestamp());
+        // assert(dta_time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
+        assert(dta_time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
+        assert(dta_time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == DTA_RUNNING);
+#endif
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+        txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_start_timestamp());
+        dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
+#endif
+        rc = init_phase();
+        if (rc != RCOK) return rc;
 
-    rc = init_phase();
-    if (rc != RCOK) return rc;
+        // Execute transaction
+        rc = txn_man->run_txn();
+        check_if_done(rc);
+#if WORKLOAD == DA
+    }
 
-    // Execute transaction
-    rc = txn_man->run_txn();
-    check_if_done(rc);
+    auto tmp_txn_man = txn_man;
+    if (!DA_delayed_operations.empty()) {
+        std::vector<Message*> delayed_operations;
+        std::swap(DA_delayed_operations, delayed_operations);
+        for (auto msg : delayed_operations) {
+          txn_man = get_transaction_manager(msg);
+          const bool is_current_trans = txn_man == tmp_txn_man;
+          static_cast<DATxnManager*>(txn_man)->set_not_waiting();
+          process_rtxn_cont(msg);
+          if (is_current_trans && txn_man == nullptr) {
+              // current txn is over
+              // such as: C1 C2 *R2x *C2, current trans is 2.
+              // before process cont, trans 2 is not over because C2 is delayed, so tmp_txn_man is not null
+              // after process cont, trans is over because *C2 finished
+              // in this time, we need finally set txn_man NULL
+              tmp_txn_man = nullptr;
+          }
+        }
+    }
+    txn_man = tmp_txn_man;
+
+    da_wl->nextstate = ((DAClientQueryMessage*)msg)->next_state;
+    if (da_wl->nextstate == 0) {
+        auto& output_file = abort_history ? abort_file : commit_file;
+        if (!DA_delayed_operations.empty()) {
+            output_file << "[ERROR] remain delayed operations: ";
+            DA_delayed_operations.clear();
+        }
+#if SUPPORT_ANOMALY_IDENTIFY
+        if (g_da_cycle.has_value()) {
+            const auto anomaly_type = UniAlgManager<CC_ALG>::IdentifyAnomaly(g_da_cycle->Preces());
+            output_file << DA_history_mem << " |  " << anomaly_type << "  |  " << *g_da_cycle << std::endl;
+            ++(g_anomaly_counts.at(static_cast<uint32_t>(anomaly_type)));
+            g_da_cycle.reset();
+        } else {
+            output_file << DA_history_mem << std::endl;
+            ++g_no_anomaly_count;
+        }
+        uni_alg_man.CheckConcurrencyTxnEmpty();
+#else
+        output_file << DA_history_mem << std::endl;
+#endif
+        string().swap(DA_history_mem);
+        abort_history = false;
+        da_start_stamp_tab.clear();
+        da_wl->reset_tab_idx();
+        already_abort_tab.clear();
+        da_start_trans_tab.clear();
+    }
+#endif
     return rc;
 }
 
@@ -876,6 +1027,7 @@ RC WorkerNumThread::run() {
     while(!simulation->is_done()) {
         progress_stats();
 
+/* heap-buffer-overflow
         uint64_t wq_size = work_queue.get_wq_cnt();
         uint64_t tx_size = work_queue.get_txn_cnt();
         uint64_t ewq_size = work_queue.get_enwq_cnt();
@@ -897,6 +1049,7 @@ RC WorkerNumThread::run() {
 
         INC_STATS(_thd_id,work_queue_etx_cnt[i],etx_size);
         INC_STATS(_thd_id,work_queue_dtx_cnt[i],dtx_size);
+*/
         i++;
         sleep(1);
 

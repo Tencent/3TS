@@ -53,7 +53,6 @@ void DABlockQueue::push_data(BaseQuery* data)
     while(IsFull())
     {
         NotifyConsume();
-        std::cout<<"queue full,notify consume data,product stop!!"<<std::endl;
         ProductWait();
     }
 
@@ -68,7 +67,6 @@ BaseQuery* DABlockQueue::pop_data()
     while(IsEmpty())
     {
         NotifyProduct();
-        std::cout<<"queue empty,notify product data,consume stop!!"<<std::endl;
         list<BaseQuery*>().swap(q);
         ConsumeWait();
     }

@@ -51,6 +51,7 @@
 #include <boost/lockfree/queue.hpp>
 #include "da_block_queue.h"
 //#include "maat.h"
+#include "../concurrency_control/unified_util.h"
 
 using namespace std;
 
@@ -66,6 +67,8 @@ class ssi;
 class wsi;
 class Maat;
 class Sundial;
+class Dta;
+class Dli;
 class Transport;
 class Remote_query;
 class TxnManPool;
@@ -84,6 +87,7 @@ class Client_txn;
 class Sequencer;
 class Logger;
 class TimeTable;
+class DtaTimeTable;
 class InOutTable;
 
 class DAQuery;
@@ -92,6 +96,9 @@ class KeyXidCache;
 class RtsCache;
 // class QTcpQueue;
 class TcpTimestamp;
+class Message;
+
+class Path;
 
 typedef uint32_t UInt32;
 typedef int32_t SInt32;
@@ -116,6 +123,11 @@ extern ssi ssi_man;
 extern wsi wsi_man;
 extern Maat maat_man;
 extern Sundial sundial_man;
+extern Dta dta_man;
+extern Dli dli_man;
+#if IS_GENERIC_ALG
+extern UniAlgManager<CC_ALG> uni_alg_man;
+#endif
 extern Transport tport_man;
 extern TxnManPool txn_man_pool;
 extern TxnPool txn_pool;
@@ -132,6 +144,7 @@ extern Client_txn client_man;
 extern Sequencer seq_man;
 extern Logger logger;
 extern TimeTable time_table;
+extern DtaTimeTable dta_time_table;
 extern InOutTable inout_table;
 
 // extern QTcpQueue tcp_queue;
@@ -261,10 +274,6 @@ extern map<uint64_t, ts_t> da_start_stamp_tab;
 extern set<uint64_t> da_start_trans_tab;
 extern map<uint64_t, ts_t> da_stamp_tab;
 extern set<uint64_t> already_abort_tab;
-extern string DA_history_mem;
-extern bool abort_history;
-extern ofstream commit_file;
-extern ofstream abort_file;
 // CALVIN
 extern UInt32 g_seq_thread_cnt;
 
@@ -339,7 +348,7 @@ enum access_t {RD, WR, XP, SCAN};
 /* LOCK */
 enum lock_t {LOCK_EX = 0, LOCK_SH, LOCK_NONE, LOCK_COM};
 /* TIMESTAMP */
-enum TsType {R_REQ = 0, W_REQ, P_REQ, XP_REQ};
+enum TsType {R_REQ = 0, W_REQ, P_REQ, XP_REQ, S_REQ};
 
 /*DA query build queue*/
 //queue<DAQuery> query_build_queue;

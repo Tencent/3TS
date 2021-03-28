@@ -33,6 +33,14 @@
 #include "txn.h"
 #include "ycsb.h"
 
+static std::atomic<bool> g_one_io_thread_exit(false);
+
+static void try_close_socket() {
+  if (g_one_io_thread_exit.exchange(true)) {
+    tport_man.destroy();
+  }
+}
+
 void InputThread::setup() {
 
     std::vector<Message*> * msgs;
@@ -86,7 +94,7 @@ RC InputThread::run() {
     } else {
         server_recv_loop();
     }
-
+    try_close_socket();
     return FINISH;
 
 }
@@ -135,7 +143,7 @@ RC InputThread::client_recv_loop() {
 
     }
 
-    printf("FINISH %ld:%ld\n",_node_id,_thd_id);
+    printf("InputThread Client FINISH %ld:%ld\n",_node_id,_thd_id);
     fflush(stdout);
     return FINISH;
 }
@@ -186,7 +194,11 @@ RC InputThread::server_recv_loop() {
     uint64_t starttime;
 
     std::vector<Message*> * msgs;
-    while (!simulation->is_done()) {
+    while (!simulation->is_done()
+#if WORKLOAD == DA
+        && !simulation->da_server_iothread_timeout()
+#endif
+      ) {
         heartbeat();
         starttime = get_sys_clock();
 
@@ -219,13 +231,17 @@ RC InputThread::server_recv_loop() {
             if (fakeprocess(msg))
 #endif
                 work_queue.enqueue(get_thd_id(),msg,false);
+#if WORKLOAD == DA
+            simulation->last_da_recv_query_time = get_sys_clock();
+            simulation->da_has_recved_query = true;
+#endif
             msgs->erase(msgs->begin());
         }
         delete msgs;
         INC_STATS(_thd_id,mtx[29], get_sys_clock() - starttime);
 
     }
-    printf("FINISH %ld:%ld\n",_node_id,_thd_id);
+    printf("InputThread Server FINISH %ld:%ld\n",_node_id,_thd_id);
     fflush(stdout);
     return FINISH;
 }
@@ -244,12 +260,16 @@ RC OutputThread::run() {
     tsetup();
     printf("Running OutputThread %ld\n",_thd_id);
 
-    while (!simulation->is_done()) {
+    while (!simulation->is_done()
+#if WORKLOAD == DA
+        && !simulation->da_server_iothread_timeout()
+#endif
+      ) {
         heartbeat();
         messager->run();
     }
-
-    printf("FINISH %ld:%ld\n",_node_id,_thd_id);
+    try_close_socket();
+    printf("OutputThread FINISH %ld:%ld\n", _node_id, _thd_id);
     fflush(stdout);
     return FINISH;
 }

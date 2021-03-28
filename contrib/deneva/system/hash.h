@@ -51,6 +51,6 @@
     c -= rot(b, 24);   \
 }
 
-int hash_any(register const unsigned char *k, register int keylen);
+int hash_any(const unsigned char *k, int keylen);
 
 #endif

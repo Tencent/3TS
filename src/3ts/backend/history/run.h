@@ -95,6 +95,11 @@ void FilterRun(
   signal(SIGTERM, handler);
   outs = outputters;
   ThreadRunBase(generator, task, thread_num);
+  for (const auto& [variant_alg, _] : algorithms) {
+      std::visit([](auto&& alg){
+        alg->Statistics();
+      }, variant_alg);
+  }
 }
 
 // Each algorithm check the histories and record the time cost.
@@ -130,10 +135,10 @@ template <typename OS>
 void BenchmarkRun(const std::vector<uint64_t> &trans_nums, const std::vector<uint64_t> &item_nums,
                   const uint64_t num,
                   const std::vector<std::shared_ptr<HistoryAlgorithm>> &algorithms, OS &&os,
-                  const bool with_abort, const bool tail_tcl) {
+                  const bool with_abort, const TclPosition tcl_position) {
   Options opts;
   opts.with_abort = with_abort;
-  opts.tail_tcl = tail_tcl;
+  opts.tcl_position = tcl_position;
   for (const uint64_t trans_num : trans_nums) {
     for (const uint64_t item_num : item_nums) {
       const uint64_t dml_operation_num = trans_num * item_num / 4;

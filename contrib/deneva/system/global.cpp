@@ -26,6 +26,8 @@
 #include "focc.h"
 #include "ssi.h"
 #include "wsi.h"
+#include "dta.h"
+#include "dli.h"
 #include "transport.h"
 #include "work_queue.h"
 #include "abort_queue.h"
@@ -69,6 +71,11 @@ Maat maat_man;
 ssi ssi_man;
 wsi wsi_man;
 Sundial sundial_man;
+Dta dta_man;
+Dli dli_man;
+#if IS_GENERIC_ALG
+UniAlgManager<CC_ALG> uni_alg_man;
+#endif
 Transport tport_man;
 TxnManPool txn_man_pool;
 TxnPool txn_pool;
@@ -85,6 +92,7 @@ Client_txn client_man;
 Sequencer seq_man;
 Logger logger;
 TimeTable time_table;
+DtaTimeTable dta_time_table;
 InOutTable inout_table;
 // QTcpQueue tcp_queue;
 TcpTimestamp tcp_ts;
@@ -95,10 +103,6 @@ map<uint64_t, ts_t> da_start_stamp_tab;
 set<uint64_t> da_start_trans_tab;
 map<uint64_t, ts_t> da_stamp_tab;
 set<uint64_t> already_abort_tab;
-string DA_history_mem;
-bool abort_history;
-ofstream commit_file;
-ofstream abort_file;
 
 bool volatile warmup_done = false;
 bool volatile enable_thread_mem_pool = false;
@@ -241,3 +245,4 @@ UInt32 g_repl_type = REPL_TYPE;
 UInt32 g_repl_cnt = REPLICA_CNT;
 
 map<string, string> g_params;
+

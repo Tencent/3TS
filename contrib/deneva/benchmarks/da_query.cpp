@@ -117,23 +117,17 @@ BaseQuery * DAQueryGenerator::create_query(Workload * h_wl, uint64_t home_partit
           t_version[DAQ_t->item_id]++;
         DAQ_t->write_version=t_version[DAQ_t->item_id];
         da_gen_qry_queue.push_data(DAQ_t);
-        /*
-        while(!(pu=da_query_queue.push(DAQ_t)));
-        if(pu)
-          printf("true ");
-        else
-          printf("false ");
-        fflush(stdout);
-        */
+
     }
     free(t_version);
     seq_num++;
-    printf("product: %lu\n",seq_num);
     fflush(stdout);
   };
 
+  printf("start generating histories\n");
   creator.DeliverActionSequences(handle);
-  printf("history thread exit\n");
+  da_gen_qry_queue.push_data(nullptr); // tell consumer no histories anymore
+  printf("finish generating histories, total product: %lu\n", seq_num);
   fflush(stdout);
   return ret;
 }

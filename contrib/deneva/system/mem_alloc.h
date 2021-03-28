@@ -18,6 +18,7 @@
 #define _MEM_ALLOC_H_
 
 #include "global.h"
+#include <memory>
 
 class mem_alloc {
 public:
@@ -25,6 +26,15 @@ public:
     void * align_alloc(uint64_t size);
     void * realloc(void * ptr, uint64_t size);
     void free(void * block, uint64_t size);
+    void free(void * block);
+    template <typename T, typename ...Args> T* construct(Args&&... args) {
+        void* ptr = alloc(sizeof(T));
+        return new(ptr) T(std::forward<Args>(args)...);
+    }
+    template <typename T, typename ...Args> std::shared_ptr<T> make_shared(Args&&... args) {
+        return std::shared_ptr<T>(construct<T>(std::forward<Args>(args)...),
+                [this](T* const ptr) { free(ptr, sizeof(T)); });
+    }
 };
 
 #endif

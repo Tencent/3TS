@@ -75,6 +75,9 @@ RC ClientThread::run() {
             continue;
     #endif
         m_query = client_query_queue.get_next_query(next_node,_thd_id);
+        if (!m_query) {
+          break; // there are no histories anymore
+        }
         if(last_send_time > 0) {
             INC_STATS(get_thd_id(),cl_send_intv,get_sys_clock() - last_send_time);
         }

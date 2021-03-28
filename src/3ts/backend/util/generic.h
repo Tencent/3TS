@@ -8,7 +8,29 @@
  * Author: williamcliu@tencent.com
  *
  */
-#pragma once
+
+#ifdef ENUM_BEGIN
+#ifdef ENUM_MEMBER
+#ifdef ENUM_END
+
+ENUM_BEGIN(Intensity)
+ENUM_MEMBER(Intensity, NONE_HAVE)
+ENUM_MEMBER(Intensity, ALL_HAVE)
+ENUM_MEMBER(Intensity, NO_LIMIT)
+ENUM_END(Intensity)
+
+ENUM_BEGIN(TclPosition)
+ENUM_MEMBER(TclPosition, TAIL)
+ENUM_MEMBER(TclPosition, ANYWHERE)
+ENUM_MEMBER(TclPosition, NOWHERE)
+ENUM_END(TclPosition)
+
+#endif
+#endif
+#endif
+
+#ifndef UTIL_GENERIC_H
+#define UTIL_GENERIC_H
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -110,19 +132,24 @@ class Operation {
     ABORT = 'A',
     SCAN_ODD = 'S'
   };
+  using ReadTypeConstant = std::integral_constant<Type, Type::READ>;
+  using WriteTypeConstant = std::integral_constant<Type, Type::WRITE>;
+  using CommitTypeConstant = std::integral_constant<Type, Type::COMMIT>;
+  using AbortTypeConstant = std::integral_constant<Type, Type::ABORT>;
+  using ScanOddTypeConstant = std::integral_constant<Type, Type::SCAN_ODD>;
   Operation() : type_(Type::UNKNOWN), trans_id_(0) {}
-  Operation(const Type dtl_type, const uint64_t trans_id) : type_(dtl_type), trans_id_(trans_id) {
-    if (!IsTCL()) {
-      throw std::to_string(static_cast<char>(dtl_type)) + " is not a TCL Operation";
-    }
-  }
-  Operation(const Type dml_type, const uint64_t trans_id, const uint64_t item_id,
-            const std::optional<uint64_t> version = {})
-      : type_(dml_type), trans_id_(trans_id), item_id_(item_id), version_(version) {
-    if (!IsPointDML()) {
-      throw std::to_string(static_cast<char>(dml_type)) + " is not a Point DML Operation";
-    }
-  }
+  Operation(const std::integral_constant<Type, Type::COMMIT> dtl_type, const uint64_t trans_id)
+    : type_(dtl_type.value), trans_id_(trans_id) {}
+  Operation(const std::integral_constant<Type, Type::ABORT> dtl_type, const uint64_t trans_id)
+    : type_(dtl_type.value), trans_id_(trans_id) {}
+  Operation(const std::integral_constant<Type, Type::SCAN_ODD> dtl_type, const uint64_t trans_id)
+    : type_(dtl_type.value), trans_id_(trans_id) {}
+  Operation(const std::integral_constant<Type, Type::READ> dml_type, const uint64_t trans_id,
+            const uint64_t item_id, const std::optional<uint64_t> version = {})
+      : type_(dml_type.value), trans_id_(trans_id), item_id_(item_id), version_(version) {}
+  Operation(const std::integral_constant<Type, Type::WRITE> dml_type, const uint64_t trans_id,
+            const uint64_t item_id, const std::optional<uint64_t> version = {})
+      : type_(dml_type.value), trans_id_(trans_id), item_id_(item_id), version_(version) {}
   Operation& operator=(const Operation& operation) = default;
   virtual ~Operation() {}
 
@@ -177,18 +204,27 @@ class Operation {
         break;
       default:
         type = Operation::Type::UNKNOWN;
-        is.setstate(std::ios::failbit);
+        if (c != '\0') {
+          std::cerr << "Unknonw operation type character: " << c << ". Supported operations: R W C A" << std::endl;
+        }
     }
     return is;
   }
 
   friend std::istream& operator>>(std::istream& is, Operation& operation) {
-    if (!(is >> operation.type_) || !(is >> operation.trans_id_)) {
+    if (!(is >> operation.type_)) {
+      is.setstate(std::ios::failbit);
+      return is;
+    }
+    if (!(is >> operation.trans_id_)) {
+      is.setstate(std::ios::failbit);
+      std::cerr << "Transaction ID character must be a number" << std::endl;
       return is;
     }
     if (char item_c; operation.type_ == Type::WRITE || operation.type_ == Type::READ) {
       if (!(is >> item_c) || !std::islower(item_c)) {
         is.setstate(std::ios::failbit);
+        std::cerr << "Data Item must be lowercase letter" << std::endl;
         return is;
       }
       operation.item_id_ = item_c - 'a';
@@ -253,15 +289,12 @@ class History {
 
   History& operator=(History&& history) = default;
   History operator+(const History& history) const {
-    if (trans_num_ != history.trans_num_ || item_num_ != history.item_num_) {
-      throw "History mismatch";
-    }
     std::vector<Operation> new_operations = operations_;
     for (const auto& operation : history.operations_) {
       new_operations.push_back(operation);
     }
-    return History(trans_num_, item_num_, std::move(new_operations),
-                   abort_trans_num_ + history.abort_trans_num_);
+    return History(std::max(trans_num_, history.trans_num_), std::max(item_num_, history.item_num_),
+        std::move(new_operations), abort_trans_num_ + history.abort_trans_num_);
   }
   std::vector<Operation>& operations() { return operations_; }
   const std::vector<Operation>& operations() const { return operations_; }
@@ -283,22 +316,28 @@ class History {
     if (std::getline(is, s)) {
       std::stringstream ss(s);
       std::vector<Operation> operations;
-      std::set<uint64_t> trans_num_set;
-      std::set<uint64_t> item_num_set;
       uint64_t trans_num = 0;
       uint64_t item_num = 0;
+      std::unordered_map<uint64_t, uint64_t> trans_num_map;
+      std::unordered_map<uint64_t, uint64_t> item_num_map;
       for (std::stringstream ss(s); !ss.eof() && !ss.fail();) {
         Operation operation;
         if (Operation operation; ss >> operation) {
-          operations.emplace_back(operation);
-          trans_num_set.insert(operation.trans_id());
-          if (operation.IsPointDML()) {
-            item_num_set.insert(operation.item_id());
+          if (trans_num_map.count(operation.trans_id()) == 0) {
+            trans_num_map[operation.trans_id()] = trans_num_map.size();
           }
+          operation.SetTransId(trans_num_map[operation.trans_id()]);
+          if (operation.IsPointDML()) {
+            if (item_num_map.count(operation.item_id()) == 0) {
+              item_num_map[operation.item_id()] = item_num_map.size();
+            }
+            operation.SetItemId(item_num_map[operation.item_id()]);
+          }
+          operations.emplace_back(operation);
         }
       }
-      trans_num = trans_num_set.size();
-      item_num = item_num_set.size();
+      trans_num = trans_num_map.size();
+      item_num = item_num_map.size();
       if (ss.fail()) {
         std::cout << "Invalid history: \'" << s << "\'" << std::endl;
       } else {
@@ -339,6 +378,9 @@ class History {
   std::string anomaly_name_;
 };
 
+#define ENUM_FILE "./generic.h"
+#include "extend_enum.h"
+
 struct Options {
   uint64_t trans_num;
   uint64_t item_num;
@@ -348,9 +390,13 @@ struct Options {
   uint64_t max_dml;
 
   bool with_abort;
-  bool tail_tcl;
+  TclPosition tcl_position;
   bool allow_empty_trans;
   bool dynamic_history_len;
+
+  Intensity with_scan;
+  Intensity with_write;
 };
 
 }  // namespace ttts
+#endif

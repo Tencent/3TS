@@ -25,6 +25,7 @@
 #include "global.h"
 #include "message.h"
 #include "maat.h"
+#include "dta.h"
 #include "da.h"
 #include "da_query.h"
 #include "sundial.h"
@@ -492,7 +493,7 @@ void YCSBClientQueryMessage::copy_from_buf(char * buf) {
     for(uint64_t i = 0 ; i < size;i++) {
         DEBUG_M("YCSBClientQueryMessage::copy ycsb_request alloc\n");
         ycsb_request * req = (ycsb_request*)mem_allocator.alloc(sizeof(ycsb_request));
-        COPY_VAL(*req,buf,ptr);
+        *req = *reinterpret_cast<ycsb_request*>(buf + ptr);
 
         assert(req->key < g_synth_table_size);
         requests.add(req);
@@ -1126,6 +1127,10 @@ void AckMessage::copy_from_txn(TxnManager * txn) {
     lower = time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
     upper = time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
 #endif
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    lower = dta_time_table.get_lower(txn->get_thd_id(), txn->get_txn_id());
+    upper = dta_time_table.get_upper(txn->get_thd_id(), txn->get_txn_id());
+#endif
 #if CC_ALG == SILO
     max_tid = txn->max_tid;
 #endif
@@ -1406,7 +1411,7 @@ void YCSBQueryMessage::copy_from_buf(char * buf) {
     for(uint64_t i = 0 ; i < size;i++) {
         DEBUG_M("YCSBQueryMessage::copy ycsb_request alloc\n");
         ycsb_request * req = (ycsb_request*)mem_allocator.alloc(sizeof(ycsb_request));
-        COPY_VAL(*req,buf,ptr);
+        *req = *reinterpret_cast<ycsb_request*>(buf + ptr);
         ASSERT(req->key < g_synth_table_size);
         requests.add(req);
     }

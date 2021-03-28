@@ -52,6 +52,8 @@
 #include "wsi.h"
 #include "focc.h"
 #include "bocc.h"
+#include "dta.h"
+#include "dli.h"
 #include "client_query.h"
 #include "sundial.h"
 #include "http.h"
@@ -305,6 +307,17 @@ int main(int argc, char *argv[]) {
     printf("Done\n");
 #endif
 
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    printf("Initializing DTA Time Table... ");
+    fflush(stdout);
+    dta_time_table.init();
+    printf("Done\n");
+    printf("Initializing DTA manager... ");
+    fflush(stdout);
+    dta_man.init();
+    printf("Done\n");
+#endif
+
     endtime = get_server_clock();
     printf("Initialization Time = %ld\n", endtime - starttime);
     fflush(stdout);
@@ -318,7 +331,10 @@ int main(int argc, char *argv[]) {
     // spawn and run txns again.
     starttime = get_server_clock();
     simulation->run_starttime = starttime;
+#if WORKLOAD == DA
     simulation->last_da_query_time = starttime;
+    simulation->last_da_recv_query_time = starttime;
+#endif
 
     uint64_t id = 0;
     for (uint64_t i = 0; i < wthd_cnt; i++) {
@@ -348,7 +364,7 @@ int main(int argc, char *argv[]) {
     pthread_create(&p_thds[id++], NULL, run_thread, (void *)&log_thds[0]);
 #endif
 
-#if CC_ALG != CALVIN
+#if CC_ALG != CALVIN && WORKLOAD != DA
     abort_thds[0].init(id,g_node_id,m_wl);
     pthread_create(&p_thds[id++], NULL, run_thread, (void *)&abort_thds[0]);
 #endif

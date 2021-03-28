@@ -6,7 +6,7 @@
     Tencent Modifications are Copyright (C) THL A29 Limited.
 
     Author: hongyaozhao@ruc.edu.cn
-    
+
      Copyright 2016 Massachusetts Institute of Technology
 
      Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,11 +25,13 @@
 #ifndef _TXN_H_
 #define _TXN_H_
 
+#include <mutex>
 #include "global.h"
 #include "helper.h"
 #include "semaphore.h"
 #include "array.h"
 #include "transport/message.h"
+#include "../concurrency_control/unified_util.h"
 //#include "wl.h"
 
 class Workload;
@@ -41,6 +43,7 @@ class INDEX;
 class TxnQEntry;
 class YCSBQuery;
 class TPCCQuery;
+class DliValidatedTxn;
 //class r_query;
 
 enum TxnState {START,INIT,EXEC,PREP,FIN,DONE};
@@ -136,6 +139,10 @@ public:
     double lat_other_time_start;
 };
 
+struct TxnNode;
+struct Path;
+class VersionInfo;
+
 /*
      Execution of transactions
      Manipulates/manages Transaction (contains txn-specific data)
@@ -160,7 +167,7 @@ public:
     uint64_t        get_thd_id();
     Workload *      get_wl();
     void            set_txn_id(txnid_t txn_id);
-    txnid_t         get_txn_id();
+    txnid_t         get_txn_id() const;
     void            set_query(BaseQuery * qry);
     BaseQuery *     get_query();
     bool            is_done();
@@ -293,6 +300,14 @@ public:
     int last_txn_id;
     Message* last_msg;
 
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    DliValidatedTxn* dli_txn = nullptr;
+    DliValidatedTxn* history_dli_txn_head = nullptr;
+#endif
+
+#if IS_GENERIC_ALG
+    std::unique_ptr<ttts::TxnManager<uni_alg<CC_ALG>, row_t*>> uni_txn_man_;
+#endif
 
 protected:
 

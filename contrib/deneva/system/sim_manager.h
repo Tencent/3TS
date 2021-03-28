@@ -35,7 +35,6 @@ public:
     int64_t epoch_txn_cnt;
     uint64_t txn_cnt;
     uint64_t inflight_cnt;
-    uint64_t last_da_query_time;
 
     void init();
     bool is_setup_done();
@@ -56,6 +55,17 @@ public:
     void inc_epoch_txn_cnt();
     void decr_epoch_txn_cnt();
     double seconds_from_start(uint64_t time);
+
+#if WORKLOAD == DA
+    std::atomic<uint64_t> last_da_query_time; // last time client generated a history or server ran a history
+    std::atomic<uint64_t> last_da_recv_query_time; // last time server received a history
+    bool da_has_recved_query;
+    bool da_server_iothread_timeout();
+
+private:
+    bool da_timeout_(const uint64_t last_time);
+#endif
+
 };
 
 #endif
