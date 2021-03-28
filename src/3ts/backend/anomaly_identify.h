@@ -34,7 +34,7 @@ public:
     {"Full-WriteSkew",     "WAT   DDA     'R0a W0a W1a W1b W0b R1a A0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
     {"StepWAT",            "WAT   MDA     'R0a R0b W1b W2c W0c A0 C1 W2b C2'   ...Wi[xm]...Wj[xm+1]..."},
     {"DirtyRead",          "RAT   SDA     'R0a W0a R1a R0a R1a R0a C1 A0'      Wi[xm]...Rj[xm+1]"},
-    {"UnrepeatableRead",   "RAT   SDA     'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]"},
+    {"Non-RepeatableRead",   "RAT   SDA     'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]"},
     {"IntermediateRead",   "RAT   SDA     'R0a W0a R1a W0a R1a W0a C1 C0'      Wi[xm]...Rj[xm+1]...Wi[xm+2]"},
     {"ReadSkew",           "RAT   DDA     'R0a W0a R1b R0b W0b R1a C0 A1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]"},
     {"ReadSkew2",          "RAT   DDA     'R0a W0a W0b R1b R1a C1 W0a C0'      Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]"},
@@ -44,40 +44,38 @@ public:
     {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
   }, info_map_{
     {"History",   "The sequence of operations that produces the data anomaly, one history contains several operations."},
-    {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> R: Read, W: Write, C: Commit, A: Aort\n    Transaction ID -> such as 0 1 2 ...\n    Data Item -> such as a b c ..."},
-    {"WAT",       "There is a WW partial order in the ring."},
-    {"RAT",       "There is a WR or WCR partial order in the ring."},
-    {"IAT",       "Anomalies other than WAT and RAT."},
-    {"SDA",       "Two transactions occur in a single variable."},
-    {"DDA",       "Two transactions occur in a double variable."},
-    {"MDA",       "Two transactions occur in a multi variable."}
+    {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> Such as R W C A(R: Read, W: Write, C: Commit, A: Aort)\n    Transaction ID -> Such as 0 1 2 ...(must be a number)\n    Data Item      -> Such as a b c ...(must be lowercase letter)"},
+    {"WAT",       "Data Anomalies occur on 'WW' partial order in the cycle."},
+    {"RAT",       "Data Anomalies occur on 'WR' partial order in the cycle without any 'WW' partial order."},
+    {"IAT",       "Data Anomalies other than 'WAT' and 'RAT'."},
+    {"SDA",       "Data Anomalies occur on two transactions in single variable."},
+    {"DDA",       "Data Anomalies occur on two transactions in double variables."},
+    {"MDA",       "Data Anomalies other than 'SDA' and 'DDA'"}
   } {};
 
   static std::vector<std::string> InitAnomalyList() {
-    std::vector<std::string> anomaly_list;
-    anomaly_list.emplace_back("Dirty Write          WAT   SDA      'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]");
-    anomaly_list.emplace_back("Lost Update          WAT   SDA      'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]");
-    anomaly_list.emplace_back("Lost Self Update     WAT   SDA      'R0a W0a R0a W1a R0a W1a C0 C1'      Wi[xm]...Wj[xm+1]...Ri[xm+1]");
-    anomaly_list.emplace_back("Full-Write           WAT   SDA      'R0a W0a R1a W1a W0a C0 W1a C1'      Wi[xm]...Wj[xm+1]...Wi[xm+2]");
-    anomaly_list.emplace_back("Read-Write Skew 1    WAT   DDA      'R0a W0a R0a R1b W0b W1a A0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]");
-    anomaly_list.emplace_back("Read-Write Skew 2    WAT   DDA      'R0a W0a W0b W1a R1b W0b C0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]");
-    anomaly_list.emplace_back("Double-Write Skew 1  WAT   DDA      'R0a W0a R1a W1a W1b W0b A1 C0'      Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]");
-    anomaly_list.emplace_back("Double-Write Skew 2  WAT   DDA      'R0a W0a R0a W1a W1b R0b C1 C0'      Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]");
-    anomaly_list.emplace_back("Full-Write Skew      WAT   DDA      'R0a W0a W1a W1b W0b R1a A0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]");
-    anomaly_list.emplace_back("Step WAT             WAT   MDA      'R0a R0b W1b W2c W0c A0 C1 W2b C2'   ...Wi[xm]...Wj[xm+1]...");
-    anomaly_list.emplace_back("");
-    anomaly_list.emplace_back("Dirty Read           RAT   SDA      'R0a W0a R1a R0a R1a R0a C1 A0'      Wi[xm]...Rj[xm+1]");
-    anomaly_list.emplace_back("Unrepeatable Read    RAT   SDA      'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]");
-    anomaly_list.emplace_back("Intermediate Read    RAT   SDA      'R0a W0a R1a W0a R1a W0a C1 C0'      Wi[xm]...Rj[xm+1]...Wi[xm+2]");
-    anomaly_list.emplace_back("Read Skew            RAT   DDA      'R0a W0a R1b R0b W0b R1a C0 A1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]");
-    anomaly_list.emplace_back("Read Skew 2          RAT   DDA      'R0a W0a W0b R1b R1a C1 W0a C0'      Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]");
-    anomaly_list.emplace_back("Write-Read Skew      RAT   DDA      'R0a W0a R1a W1b R0b R1a A0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]");
-    anomaly_list.emplace_back("Step RAT             RAT   MDA      'R0a R0b W1a R2a R2c W0c C0 C1 C2'   ...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)");
-    anomaly_list.emplace_back("");
-    anomaly_list.emplace_back("Write Skew           IAT   DDA      'R0a R0b R1a W0a R1b W1b C1 C0'      Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]");
-    anomaly_list.emplace_back("Step IAT             IAT   MDA      'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)");
-    return anomaly_list;
-
+    return std::vector<std::string> {
+      "Dirty Write          WAT   SDA      'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]",
+      "Lost Update          WAT   SDA      'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]",
+      "Lost Self Update     WAT   SDA      'R0a W0a R0a W1a R0a W1a C0 C1'      Wi[xm]...Wj[xm+1]...Ri[xm+1]",
+      "Full-Write           WAT   SDA      'R0a W0a R1a W1a W0a C0 W1a C1'      Wi[xm]...Wj[xm+1]...Wi[xm+2]",
+      "Read-Write Skew 1    WAT   DDA      'R0a W0a R0a R1b W0b W1a A0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]",
+      "Read-Write Skew 2    WAT   DDA      'R0a W0a W0b W1a R1b W0b C0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]",
+      "Double-Write Skew 1  WAT   DDA      'R0a W0a R1a W1a W1b W0b A1 C0'      Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]",
+      "Double-Write Skew 2  WAT   DDA      'R0a W0a R0a W1a W1b R0b C1 C0'      Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]",
+      "Full-Write Skew      WAT   DDA      'R0a W0a W1a W1b W0b R1a A0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]",
+      "Step WAT             WAT   MDA      'R0a R0b W1b W2c W0c A0 C1 W2b C2'   ...Wi[xm]...Wj[xm+1]...",
+      "",
+      "Dirty Read           RAT   SDA      'R0a W0a R1a R0a R1a R0a C1 A0'      Wi[xm]...Rj[xm+1]",
+      "Unrepeatable Read    RAT   SDA      'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]",
+      "Intermediate Read    RAT   SDA      'R0a W0a R1a W0a R1a W0a C1 C0'      Wi[xm]...Rj[xm+1]...Wi[xm+2]",
+      "Read Skew            RAT   DDA      'R0a W0a R1b R0b W0b R1a C0 A1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]",
+      "Read Skew 2          RAT   DDA      'R0a W0a W0b R1b R1a C1 W0a C0'      Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]",
+      "Write-Read Skew      RAT   DDA      'R0a W0a R1a W1b R0b R1a A0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]",
+      "Step RAT             RAT   MDA      'R0a R0b W1a R2a R2c W0c C0 C1 C2'   ...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)",
+      "",
+      "Write Skew           IAT   DDA      'R0a R0b R1a W0a R1b W1b C1 C0'      Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]",
+      "Step IAT             IAT   MDA      'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"};
   }
 
   static void Print(const std::string& info) {
@@ -116,7 +114,7 @@ public:
     std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI DLI2 ALL, such as '\\g DLI'" << std::endl;
     std::cout << "anomaly      (\\a) Output history sequence of anomaly, including " << std::endl;
     std::cout << "                  WAT: Dirty Write, Lost Update, Lost Self Update, Full-Write, Read-Write Skew 1, Read-Write Skew 2, Double-Write Skew 1, Double-Write Skew 2, Full-Write Skew, Step WAT" << std::endl;
-    std::cout << "                  RAT: Dirty Read, Unrepeatable Read, Intermediate Read, Read Skew, Read Skew 2, Write-Read Skew, Step RAT" << std::endl;
+    std::cout << "                  RAT: Dirty Read, Non-Repeatable Read, Intermediate Read, Read Skew, Read Skew 2, Write-Read Skew, Step RAT" << std::endl;
     std::cout << "                  IAT: Write Skew, Step IAT" << std::endl;
     std::cout << "                  such as '\\a Dirty Write'" << std::endl;
     std::cout << "table        (\\t) Output table information, including anomaly, such as '\\t Anomalies'" << std::endl;
@@ -178,18 +176,22 @@ public:
         anomaly_info.emplace_back(anomaly_subtype);
         // get anomaly_name
         std::string name = anomaly.substr(index + 3);
-        bool is_head = false;
-        for (size_t i = 0;i < name.size();i++) {
-          if (i == 0) {
-            continue;
-          } else if (name[i] == '_') {
-            name[i] = 32; // '_' to ' '
-            is_head = true;
-          } else if (is_head == true) {
-            is_head = false;
-          } else if (name[i] >= 'A' && name[i] <= 'Z') {
-              name[i] += 32; // Convert to lowercase
+        if (anomaly.find("STEP") == anomaly.npos) {
+          bool is_head = false;
+          for (size_t i = 0;i < name.size();i++) {
+            if (i == 0) {
+              continue;
+            } else if (name[i] == '_') {
+              name[i] = 32; // '_' to ' '
+              is_head = true;
+            } else if (is_head == true) {
+              is_head = false;
+            } else if (name[i] >= 'A' && name[i] <= 'Z') {
+                name[i] += 32; // Convert to lowercase
+            }
           }
+        } else {
+          name = "Step " + anomaly_info[0];
         }
         anomaly_info.emplace_back(name);
         // get anomaly_format
@@ -216,9 +218,9 @@ public:
           format = "...Wi[xm]...Wj[xm+1]...";
         } else if ("Dirty Read" == name) {
           format = "Wi[xm]...Rj[xm+1]";
-        } else if ("Non-Repeatable Read" == name) {
+        } else if ("Non Repeatable Read" == name) {
           format = "Ri[xm]...Wj[xm+1]...Ri[xm+1]";
-        } else if ("Intermediate Reads" == name) {
+        } else if ("Intermediate Read" == name) {
           format = "Wi[xm]...Rj[xm+1]...Wi[xm+2]";
         } else if ("Write Read Skew" == name) {
           format = "Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]";
