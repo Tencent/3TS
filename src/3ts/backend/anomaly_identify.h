@@ -45,12 +45,12 @@ public:
   }, info_map_{
     {"History",   "The sequence of operations that produces the data anomaly, one history contains several operations."},
     {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> Such as R W C A(R: Read, W: Write, C: Commit, A: Aort)\n    Transaction ID -> Such as 0 1 2 ...(must be a number)\n    Data Item      -> Such as a b c ...(must be lowercase letter)"},
-    {"WAT",       "Data Anomalies occur on 'WW' partial order in the cycle."},
-    {"RAT",       "Data Anomalies occur on 'WR' partial order in the cycle without any 'WW' partial order."},
-    {"IAT",       "Data Anomalies other than 'WAT' and 'RAT'."},
-    {"SDA",       "Data Anomalies occur on two transactions in single variable."},
-    {"DDA",       "Data Anomalies occur on two transactions in double variables."},
-    {"MDA",       "Data Anomalies other than 'SDA' and 'DDA'"}
+    {"WAT",       "WAT is a kind of Data Anomalies, which has 'WW' partial order in the cycle."},
+    {"RAT",       "RAT is a kind of Data Anomalies, which has one or more 'WR' partial orders in the cycle but no 'WW' partial order."},
+    {"IAT",       "IAT is a kind of Data Anomalies in addition to 'WAT' and 'RAT'."},
+    {"SDA",       "SDA is a subdivision type of Data Anomalies, which occur on two transactions in single variable."},
+    {"DDA",       "DDA is a subdivision type of Data Anomalies, which occur on two transactions in double variables."},
+    {"MDA",       "MDA is a subdivision type of Data Anomalies in addition to 'SDA' and 'DDA'"}
   } {};
 
   static std::vector<std::string> InitAnomalyList() {
