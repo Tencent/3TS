@@ -15,8 +15,8 @@
 #include "cca/conflict_serializable_algorithm.h"
 
 enum class AlgType {
-  DLI,
-  DLI2,
+  DLI_IDENTIFY_CYCLE,
+  DLI_IDENTIFY_CHAIN,
   ALL
 };
 
@@ -111,12 +111,13 @@ public:
   static void PrintHelpInfo() {
     std::cout << "List of all 3TS-DAI commands:" << std::endl;
     std::cout << "definition   (\\d) Output precise definitions of History and Anomaly, including History Operation WAT RAT IAT SDA DDA MDA, such as '\\d WAT'" << std::endl;
-    std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI DLI2 ALL, such as '\\g DLI'" << std::endl;
+    std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI_IDENTIFY_CYCLE DLI_IDENTIFY_CHAIN ALL, such as '\\g DLI_IDENTIFY_1'" << std::endl;
     std::cout << "anomaly      (\\a) Output history sequence of anomaly, including " << std::endl;
     std::cout << "                  WAT: Dirty Write, Lost Update, Lost Self Update, Full-Write, Read-Write Skew 1, Read-Write Skew 2, Double-Write Skew 1, Double-Write Skew 2, Full-Write Skew, Step WAT" << std::endl;
     std::cout << "                  RAT: Dirty Read, Non-Repeatable Read, Intermediate Read, Read Skew, Read Skew 2, Write-Read Skew, Step RAT" << std::endl;
     std::cout << "                  IAT: Write Skew, Step IAT" << std::endl;
     std::cout << "                  such as '\\a Dirty Write'" << std::endl;
+    std::cout << "                  We do not support anomaly Identification for predicate classes for now, such as Phantom Read" << std::endl;
     std::cout << "table        (\\t) Output table information, including anomaly, such as '\\t Anomalies'" << std::endl;
     std::cout << "authors      (\\A) Output author information, such as '\\A'" << std::endl;
     std::cout << "quit         (\\q) quit 3TS-DAI, such as '\\q'" << std::endl;
@@ -134,7 +135,7 @@ public:
   std::unordered_map<std::string, std::string> InfoMap() const { return info_map_; };
   std::unordered_map<std::string, std::string> AnomalyMap() const { return anomaly_map_; };
 private:
-  AlgType alg_ = AlgType::DLI;
+  AlgType alg_ = AlgType::DLI_IDENTIFY_CYCLE;
   std::unordered_map<std::string, std::string> info_map_;
   std::unordered_map<std::string, std::string> anomaly_map_;
 };
@@ -151,7 +152,7 @@ public:
         std::cout << "No Data Anomaly\n" << std::endl;
       } else {
         const std::vector<std::string> anomaly_info = AnomalyInfo(ttts::ToString(anomaly.value()));
-        std::cout << "DLI's Identification Result:" << std::endl;
+        std::cout << "DLI_IDENTIFY_CYCLE's Identification Result:" << std::endl;
         std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1] << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3] << "\n" <<   std::endl;
       }
     }
