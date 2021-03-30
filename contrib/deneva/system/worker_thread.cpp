@@ -291,7 +291,8 @@ void WorkerThread::abort() {
     // current data and will not be initialized.
     release_txn_man();
 #else
-    abort_queue.enqueue(get_thd_id(), txn_man->get_txn_id(), txn_man->get_abort_cnt());
+    uint64_t penalty =
+        abort_queue.enqueue(get_thd_id(), txn_man->get_txn_id(), txn_man->get_abort_cnt());
     txn_man->txn_stats.total_abort_time += penalty;
 #endif
 }
@@ -393,7 +394,9 @@ RC WorkerThread::run() {
             if (idle_starttime == 0) idle_starttime = get_sys_clock();
             continue;
         }
+#if WORKLOAD == DA
         simulation->last_da_query_time = get_sys_clock();
+#endif
 #if WORKLOAD == DA && DA_PRINT_LOG == true
         printf("thd_id:%lu stxn_id:%lu batch_id:%lu seq_id:%lu type:%c rtype:%d trans_id:%lu item:%c laststate:%lu state:%lu next_state:%lu\n",
             this->_thd_id,
