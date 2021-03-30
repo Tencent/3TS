@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include "util/generic.h"
 #include "cca/conflict_serializable_algorithm.h"
+#include "shape.h"
 
 enum class AlgType {
   DLI_IDENTIFY_CYCLE,
@@ -44,7 +45,7 @@ public:
     {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
   }, info_map_{
     {"History",   "The sequence of operations that produces the data anomaly, one history contains several operations."},
-    {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> Such as R W C A(R: Read, W: Write, C: Commit, A: Aort)\n    Transaction ID -> Such as 0 1 2 ...(must be a number)\n    Data Item      -> Such as a b c ...(must be lowercase letter)"},
+    {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> Such as R W C A(R: Read, W: Write, C: Commit, A: Aort)\n    Transaction ID -> Such as 0 1 2 ...(must be a number and less than 10)\n    Data Item      -> Such as a b c ...(must be lowercase letter)"},
     {"WAT",       "WAT is a kind of Data Anomalies, which has 'WW' partial order in the cycle."},
     {"RAT",       "RAT is a kind of Data Anomalies, which has one or more 'WR' partial orders in the cycle but no 'WW' partial order."},
     {"IAT",       "IAT is a kind of Data Anomalies in addition to 'WAT' and 'RAT'."},
@@ -97,7 +98,8 @@ public:
     std::cout << "version: 1.0.0" << std::endl;
     std::cout << "Tencent is pleased to support the open source community by making 3TS available.\n" << std::endl;
     std::cout << "For information about 3TS-DAI(Tencent Transaction Processing Tested System-Data Anomaly Identify) products and services, visit:\n    https://github.com/Tencent/3TS\n" << std::endl;
-    std::cout << "Type 'help' or 'h' for help.\n" << std::endl;
+    std::cout << "Type 'help' or 'h' for help." << std::endl;
+    std::cout << "Type 'quit' or 'q' to quit the program.\n" << std::endl;
   }
 
   static void PrintAuthorInfo() {
@@ -118,9 +120,8 @@ public:
     std::cout << "                  IAT: Write Skew, Step IAT" << std::endl;
     std::cout << "                  such as '\\a Dirty Write'" << std::endl;
     std::cout << "                  We do not support anomaly Identification for predicate classes for now, such as Phantom Read" << std::endl;
-    std::cout << "table        (\\t) Output table information, including anomaly, such as '\\t Anomalies'" << std::endl;
-    std::cout << "authors      (\\A) Output author information, such as '\\A'" << std::endl;
-    std::cout << "quit         (\\q) quit 3TS-DAI, such as '\\q'" << std::endl;
+    std::cout << "table        (\\t)" << std::endl;
+    std::cout << "authors      (\\A)" << std::endl;
     std::cout << std::endl;
   }
 
@@ -179,16 +180,16 @@ public:
         std::string name = anomaly.substr(index + 3);
         if (anomaly.find("STEP") == anomaly.npos) {
           bool is_head = false;
-          for (size_t i = 0;i < name.size();i++) {
+          for (size_t i = 0; i < name.size(); i++) {
             if (i == 0) {
               continue;
             } else if (name[i] == '_') {
-              name[i] = 32; // '_' to ' '
+              name[i] = ' ';
               is_head = true;
             } else if (is_head == true) {
               is_head = false;
             } else if (name[i] >= 'A' && name[i] <= 'Z') {
-                name[i] += 32; // Convert to lowercase
+                name[i] += 'a' - 'A'; // Convert to lowercase
             }
           }
         } else {

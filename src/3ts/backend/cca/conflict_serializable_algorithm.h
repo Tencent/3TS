@@ -9,61 +9,6 @@
  *
  */
 
-#ifdef ENUM_BEGIN
-#ifdef ENUM_MEMBER
-#ifdef ENUM_END
-
-ENUM_BEGIN(PreceType)
-ENUM_MEMBER(PreceType, RW)
-ENUM_MEMBER(PreceType, WR)
-ENUM_MEMBER(PreceType, WCR)
-ENUM_MEMBER(PreceType, WW)
-ENUM_MEMBER(PreceType, WCW)
-ENUM_MEMBER(PreceType, RA)
-ENUM_MEMBER(PreceType, WC)
-ENUM_MEMBER(PreceType, WA)
-ENUM_END(PreceType)
-
-ENUM_BEGIN(AnomalyType)
-// ======== WAT - 1 =========
-ENUM_MEMBER(AnomalyType, WAT_1_DIRTY_WRITE)
-ENUM_MEMBER(AnomalyType, WAT_1_FULL_WRITE)
-ENUM_MEMBER(AnomalyType, WAT_1_LOST_SELF_UPDATE)
-ENUM_MEMBER(AnomalyType, WAT_1_LOST_UPDATE)
-// ======== WAT - 2 =========
-ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_1)
-ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_2)
-ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_1)
-ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_2)
-ENUM_MEMBER(AnomalyType, WAT_2_FULL_WRITE_SKEW)
-// ======== WAT - 3 =========
-ENUM_MEMBER(AnomalyType, WAT_STEP)
-// ======== RAT - 1 =========
-ENUM_MEMBER(AnomalyType, RAT_1_DIRTY_READ)
-ENUM_MEMBER(AnomalyType, RAT_1_INTERMEDIATE_READ)
-ENUM_MEMBER(AnomalyType, RAT_1_NON_REPEATABLE_READ)
-// ======== RAT - 2 =========
-ENUM_MEMBER(AnomalyType, RAT_2_WRITE_READ_SKEW)
-ENUM_MEMBER(AnomalyType, RAT_2_DOUBLE_WRITE_SKEW_COMMITTED)
-ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW)
-ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW_2)
-// ======== RAT - 3 =========
-ENUM_MEMBER(AnomalyType, RAT_STEP)
-// ======== IAT - 1 =========
-ENUM_MEMBER(AnomalyType, IAT_1_LOST_UPDATE_COMMITTED)
-// ======== IAT - 2 =========
-ENUM_MEMBER(AnomalyType, IAT_2_READ_WRITE_SKEW_COMMITTED)
-ENUM_MEMBER(AnomalyType, IAT_2_WRITE_SKEW)
-// ======== IAT - 3 =========
-ENUM_MEMBER(AnomalyType, IAT_STEP)
-// ======== Unknown =========
-ENUM_MEMBER(AnomalyType, UNKNOWN_1)
-ENUM_MEMBER(AnomalyType, UNKNOWN_2)
-ENUM_END(AnomalyType)
-
-#endif
-#endif
-#endif
 
 #ifndef CCA_CONFLICT_SERIALIZABLE_ALGORITHM
 #define CCA_CONFLICT_SERIALIZABLE_ALGORITHM
@@ -73,11 +18,10 @@ ENUM_END(AnomalyType)
 #include <iterator>
 #include <algorithm>
 #include "algorithm.h"
+#include "anomaly_type.h"
+#include "prece_type.h"
 
 namespace ttts {
-
-#define ENUM_FILE "../cca/conflict_serializable_algorithm.h"
-#include "../util/extend_enum.h"
 
 class PreceInfo {
  public:
@@ -96,8 +40,8 @@ class PreceInfo {
   PreceType type() const { return type_; }
 
  private:
-  uint64_t trans_id_;
   uint64_t pre_trans_id_;
+  uint64_t trans_id_;
   uint64_t item_id_;
   PreceType type_;
   uint32_t order_;
