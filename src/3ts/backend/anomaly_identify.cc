@@ -21,7 +21,7 @@ int main() {
     std::string text = "";
     std::getline(std::cin, text);
     if ("help" == text || "h" == text) {
-        Printer::PrintHelpInfo();
+      Printer::PrintHelpInfo();
     } else if ("q" == text || "quit" == text) {
       break;
     } else if (text.find("\\d") != text.npos || text.find("definition") != text.npos) {
@@ -30,12 +30,12 @@ int main() {
         std::string input = text.substr(index_space);
         Printer::TrimSpace(input);
         if (printer.InfoMap().count(input) == 0) {
-            Printer::Print("Unknown Definition");
+          Printer::Print("Unknown Definition");
         } else {
-            Printer::Print(printer.InfoMap()[input]);
+          Printer::Print(printer.InfoMap()[input]);
         }
       } else {
-          Printer::Print("Please check input format, such as \\d History");
+        Printer::Print("Please check input format, such as \\d History");
       }
     } else if (text.find("\\a") != text.npos || text.find("anomaly") != text.npos) {
       const auto index_space = text.find_first_of(" ");
@@ -43,14 +43,14 @@ int main() {
         std::string input = text.substr(index_space);
         Printer::TrimSpace(input);
         if (printer.AnomalyMap().count(input) == 0) {
-            Printer::Print("Unknown Anomaly");
+          Printer::Print("Unknown Anomaly");
         } else {
           std::cout << "Type  SubType  History Example                     Definition" << std::endl;
           std::cout << "-------------------------------------------------------------" << std::endl;
           Printer::Print(printer.AnomalyMap()[input]);
         }
       } else {
-          Printer::Print("Please check input format, such as \\a Dirty Write");
+        Printer::Print("Please check input format, such as \\a Dirty Write");
       }
     } else if (text.find("\\g") != text.npos || text.find("algorithm") != text.npos) {
       const auto index_space = text.find_first_of(" ");
@@ -64,10 +64,10 @@ int main() {
         } else if ("All" == input) {
           printer.SetAlg(AlgType::ALL);
         } else {
-            Printer::Print("Unknown Algorithm");
+          Printer::Print("Unknown Algorithm");
         }
       } else {
-          Printer::Print("Please check input format, such as \\g DLI_IDENTIFY_CYCLE");
+        Printer::Print("Please check input format, such as \\g DLI_IDENTIFY_CYCLE");
       }
     } else if (text.find("\\t") != text.npos || text.find("table") != text.npos) {
       std::vector<std::string> anomaly_list = Printer::InitAnomalyList();
@@ -83,7 +83,7 @@ int main() {
         if ("yes" == y) {
           break;
         } else {
-            std::cout << "Please think it over before you answer!" << std::endl;
+          std::cout << "Please think it over before you answer!" << std::endl;
         }
       }
       std::cout << "Welcome to our team! You will receive a book of martial arts secrets!" << std::endl;
@@ -93,30 +93,19 @@ int main() {
       if ("yes" == ret) {
         Printer::PrintAnomalyTableInfo(anomaly_list);
       } else {
-          std::cout << "You've lost a chance to get stronger." << std::endl;
+        std::cout << "You've lost a chance to get stronger." << std::endl;
       }
-      /*
-      const auto index_space = text.find_first_of(" ");
-      if (index_space != text.npos) {
-        std::string input = text.substr(index_space);
-        Printer::TrimSpace(input);
-        if ("Anomalies" == input) {
-            Printer::PrintAnomalyTableInfo(anomaly_list);
-        } else {
-            Printer::Print("Unknown Table");
-        }
-      }*/
     } else if (text.find("\\A") != text.npos || text.find("authors") != text.npos) {
-        Printer::PrintAuthorInfo();
+      Printer::PrintAuthorInfo();
     } else if (text.find("R") != text.npos || text.find("W") != text.npos) {
         if (printer.Alg() == AlgType::DLI_IDENTIFY_CYCLE) {
           checker.ExecDLI(text);
         } else if (printer.Alg() == AlgType::DLI_IDENTIFY_CHAIN) {
           // to do
         } else if (printer.Alg() == AlgType::ALL) {
-         // to do
+          // to do
         } else {
-            Printer::Print("alg has Unknown value");
+          Printer::Print("alg has Unknown value");
         }
     }
   }

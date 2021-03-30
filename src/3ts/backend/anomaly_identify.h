@@ -85,7 +85,10 @@ public:
   }
 
   static void PrintAnomalyTableInfo(std::vector<std::string>& anomaly_list) {
-    std::cout << "DA Name               Type  SubType   History Example                             Definition" << std::endl;
+    std::cout << "\n                                ---------------------------                                 " << std::endl;
+    std::cout << "                                Data Anomaly Reduction Mode                                 " << std::endl;
+    std::cout << "                                ---------------------------                                 " << std::endl;
+    std::cout << "\nDA Name              Type  SubType   History Example                     Definition" << std::endl;
     std::cout << "-------------------------------------------------------------------------------------------------------------" << std::endl;
     for (auto info : anomaly_list) {
         std::cout << info << std::endl;
