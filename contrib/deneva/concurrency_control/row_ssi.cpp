@@ -30,7 +30,7 @@ void Row_ssi::init(row_t * row) {
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
-
+    commit_lock = 0;
     preq_len = 0;
 }
 
