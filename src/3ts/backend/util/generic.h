@@ -220,12 +220,10 @@ class Operation {
       is.setstate(std::ios::failbit);
       std::cerr << "Transaction ID character must be a number" << std::endl;
       return is;
-    } else {
-      if (operation.trans_id_ >= 10 || operation.trans_id_ < 0) {
+    } else if (operation.trans_id_ >= 10 || operation.trans_id_ < 0) {
         is.setstate(std::ios::failbit);
         std::cerr << "Transaction ID must be less than 10 and more than 0." << std::endl;
         return is;
-      }
     }
     if (char item_c; operation.type_ == Type::WRITE || operation.type_ == Type::READ) {
       if (!(is >> item_c) || !std::islower(item_c)) {
