@@ -27,7 +27,6 @@
 #include "ssi.h"
 #include "wsi.h"
 #include "dta.h"
-#include "dli.h"
 #include "transport.h"
 #include "work_queue.h"
 #include "abort_queue.h"
@@ -72,7 +71,6 @@ ssi ssi_man;
 wsi wsi_man;
 Sundial sundial_man;
 Dta dta_man;
-Dli dli_man;
 #if IS_GENERIC_ALG
 UniAlgManager<CC_ALG> uni_alg_man;
 #endif
