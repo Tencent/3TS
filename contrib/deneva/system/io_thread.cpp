@@ -35,12 +35,6 @@
 
 static std::atomic<bool> g_one_io_thread_exit(false);
 
-static void try_close_socket() {
-  if (g_one_io_thread_exit.exchange(true)) {
-    tport_man.destroy();
-  }
-}
-
 void InputThread::setup() {
 
     std::vector<Message*> * msgs;
@@ -94,7 +88,6 @@ RC InputThread::run() {
     } else {
         server_recv_loop();
     }
-    try_close_socket();
     return FINISH;
 
 }
@@ -268,7 +261,6 @@ RC OutputThread::run() {
         heartbeat();
         messager->run();
     }
-    try_close_socket();
     printf("OutputThread FINISH %ld:%ld\n", _node_id, _thd_id);
     fflush(stdout);
     return FINISH;
