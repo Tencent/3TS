@@ -1,4 +1,6 @@
-#pragma once
+//#pragma once
+#ifndef TTTS_DENEVA_TXN_DLI_IDENTIFY_H_
+#define TTTS_DENEVA_TXN_DLI_IDENTIFY_H__
 
 #include <unordered_map>
 #include <memory>
@@ -11,11 +13,11 @@ namespace ttts {
 
 template <UniAlgs ALG, typename Data>
 class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_CYCLE ||
-                                                      ALG == UniAlgs::UNI_DLI_IDENTIFY_MERGE>>
+                                                      ALG == UniAlgs::UNI_DLI_IDENTIFY_CHAIN>>
 {
   public:
     TxnManager(const uint64_t txn_id) : node_(std::make_shared<TxnNode>(txn_id)) {}
-
+    TxnManager() {}
     const uint64_t txn_id() const { return node_->txn_id(); }
 
     std::unique_lock<std::mutex> l_;
@@ -25,3 +27,5 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 };
 
 }
+
+#endif // TTTS_DENEVA_TXN_DLI_IDENTIFY_H_

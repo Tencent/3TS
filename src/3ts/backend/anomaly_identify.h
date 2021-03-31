@@ -8,41 +8,37 @@
  * Author: farrisli@tencent.com
  *
  */
-#include <iostream>
+//#include <iostream>
 #include <map>
 #include <unordered_map>
 #include "util/generic.h"
 #include "cca/conflict_serializable_algorithm.h"
+#include "cca/unified_history_algorithm.h"
 #include "shape.h"
-
-enum class AlgType {
-  DLI_IDENTIFY_CYCLE,
-  DLI_IDENTIFY_CHAIN,
-  ALL
-};
+#include "../../../contrib/deneva/unified_concurrency_control/uni_algs.h"
 
 class Printer {
 public:
   Printer() : anomaly_map_{
     {"DirtyWrite",         "WAT   SDA     'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]"},
-    {"LostUpdate",         "WAT   SDA     'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]"},
+    {"LostUpdate",         "WAT   SDA     'R0a R1a W0a R0a W0a W1a C1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]"},
     {"LostSelfUpdate",     "WAT   SDA     'R0a W0a R0a W1a R0a W1a C0 C1'      Wi[xm]...Wj[xm+1]...Ri[xm+1]"},
     {"Full-Write",         "WAT   SDA     'R0a W0a R1a W1a W0a C0 W1a C1'      Wi[xm]...Wj[xm+1]...Wi[xm+2]"},
-    {"Read-WriteSkew1",    "WAT   DDA     'R0a W0a R0a R1b W0b W1a A0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
+    {"Read-WriteSkew1",    "WAT   DDA     'R0a W0a R0a R1b W0b W1a C0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
     {"Read-WriteSkew2",    "WAT   DDA     'R0a W0a W0b W1a R1b W0b C0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]"},
-    {"Double-WriteSkew1",  "WAT   DDA     'R0a W0a R1a W1a W1b W0b A1 C0'      Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]"},
+    {"Double-WriteSkew1",  "WAT   DDA     'R0a W0a R1a W1a W1b W0b C1 C0'      Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]"},
     {"Double-WriteSkew2",  "WAT   DDA     'R0a W0a R0a W1a W1b R0b C1 C0'      Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]"},
-    {"Full-WriteSkew",     "WAT   DDA     'R0a W0a W1a W1b W0b R1a A0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
-    {"StepWAT",            "WAT   MDA     'R0a R0b W1b W2c W0c A0 C1 W2b C2'   ...Wi[xm]...Wj[xm+1]..."},
+    {"Full-WriteSkew",     "WAT   DDA     'R0a W0a W1a W1b W0b R1a C0 C1'      Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
+    {"StepWAT",            "WAT   MDA     'R0a R0b W1b W2c W0c C0 C1 W2b C2'   ...Wi[xm]...Wj[xm+1]..."},
     {"DirtyRead",          "RAT   SDA     'R0a W0a R1a R0a R1a R0a C1 A0'      Wi[xm]...Rj[xm+1]"},
-    {"Non-RepeatableRead",   "RAT   SDA     'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]"},
+    {"Non-RepeatableRead", "RAT   SDA     'R0a R1a R0a W1a R0a R1a C1 C0'      Ri[xm]...Wj[xm+1]...Ri[xm+1]"},
     {"IntermediateRead",   "RAT   SDA     'R0a W0a R1a W0a R1a W0a C1 C0'      Wi[xm]...Rj[xm+1]...Wi[xm+2]"},
-    {"ReadSkew",           "RAT   DDA     'R0a W0a R1b R0b W0b R1a C0 A1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]"},
+    {"ReadSkew",           "RAT   DDA     'R0a W0a R1b R0b W0b R1a C0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]"},
     {"ReadSkew2",          "RAT   DDA     'R0a W0a W0b R1b R1a C1 W0a C0'      Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]"},
-    {"Write-ReadSkew",     "RAT   DDA     'R0a W0a R1a W1b R0b R1a A0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]"},
+    {"Write-ReadSkew",     "RAT   DDA     'R0a W0a R1a W1b R0b R1a C0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]"},
     {"StepRAT",            "RAT   MDA     'R0a R0b W1a R2a R2c W0c C0 C1 C2'   ...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)"},
     {"WriteSkew",          "IAT   DDA     'R0a R0b R1a W0a R1b W1b C1 C0'      Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]"},
-    {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
+    {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c C1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
   }, info_map_{
     {"History",   "The sequence of operations that produces the data anomaly, one history contains several operations."},
     {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> Such as R W C A(R: Read, W: Write, C: Commit, A: Aort)\n    Transaction ID -> Such as 0 1 2 ...(must be a number and less than 10)\n    Data Item      -> Such as a b c ...(must be lowercase letter)"},
@@ -133,124 +129,140 @@ public:
       str.erase(itor, str.end());
   }
 
-  AlgType Alg() const { return alg_; };
-  void SetAlg(AlgType alg) { alg_ = alg; };
+  ttts::UniAlgs Alg() const { return alg_; };
+  void SetAlg(ttts::UniAlgs alg) { alg_ = alg; };
 
   std::unordered_map<std::string, std::string> InfoMap() const { return info_map_; };
   std::unordered_map<std::string, std::string> AnomalyMap() const { return anomaly_map_; };
 private:
-  AlgType alg_ = AlgType::DLI_IDENTIFY_CYCLE;
+  ttts::UniAlgs alg_ = ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE;
   std::unordered_map<std::string, std::string> info_map_;
   std::unordered_map<std::string, std::string> anomaly_map_;
 };
 
 class Checker {
 public:
-  void ExecDLI(const std::string& text) {
+  void ExecAnomalyIdentify(const std::string& text, ttts::UniAlgs alg_type) {
     ttts::History history;
     std::istringstream is(text);
-    if ((is >> history)) {
-      ttts::ConflictSerializableAlgorithm<true> alg;
+
+    const auto get_and_print_anomaly = [&] (auto&& alg, auto&& alg_type) {
       const std::optional<ttts::AnomalyType> anomaly = alg.GetAnomaly(history, nullptr);
-      if (!anomaly.has_value()) {
-        std::cout << "No Data Anomaly\n" << std::endl;
-      } else {
-        const std::vector<std::string> anomaly_info = AnomalyInfo(ttts::ToString(anomaly.value()));
-        std::cout << "DLI_IDENTIFY_CYCLE's Identification Result:" << std::endl;
-        std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1] << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3] << "\n" <<   std::endl;
+      PrintAnomalyInfo(anomaly, alg_type);
+    };
+
+    if ((is >> history)) {
+      if (alg_type == ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE) {
+        get_and_print_anomaly(ttts::ConflictSerializableAlgorithm<true>(), alg_type);
+      } else if (alg_type == ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN) {
+        ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t> alg;
+        get_and_print_anomaly(ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>(), alg_type);
+      } else if (alg_type == ttts::UniAlgs::ALL) {
+        get_and_print_anomaly(ttts::ConflictSerializableAlgorithm<true>(), ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE);
+        get_and_print_anomaly(ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>(), ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN);
       }
     }
   }
 
-    std::vector<std::string> AnomalyInfo(const std::string& anomaly) {
-      auto index = anomaly.find_first_of("_");
-      std::vector<std::string> anomaly_info;
-      if (index != anomaly.npos) {
-        // get anomaly_type
-        anomaly_info.emplace_back(anomaly.substr(0, index));
-        // get anomaly_subtype
-        std::string anomaly_subtype = "";
-        std::string m = anomaly.substr(index + 1, 1);
-        if ("1" == m) {
-          anomaly_subtype = "SDA";
-        } else if ("2" == m) {
-          anomaly_subtype = "DDA";
-        } else {
-          anomaly_subtype = "MDA";
-        }
-        anomaly_info.emplace_back(anomaly_subtype);
-        // get anomaly_name
-        std::string name = anomaly.substr(index + 3);
-        if (anomaly.find("STEP") == anomaly.npos) {
-          bool is_head = false;
-          for (size_t i = 0; i < name.size(); i++) {
-            if (i == 0) {
-              continue;
-            } else if (name[i] == '_') {
-              name[i] = ' ';
-              is_head = true;
-            } else if (is_head == true) {
-              is_head = false;
-            } else if (name[i] >= 'A' && name[i] <= 'Z') {
-                name[i] += 'a' - 'A'; // Convert to lowercase
-            }
-          }
-        } else {
-          name = "Step " + anomaly_info[0];
-        }
-        anomaly_info.emplace_back(name);
-        // get anomaly_format
-        std::string format = "";
-        if ("Dirty Write" == name) {
-          format = "Wi[xm]...Wj[xm+1]";
-        } else if ("Full Write" == name) {
-          format = "Wi[xm]...Wj[xm+1]...Wi[xm+2]";
-        } else if ("Lost Self Update" == name) {
-          format = "Wi[xm]...Wj[xm+1]...Ri[xm+1]";
-        } else if ("Lost Update" == name) {
-          format = "Ri[xm]...Wj[xm+1]...Wi[xm+2]";
-        } else if ("Double Write Skew 1" == name) {
-          format = "Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]";
-        } else if ("Double Write Skew 2" == name) {
-          format = "Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
-        } else if ("Read Write Skew 1" == name) {
-          format = "Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
-        } else if ("Read Write Skew 2" == name) {
-          format = "Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
-        } else if ("Full Write Skew" == name) {
-          format = "Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
-        } else if ("WAT_STEP" == anomaly) {
-          format = "...Wi[xm]...Wj[xm+1]...";
-        } else if ("Dirty Read" == name) {
-          format = "Wi[xm]...Rj[xm+1]";
-        } else if ("Non Repeatable Read" == name) {
-          format = "Ri[xm]...Wj[xm+1]...Ri[xm+1]";
-        } else if ("Intermediate Read" == name) {
-          format = "Wi[xm]...Rj[xm+1]...Wi[xm+2]";
-        } else if ("Write Read Skew" == name) {
-          format = "Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]";
-        } else if ("DOUBLE_WRITE_SKEW_COMMITTED" == name) {
-          format = "Wi[xm]...Rj[xm+1]...Wj[yn]...Wi[yn+1]";
-        } else if ("Read Skew" == name) {
-          format = "Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
-        } else if ("Read Skew 2" == name) {
-          format = "Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]";
-        } else if ("RAT_STEP" == anomaly) {
-          format = "...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)";
-        } else if ("LOST_UPDATE_COMMITTED" == name) {
-          format = "Ri[xm]...Wj[xm]...Wj[yn]...Wi[yn+1]";
-        } else if ("READ_WRITE_SKEW_COMMITTED" == name) {
-          format = "Ri[xm]...Wj[xm]...Wj[yn]...Wi[yn+1]";
-        } else if ("Write Skew" == name) {
-          format = "Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
-        } else if ("IAT_STEP" == anomaly) {
-          format = "...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)";
-        }
-        anomaly_info.emplace_back(format);
-      } else {
-        std::cerr << "get AnomalyType failed" << std::endl;
-      }
-      return anomaly_info;
+  void PrintAnomalyInfo(const std::optional<ttts::AnomalyType> anomaly, ttts::UniAlgs alg_type) {
+    if (!anomaly.has_value()) {
+      std::cout << "No Data Anomaly\n" << std::endl;
+    } else {
+      const std::vector<std::string> anomaly_info = AnomalyInfo(ttts::ToString(anomaly.value()));
+      std::cout << ttts::ToString(alg_type) << "'s Identification Result:" << std::endl;
+      std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1] << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3] << "\n" <<   std::endl;
     }
+  }
+
+  std::vector<std::string> AnomalyInfo(const std::string& anomaly) {
+    auto index = anomaly.find_first_of("_");
+    std::vector<std::string> anomaly_info;
+    if (index != anomaly.npos) {
+      // get anomaly_type
+      anomaly_info.emplace_back(anomaly.substr(0, index));
+      // get anomaly_subtype
+      std::string anomaly_subtype = "";
+      std::string m = anomaly.substr(index + 1, 1);
+      if ("1" == m) {
+        anomaly_subtype = "SDA";
+      } else if ("2" == m) {
+        anomaly_subtype = "DDA";
+      } else {
+        anomaly_subtype = "MDA";
+      }
+      anomaly_info.emplace_back(anomaly_subtype);
+      // get anomaly_name
+      std::string name = anomaly.substr(index + 3);
+      if (anomaly.find("STEP") == anomaly.npos) {
+        bool is_head = false;
+        for (size_t i = 0; i < name.size(); i++) {
+          if (i == 0) {
+            continue;
+          } else if (name[i] == '_') {
+            name[i] = ' ';
+            is_head = true;
+          } else if (is_head == true) {
+            is_head = false;
+          } else if (name[i] >= 'A' && name[i] <= 'Z') {
+              name[i] += 'a' - 'A'; // Convert to lowercase
+          }
+        }
+      } else {
+        name = "Step " + anomaly_info[0];
+      }
+      anomaly_info.emplace_back(name);
+      // get anomaly_format
+      std::string format = "";
+      if ("Dirty Write" == name) {
+        format = "Wi[xm]...Wj[xm+1]";
+      } else if ("Full Write" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Wi[xm+2]";
+      } else if ("Lost Self Update" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Ri[xm+1]";
+      } else if ("Lost Update" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Wi[xm+2]";
+      } else if ("Double Write Skew 1" == name) {
+        format = "Wi[xm]...Rj[xm]...Wj[yn]...Wi[yn+1]";
+      } else if ("Double Write Skew 2" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
+      } else if ("Read Write Skew 1" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
+      } else if ("Read Write Skew 2" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
+      } else if ("Full Write Skew" == name) {
+        format = "Wi[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]";
+      } else if ("WAT_STEP" == anomaly) {
+        format = "...Wi[xm]...Wj[xm+1]...";
+      } else if ("Dirty Read" == name) {
+        format = "Wi[xm]...Rj[xm+1]";
+      } else if ("Non Repeatable Read" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Ri[xm+1]";
+      } else if ("Intermediate Read" == name) {
+        format = "Wi[xm]...Rj[xm+1]...Wi[xm+2]";
+      } else if ("Write Read Skew" == name) {
+        format = "Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]";
+      } else if ("DOUBLE_WRITE_SKEW_COMMITTED" == name) {
+        format = "Wi[xm]...Rj[xm+1]...Wj[yn]...Wi[yn+1]";
+      } else if ("Read Skew" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Wj[yn]...Ri[yn]";
+      } else if ("Read Skew 2" == name) {
+        format = "Wi[xm]...Rj[xm]...Rj[yn]...Wi[yn+1]";
+      } else if ("RAT_STEP" == anomaly) {
+        format = "...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)";
+      } else if ("LOST_UPDATE_COMMITTED" == name) {
+        format = "Ri[xm]...Wj[xm]...Wj[yn]...Wi[yn+1]";
+      } else if ("READ_WRITE_SKEW_COMMITTED" == name) {
+        format = "Ri[xm]...Wj[xm]...Wj[yn]...Wi[yn+1]";
+      } else if ("Write Skew" == name) {
+        format = "Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]";
+      } else if ("IAT_STEP" == anomaly) {
+        format = "...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)";
+      }
+      anomaly_info.emplace_back(format);
+    } else {
+      std::cerr << "get AnomalyType failed" << std::endl;
+    }
+    return anomaly_info;
+  }
 };
 
