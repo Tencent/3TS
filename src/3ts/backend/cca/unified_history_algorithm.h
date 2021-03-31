@@ -7,6 +7,7 @@
 #include "../../../../contrib/deneva/unified_concurrency_control/txn_dli_identify.h"
 #include "../../../../contrib/deneva/unified_concurrency_control/row_prece.h"
 #include "../../../../contrib/deneva/unified_concurrency_control/alg_dli_identify_chain.h"
+#include "../../../../contrib/deneva/unified_concurrency_control/alg_dli_identify_cycle.h"
 #include <optional>
 
 namespace ttts {
@@ -65,7 +66,7 @@ public:
         }
         // check data anomaly in abort
         if (txn_map[trans_id]->cycle_ != nullptr) {
-          std::cout << "abort::preces_size:" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
+          //std::cout << "abort::preces_size:" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
           const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
           ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
           return anomaly;
@@ -87,7 +88,7 @@ public:
         }
         // check data anomaly in commit
         if (txn_map[trans_id]->cycle_ != nullptr) {
-          std::cout << "commit::preces_size" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
+          //std::cout << "commit::preces_size" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
           const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
           ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
           return anomaly;

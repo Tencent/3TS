@@ -135,10 +135,8 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
             to_preces_.try_emplace(to_txn_id, prece);
             to_txn_node->from_preces_.try_emplace(txn_id_, prece);
             // For dirty precedence, W1W2 has higher priority than W1R2 because W1R2C1 is not dirty read
-            if ((type == PreceType::WR || type == PreceType::WW) &&
-                (!dirty_to_prece_ || (dirty_to_prece_->type() == PreceType::WR &&
-                                                type == PreceType::WW))) {
-                dirty_to_prece_ = prece;
+            if (type == PreceType::WR || type == PreceType::WW) {
+                dirty_to_preces_.emplace_back(prece);
             }
         }
     }
@@ -147,7 +145,7 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
 
     const auto& UnsafeGetToPreces() const { return to_preces_; }
     const auto& UnsafeGetFromPreces() const { return from_preces_; }
-    const std::shared_ptr<PreceInfo>& UnsafeGetDirtyToTxn() const { return dirty_to_prece_; }
+    const auto& UnsafeGetDirtyToPreces() const { return dirty_to_preces_; }
 
     std::mutex& mutex() const { return m_; }
 
@@ -155,14 +153,14 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
     {
         std::lock_guard<std::mutex> l(m_);
         state_ = State::COMMITTED;
-        dirty_to_prece_ = nullptr;
+        dirty_to_preces_.clear();
     }
 
     void Abort(const bool clear_to_preces)
     {
         std::lock_guard<std::mutex> l(m_);
         state_ = State::ABORTED;
-        dirty_to_prece_ = nullptr;
+        dirty_to_preces_.clear();
         if (clear_to_preces) {
             to_preces_.clear();
         }
@@ -228,7 +226,7 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
     // reference. Key is txn_id;
     std::unordered_map<uint64_t, std::weak_ptr<PreceInfo>> from_preces_;
     // The prece may also stored in to_preces_.
-    std::shared_ptr<PreceInfo> dirty_to_prece_;
+    std::vector<std::shared_ptr<PreceInfo>> dirty_to_preces_;
 };
 
 inline uint64_t PreceInfo::to_txn_id() const { return to_txn_->txn_id(); }

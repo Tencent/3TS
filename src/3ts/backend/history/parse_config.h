@@ -19,6 +19,7 @@
 #include "../cca/occ_algorithm/trans/wsi_trans.h"
 #include "../cca/occ_algorithm/trans/dli_trans.h"
 #include "../cca/serializable_algorithm.h"
+#include "../cca/unified_history_algorithm.h"
 #include "../util/generic.h"
 #include "generator.h"
 #include "outputter.h"
@@ -129,6 +130,10 @@ void AlgorithmParseInternal_(const libconfig::Config &cfg, const std::string &al
     add_algorithm(std::make_shared<ttts::ConflictSerializableAlgorithm<false>>());
   } else if (algorithm_name == "DLI_IDENTIFY") {
     add_algorithm(std::make_shared<ttts::ConflictSerializableAlgorithm<true>>());
+  } else if (algorithm_name == "DLI_IDENTIFY_CYCLE") {
+    add_algorithm(std::make_shared<ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE, uint64_t>>());
+  } else if (algorithm_name == "DLI_IDENTIFY_CHAIN") {
+    add_algorithm(std::make_shared<ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>>());
   } else {
     throw "Unknown algorithm name " + algorithm_name;
   }
