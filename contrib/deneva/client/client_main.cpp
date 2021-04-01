@@ -165,7 +165,9 @@ int main(int argc, char *argv[]) {
     // spawn and run txns again.
     starttime = get_server_clock();
     simulation->run_starttime = starttime;
+#if WORKLOAD == DA
     simulation->last_da_query_time = starttime;
+#endif
     uint64_t id = 0;
     for (uint64_t i = 0; i < thd_cnt; i++) {
 #if SET_AFFINITY

@@ -1,14 +1,6 @@
-/* Tencent is pleased to support the open source community by making 3TS available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved. The below software
- * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
- * Tencent Modifications are Copyright (C) THL A29 Limited.
- *
- * Author: williamcliu@tencent.com
- *
- */
-
-#pragma once
+//#pragma once
+#ifndef TTTS_DENEVA_ALG_DLI_IDENTIFY_CHAIN_H_
+#define TTTS_DENEVA_ALG_DLI_IDENTIFY_CHAIN_H_
 
 #include "dli_identify_util.h"
 #include "row_prece.h"
@@ -18,7 +10,7 @@
 namespace ttts {
 
 template <UniAlgs ALG, typename Data>
-class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_MERGE>>
+class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_CHAIN>>
 {
   public:
     using Txn = TxnManager<ALG, Data>;
@@ -56,7 +48,9 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         if (!txn.cycle_) {
             // we can only identify the dirty write/read anomaly rather than avoiding it
             Path cycle = DirtyCycle<false /*is_commit*/>(*txn.node_);
-            txn.cycle_ = std::make_unique<Path>(std::move(cycle));
+            if (cycle.Passable()) {
+                txn.cycle_ = std::make_unique<Path>(std::move(cycle));
+            }
         }
         if (const std::unique_ptr<Path>& cycle = txn.cycle_) {
             txn.node_->Abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
@@ -143,3 +137,4 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
 }
 
+#endif // TTTS_DENEVA_ALG_DLI_IDENTIFY_CHAIN_H_

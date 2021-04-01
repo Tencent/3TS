@@ -21,7 +21,6 @@
 #include "../system/manager.h"
 #include "../system/mem_alloc.h"
 #include "../system/txn.h"
-#include "dli.h"
 #include "row_dta.h"
 
 void get_rw_set(TxnManager* txn, std::list<dta_item>& rset, std::list<dta_item>& wset) {

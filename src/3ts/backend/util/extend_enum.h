@@ -1,20 +1,8 @@
-/*
- * Tencent is pleased to support the open source community by making 3TS available.
- *
- * Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved. The below software
- * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
- * Tencent Modifications are Copyright (C) THL A29 Limited.
- *
- * Author: williamcliu@tencent.com
- *
- */
-
 #ifdef ENUM_FILE
 
-template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> constexpr uint32_t Count();
-template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> const char* ToString(const EnumType e);
-template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> std::ostream& operator<<(std::ostream& os, const EnumType e);
-template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> const std::array<EnumType, Count<EnumType>()>& Members();
+template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> inline constexpr uint32_t Count();
+template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> inline const char* ToString(const EnumType e);
+template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> inline const std::array<EnumType, Count<EnumType>()>& Members();
 
 #define ENUM_BEGIN(name) enum class name : uint32_t {
 #define ENUM_MEMBER(_, member) member,
@@ -27,7 +15,7 @@ template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v
 #undef ENUM_END
 
 #define ENUM_BEGIN(name)\
-template <> const char* ToString<name>(const name e)\
+template <> inline const char* ToString<name>(const name e)\
 {\
   static std::array<const char*, Count<name>()> strings {
 #define ENUM_MEMBER(_, member) #member,
@@ -35,7 +23,6 @@ template <> const char* ToString<name>(const name e)\
   };\
   return strings.at(static_cast<uint32_t>(e));\
 }\
-template <> std::ostream& operator<<<name>(std::ostream& os, const name e) { return os << ToString(e); }
 
 #include ENUM_FILE
 
@@ -44,7 +31,7 @@ template <> std::ostream& operator<<<name>(std::ostream& os, const name e) { ret
 #undef ENUM_END
 
 #define ENUM_BEGIN(name)\
-template <> const std::array<name, Count<name>()>& Members()\
+template <> inline const std::array<name, Count<name>()>& Members()\
 {\
   static const std::array<name, Count<name>()> members {
 #define ENUM_MEMBER(name, member) name::member,
@@ -60,4 +47,11 @@ template <> const std::array<name, Count<name>()>& Members()\
 #undef ENUM_END
 
 #undef ENUM_FILE
+#endif
+
+#ifndef EXTEND_ENUM_H_
+#define EXTEND_ENUM_H_
+
+template <typename EnumType, typename = typename std::enable_if_t<std::is_enum_v<EnumType>>> inline std::ostream& operator<<(std::ostream& os, const EnumType e) { return os << ToString(e); }
+
 #endif

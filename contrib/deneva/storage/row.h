@@ -60,7 +60,6 @@ class Row_sundial;
 class Row_si;
 class Row_null;
 class Row_silo;
-class Row_dli_base;
 template <int ALG> class Row_unified;
 
 class row_t {
@@ -140,10 +139,6 @@ public:
     Row_null * manager;
     #elif CC_ALG == SILO
     Row_silo * manager;
-    #elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
-    Row_dli_base *manager;
-    #elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
-    Row_si *manager;
     #elif IS_GENERIC_ALG
     Row_unified<CC_ALG> *manager;
     #endif

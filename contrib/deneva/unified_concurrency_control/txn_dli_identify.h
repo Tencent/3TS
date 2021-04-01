@@ -1,3 +1,13 @@
+/* Tencent is pleased to support the open source community by making 3TS available.
+ *
+ * Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved. The below software
+ * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
+ * Tencent Modifications are Copyright (C) THL A29 Limited.
+ *
+ * Author: williamcliu@tencent.com
+ *
+ */
+
 #pragma once
 
 #include <unordered_map>
@@ -11,11 +21,11 @@ namespace ttts {
 
 template <UniAlgs ALG, typename Data>
 class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_CYCLE ||
-                                                      ALG == UniAlgs::UNI_DLI_IDENTIFY_MERGE>>
+                                                      ALG == UniAlgs::UNI_DLI_IDENTIFY_CHAIN>>
 {
   public:
     TxnManager(const uint64_t txn_id) : node_(std::make_shared<TxnNode>(txn_id)) {}
-
+    TxnManager() {}
     const uint64_t txn_id() const { return node_->txn_id(); }
 
     std::unique_lock<std::mutex> l_;
@@ -25,3 +35,4 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 };
 
 }
+

@@ -49,7 +49,6 @@ public:
     void read_ifconfig(const char * ifaddr_file);
     void init();
     void shutdown();
-    void destroy();
     uint64_t get_socket_count();
     string get_path();
     Socket * get_socket();

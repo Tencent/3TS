@@ -48,8 +48,10 @@ void SimManager::init() {
 void SimManager::set_starttime(uint64_t starttime) {
     if(ATOM_CAS(start_set, false, true)) {
         run_starttime = starttime;
+#if WORKLOAD == DA
         last_da_query_time = starttime;
         last_da_recv_query_time = starttime;
+#endif
         last_worker_epoch_time = starttime;
         sim_done = false;
         printf("Starttime set to %ld\n",run_starttime);
@@ -84,9 +86,11 @@ bool SimManager::timeout() {
 #endif
 }
 
+#if WORKLOAD == DA
 bool SimManager::da_server_iothread_timeout() {
     return da_has_recved_query && da_timeout_(last_da_recv_query_time);
 }
+#endif
 
 bool SimManager::is_done() {
     bool done = sim_done || timeout();

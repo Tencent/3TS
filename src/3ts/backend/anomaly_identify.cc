@@ -54,17 +54,22 @@ int main() {
       }
     } else if (text.find("\\g") != text.npos || text.find("algorithm") != text.npos) {
       const auto index_space = text.find_first_of(" ");
+      bool ret = true;
       if (index_space != text.npos) {
         std::string input = text.substr(index_space);
         Printer::TrimSpace(input);
         if ("DLI_IDENTIFY_CYCLE" == input) {
-          printer.SetAlg(AlgType::DLI_IDENTIFY_CYCLE);
+          printer.SetAlg(ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE);
         } else if ("DLI_IDENTIFY_CHAIN" == input) {
-          printer.SetAlg(AlgType::DLI_IDENTIFY_CHAIN);
-        } else if ("All" == input) {
-          printer.SetAlg(AlgType::ALL);
+          printer.SetAlg(ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN);
+        } else if ("ALL" == input) {
+          printer.SetAlg(ttts::UniAlgs::ALL);
         } else {
+          ret = false;
           Printer::Print("Unknown Algorithm");
+        }
+        if (ret) {
+          std::cout << "Set algorithm success" << std::endl;
         }
       } else {
         Printer::Print("Please check input format, such as \\g DLI_IDENTIFY_CYCLE");
@@ -98,15 +103,7 @@ int main() {
     } else if (text.find("\\A") != text.npos || text.find("authors") != text.npos) {
       Printer::PrintAuthorInfo();
     } else if (text.find("R") != text.npos || text.find("W") != text.npos) {
-        if (printer.Alg() == AlgType::DLI_IDENTIFY_CYCLE) {
-          checker.ExecDLI(text);
-        } else if (printer.Alg() == AlgType::DLI_IDENTIFY_CHAIN) {
-          // to do
-        } else if (printer.Alg() == AlgType::ALL) {
-          // to do
-        } else {
-          Printer::Print("alg has Unknown value");
-        }
+        checker.ExecAnomalyIdentify(text, printer.Alg());
     }
   }
   return 0;

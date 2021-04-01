@@ -1,4 +1,15 @@
+/* Tencent is pleased to support the open source community by making 3TS available.
+ *
+ * Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved. The below software
+ * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
+ * Tencent Modifications are Copyright (C) THL A29 Limited.
+ *
+ * Author: williamcliu@tencent.com
+ *
+ */
+
 #pragma once
+
 #include "row_prece.h"
 #include <vector>
 #include <iostream>
@@ -39,42 +50,31 @@ class Path {
     std::vector<PreceInfo> preces_;
 };
 
-template <bool is_commit> inline Path DirtyCycle(TxnNode& txn_node);
-
 static Path DirtyPath_(const PreceInfo& rw_prece, TxnNode& txn_to_finish, const PreceType type) {
     PreceInfo dirty_prece(rw_prece.to_txn(), txn_to_finish.shared_from_this(), type, rw_prece.row_id(),
             rw_prece.to_ver_id(), UINT64_MAX);
     return Path(std::vector<PreceInfo>{rw_prece, std::move(dirty_prece)});
 }
 
-template <>
-inline Path DirtyCycle<true>(TxnNode& txn_to_finish) {
+template <bool IS_COMMIT>
+inline Path DirtyCycle(TxnNode& txn_to_finish) {
     std::lock_guard<std::mutex> l(txn_to_finish.mutex());
-    const auto& prece = txn_to_finish.UnsafeGetDirtyToTxn();
-    if (!prece) {
-        return {};
-    } else if (prece->type() == PreceType::WW) {
-        return DirtyPath_(*prece, txn_to_finish, PreceType::WC);
-    } else {
-        assert(prece->type() == PreceType::WR);
-        return {};
+    const auto& preces = txn_to_finish.UnsafeGetDirtyToPreces();
+    for (const auto& prece : preces) {
+        if (!prece || prece->to_txn()->state() == TxnNode::State::ABORTED) {
+            // do nothing and continue
+        } else if (prece->type() == PreceType::WW) {
+            return DirtyPath_(*prece, txn_to_finish, IS_COMMIT ? PreceType::WC : PreceType::WA);
+        } else if (prece->type() == PreceType::WR) {
+            if (!IS_COMMIT) {
+                return DirtyPath_(*prece, txn_to_finish, PreceType::RA);
+            }
+        } else {
+            assert(false);
+            return {};
+        }
     }
-}
-
-template <>
-inline Path DirtyCycle<false>(TxnNode& txn_to_finish) {
-    std::lock_guard<std::mutex> l(txn_to_finish.mutex());
-    const auto& prece = txn_to_finish.UnsafeGetDirtyToTxn();
-    if (!prece) {
-        return {};
-    } else if (prece->type() == PreceType::WW) {
-        return DirtyPath_(*prece, txn_to_finish, PreceType::WA);
-    } else if (prece->type() == PreceType::WR) {
-        return DirtyPath_(*prece, txn_to_finish, PreceType::RA);
-    } else {
-        assert(false);
-        return {};
-    }
+    return {}; // no dirty cycle
 }
 
 Path::Path() {}
@@ -247,3 +247,4 @@ static AnomalyType IdentifyAnomalyMultiple(const std::vector<PreceInfo>& preces)
 }
 
 }
+
