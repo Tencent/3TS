@@ -58,16 +58,25 @@ int main() {
       if (index_space != text.npos) {
         std::string input = text.substr(index_space);
         Printer::TrimSpace(input);
-        if ("DLI_IDENTIFY_CYCLE" == input) {
-          printer.SetAlg(ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE);
-        } else if ("DLI_IDENTIFY_CHAIN" == input) {
-          printer.SetAlg(ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN);
-        } else if ("ALL" == input) {
-          printer.SetAlg(ttts::UniAlgs::ALL);
-        } else {
+
+        std::vector<std::string> alg_list;
+        std::vector<ttts::UniAlgs> alg_type_list;
+        Checker::split(input, alg_list, ",");
+        // Check the validity of the input
+        if (input.find("DLI_IDENTIFY_CYCLE") == input.npos && input.find("DLI_IDENTIFY_CHAIN") == input.npos) {
           ret = false;
-          Printer::Print("Unknown Algorithm");
+          Printer::Print("Unknown Algorithm, please check algorithm's name");
         }
+        // fill and set alg_type_list
+        for (auto& alg : alg_list) {
+          if ("DLI_IDENTIFY_CYCLE" == alg) {
+            alg_type_list.emplace_back(ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE);
+          } else if ("DLI_IDENTIFY_CHAIN" == alg) {
+            alg_type_list.emplace_back(ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN);
+          }
+        }
+        printer.SetAlgs(alg_type_list);
+        // print set success info
         if (ret) {
           std::cout << "Set algorithm success" << std::endl;
         }
@@ -103,7 +112,7 @@ int main() {
     } else if (text.find("\\A") != text.npos || text.find("authors") != text.npos) {
       Printer::PrintAuthorInfo();
     } else if (text.find("R") != text.npos || text.find("W") != text.npos) {
-        checker.ExecAnomalyIdentify(text, printer.Alg());
+        checker.ExecAnomalyIdentify(text, printer.Algs());
     }
   }
   return 0;
