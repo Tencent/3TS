@@ -1,6 +1,4 @@
-//#pragma once
-#ifndef TTTS_DENEVA_UNTIL_H_
-#define TTTS_DENEVA_UNTIL_H_
+#pragma once
 
 #include "uni_algs.h"
 
@@ -11,5 +9,3 @@ template <UniAlgs ALG, typename Data, typename T = void> class RowManager;
 template <UniAlgs ALG, typename Data, typename T = void> class TxnManager;
 
 }
-
-#endif // TTTS_DENEVA_UNTIL_H_

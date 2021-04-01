@@ -1,6 +1,4 @@
-//#pragma once
-#ifndef TTTS_DENEVA_DLI_IDENTIFY_UTIL_H_
-#define TTTS_DENEVA_DLI_IDENTIFY_UTIL_H_
+#pragma once
 
 #include "row_prece.h"
 #include <vector>
@@ -239,5 +237,3 @@ static AnomalyType IdentifyAnomalyMultiple(const std::vector<PreceInfo>& preces)
 }
 
 }
-
-#endif //TTTS_DENEVA_DLI_IDENTIFY_UTIL_H_

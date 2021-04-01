@@ -12,12 +12,9 @@ ENUM_END(UniAlgs)
 #endif
 #endif
 
-#ifndef TTTS_DENEVA_UNI_ALGS_H_
-#define TTTS_DENEVA_UNI_ALGS_H_
+#pragma once
 
 namespace ttts {
 #define ENUM_FILE "../../../../contrib/deneva/unified_concurrency_control/uni_algs.h"
 #include "../../../src/3ts/backend/util/extend_enum.h"
 }
-
-#endif // TTTS_DENEVA_UNI_ALGS_H_

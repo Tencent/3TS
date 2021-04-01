@@ -14,8 +14,7 @@
    limitations under the License.
 */
 
-#ifndef TTTS_DENEVA_ROW_PRECE_H_
-#define TTTS_DENEVA_ROW_PRECE_H_
+#pragma once
 
 #include <mutex>
 #include <unordered_map>
@@ -365,5 +364,3 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 };
 
 }
-
-#endif // TTTS_DENEVA_ROW_PRECE_H_

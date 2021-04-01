@@ -1,6 +1,4 @@
-//#pragma once
-#ifndef TTTS_DENEVA_ALG_DLI_IDENTIFY_CYCLE_H_
-#define TTTS_DENEVA_ALG_DLI_IDENTIFY_CYCLE_H_
+#pragma once
 
 #include "dli_identify_util.h"
 #include "row_prece.h"
@@ -191,5 +189,3 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 };
 
 }
-
-#endif // TTTS_DENEVA_ALG_DLI_IDENTIFY_CYCLE_H_

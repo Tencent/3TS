@@ -21,7 +21,7 @@ class Printer {
 public:
   Printer() : anomaly_map_{
     {"DirtyWrite",         "WAT   SDA     'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]"},
-    {"LostUpdate",         "WAT   SDA     'R0a R1a W0a R0a W0a W1a C1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]"},
+    {"LostUpdate",         "WAT   SDA     'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]"},
     {"LostSelfUpdate",     "WAT   SDA     'R0a W0a R0a W1a R0a W1a C0 C1'      Wi[xm]...Wj[xm+1]...Ri[xm+1]"},
     {"Full-Write",         "WAT   SDA     'R0a W0a R1a W1a W0a C0 W1a C1'      Wi[xm]...Wj[xm+1]...Wi[xm+2]"},
     {"Read-WriteSkew1",    "WAT   DDA     'R0a W0a R0a R1b W0b W1a C0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
@@ -38,7 +38,7 @@ public:
     {"Write-ReadSkew",     "RAT   DDA     'R0a W0a R1a W1b R0b R1a C0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]"},
     {"StepRAT",            "RAT   MDA     'R0a R0b W1a R2a R2c W0c C0 C1 C2'   ...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)"},
     {"WriteSkew",          "IAT   DDA     'R0a R0b R1a W0a R1b W1b C1 C0'      Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]"},
-    {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c C1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
+    {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
   }, info_map_{
     {"History",   "The sequence of operations that produces the data anomaly, one history contains several operations."},
     {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> Such as R W C A(R: Read, W: Write, C: Commit, A: Aort)\n    Transaction ID -> Such as 0 1 2 ...(must be a number and less than 10)\n    Data Item      -> Such as a b c ...(must be lowercase letter)"},

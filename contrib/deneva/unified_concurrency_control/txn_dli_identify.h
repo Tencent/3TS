@@ -1,6 +1,4 @@
-//#pragma once
-#ifndef TTTS_DENEVA_TXN_DLI_IDENTIFY_H_
-#define TTTS_DENEVA_TXN_DLI_IDENTIFY_H__
+#pragma once
 
 #include <unordered_map>
 #include <memory>
@@ -27,5 +25,3 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 };
 
 }
-
-#endif // TTTS_DENEVA_TXN_DLI_IDENTIFY_H_
