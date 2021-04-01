@@ -240,20 +240,6 @@ void Transport::init() {
     fflush(stdout);
 }
 
-void Transport::destroy() {
-    for (auto& sock : recv_sockets) {
-        sock->~Socket();
-        mem_allocator.free(sock, sizeof(Socket));
-    }
-    recv_sockets.clear();
-    for (auto& sock_pair : send_sockets) {
-        sock_pair.second->~Socket();
-        mem_allocator.free(sock_pair.second, sizeof(Socket));
-    }
-    send_sockets.clear();
-    printf("Tport Destroy %d: %ld\n",g_node_id,_sock_cnt);
-}
-
 // rename sid to send thread id
 void Transport::send_msg(uint64_t send_thread_id, uint64_t dest_node_id, void * sbuf,int size) {
     uint64_t starttime = get_sys_clock();

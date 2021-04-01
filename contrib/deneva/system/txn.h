@@ -300,11 +300,6 @@ public:
     int last_txn_id;
     Message* last_msg;
 
-#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
-    DliValidatedTxn* dli_txn = nullptr;
-    DliValidatedTxn* history_dli_txn_head = nullptr;
-#endif
-
 #if IS_GENERIC_ALG
     std::unique_ptr<ttts::TxnManager<uni_alg<CC_ALG>, row_t*>> uni_txn_man_;
 #endif

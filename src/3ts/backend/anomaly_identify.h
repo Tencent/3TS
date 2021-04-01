@@ -15,7 +15,7 @@
 #include "cca/conflict_serializable_algorithm.h"
 #include "cca/unified_history_algorithm.h"
 #include "shape.h"
-#include "../../../contrib/deneva/unified_concurrency_control/uni_algs.h"
+#include "../../../contrib/deneva/unified_concurrency_control/util.h"
 
 class Printer {
 public:

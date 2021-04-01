@@ -82,7 +82,9 @@ RC ClientThread::run() {
             INC_STATS(get_thd_id(),cl_send_intv,get_sys_clock() - last_send_time);
         }
         last_send_time = get_sys_clock();
+    #if WORKLOAD == DA
         simulation->last_da_query_time = get_sys_clock();
+    #endif
 #elif LOAD_METHOD == LOAD_RATE
         if ((inf_cnt = client_man.inc_inflight(next_node)) < 0)
             continue;
