@@ -20,8 +20,8 @@ class row_t;
 
 template <int ALG> constexpr const ttts::UniAlgs uni_alg;
 
-template <> constexpr const ttts::UniAlgs uni_alg<DLI_IDENTIFY> = ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE;
-template <> constexpr const ttts::UniAlgs uni_alg<DLI_IDENTIFY_2> = ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN;
+template <> constexpr const ttts::UniAlgs uni_alg<DLI_IDENTIFY_CYCLE> = ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE;
+template <> constexpr const ttts::UniAlgs uni_alg<DLI_IDENTIFY_CHAIN> = ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN;
 
 template <int ALG> using UniRowManager = ttts::RowManager<uni_alg<ALG>, row_t*>;
 template <int ALG> using UniTxnManager = ttts::TxnManager<uni_alg<ALG>, row_t*>;
