@@ -21,7 +21,7 @@ class Printer {
 public:
   Printer() : anomaly_map_{
     {"DirtyWrite",         "WAT   SDA     'R0a W0a W1a R1a W1a R1a C0 C1'      Wi[xm]...Wj[xm+1]"},
-    {"LostUpdate",         "WAT   SDA     'R0a R1a W0a R0a W0a W1a C1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]"},
+    {"LostUpdate",         "WAT   SDA     'R0a R1a W0a R0a W0a W1a A1 C0'      Ri[xm]...Wj[xm+1]...Wi[xm+2]"},
     {"LostSelfUpdate",     "WAT   SDA     'R0a W0a R0a W1a R0a W1a C0 C1'      Wi[xm]...Wj[xm+1]...Ri[xm+1]"},
     {"Full-Write",         "WAT   SDA     'R0a W0a R1a W1a W0a C0 W1a C1'      Wi[xm]...Wj[xm+1]...Wi[xm+2]"},
     {"Read-WriteSkew1",    "WAT   DDA     'R0a W0a R0a R1b W0b W1a C0 C1'      Ri[xm]...Wj[xm+1]...Wj[yn]...Wi[yn+1]"},
@@ -38,7 +38,7 @@ public:
     {"Write-ReadSkew",     "RAT   DDA     'R0a W0a R1a W1b R0b R1a C0 C1'      Wi[xm]...Rj[xm]...Wj[yn]...Ri[yn]"},
     {"StepRAT",            "RAT   MDA     'R0a R0b W1a R2a R2c W0c C0 C1 C2'   ...Wi[xm]...Rj[xm]..., and not include (...Wii[xm]...Wjj[xm+1]...)"},
     {"WriteSkew",          "IAT   DDA     'R0a R0b R1a W0a R1b W1b C1 C0'      Ri[xm]...Wj[xm+1]...Rj[yn]...Wi[yn+1]"},
-    {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c C1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
+    {"StepIAT",            "IAT   MDA     'R0a R0b R1c W1a W2c A1 C2 W0c C0'   ...Ri[xm]...Wj[xm+1]..., and not include (...Wii[xm]...Rjj[xm]...and ...Wiii[xm]...Wjjj[xm+1]...)"}
   }, info_map_{
     {"History",   "The sequence of operations that produces the data anomaly, one history contains several operations."},
     {"Operation", "One operation contains 3 character, such as R0a, first character is operation type, second character is transaction id, third character is data item.\n    Operation Type -> Such as R W C A(R: Read, W: Write, C: Commit, A: Aort)\n    Transaction ID -> Such as 0 1 2 ...(must be a number and less than 10)\n    Data Item      -> Such as a b c ...(must be lowercase letter)"},
@@ -112,7 +112,7 @@ public:
   static void PrintHelpInfo() {
     std::cout << "List of all 3TS-DAI commands:" << std::endl;
     std::cout << "definition   (\\d) Output precise definitions of History and Anomaly, including History Operation WAT RAT IAT SDA DDA MDA, such as '\\d WAT'" << std::endl;
-    std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI_IDENTIFY_CYCLE DLI_IDENTIFY_CHAIN ALL, such as '\\g DLI_IDENTIFY_1'" << std::endl;
+    std::cout << "algorithm    (\\g) Select the algorithm that identifies the exception, including DLI_IDENTIFY_CYCLE DLI_IDENTIFY_CHAIN, such as '\\g DLI_IDENTIFY_CYCLE'. If you want to compare different algorithms, you can type such as '\\g DLI_IDENTIFY_CYCLE, DLI_IDENTIFY_CHAIN'" << std::endl;
     std::cout << "anomaly      (\\a) Output history sequence of anomaly, including " << std::endl;
     std::cout << "                  WAT: Dirty Write, Lost Update, Lost Self Update, Full-Write, Read-Write Skew 1, Read-Write Skew 2, Double-Write Skew 1, Double-Write Skew 2, Full-Write Skew, Step WAT" << std::endl;
     std::cout << "                  RAT: Dirty Read, Non-Repeatable Read, Intermediate Read, Read Skew, Read Skew 2, Write-Read Skew, Step RAT" << std::endl;
@@ -129,20 +129,31 @@ public:
       str.erase(itor, str.end());
   }
 
-  ttts::UniAlgs Alg() const { return alg_; };
-  void SetAlg(ttts::UniAlgs alg) { alg_ = alg; };
+  std::vector<ttts::UniAlgs> Algs() const { return alg_type_list_; };
+  void SetAlgs(std::vector<ttts::UniAlgs> alg_type_list) { alg_type_list_ = alg_type_list; };
 
   std::unordered_map<std::string, std::string> InfoMap() const { return info_map_; };
   std::unordered_map<std::string, std::string> AnomalyMap() const { return anomaly_map_; };
 private:
-  ttts::UniAlgs alg_ = ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE;
+  std::vector<ttts::UniAlgs> alg_type_list_ = {ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE};
   std::unordered_map<std::string, std::string> info_map_;
   std::unordered_map<std::string, std::string> anomaly_map_;
 };
 
 class Checker {
 public:
-  void ExecAnomalyIdentify(const std::string& text, ttts::UniAlgs alg_type) {
+  static void split(const std::string& str, std::vector<std::string>& tokens, const std::string delim) {
+    tokens.clear();
+    auto start = str.find_first_not_of(delim, 0);
+    auto position = str.find_first_of(delim, start);
+    while (position != std::string::npos || start != std::string::npos) {
+      tokens.emplace_back(std::move(str.substr(start, position - start)));
+      start = str.find_first_not_of(delim, position);
+      position = str.find_first_of(delim, start);
+    }
+  }
+
+  void ExecAnomalyIdentify(const std::string& text, std::vector<ttts::UniAlgs> alg_type_list) {
     ttts::History history;
     std::istringstream is(text);
 
@@ -152,14 +163,13 @@ public:
     };
 
     if ((is >> history)) {
-      if (alg_type == ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE) {
-        get_and_print_anomaly(ttts::ConflictSerializableAlgorithm<true>(), alg_type);
-      } else if (alg_type == ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN) {
-        ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t> alg;
-        get_and_print_anomaly(ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>(), alg_type);
-      } else if (alg_type == ttts::UniAlgs::ALL) {
-        get_and_print_anomaly(ttts::ConflictSerializableAlgorithm<true>(), ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE);
-        get_and_print_anomaly(ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>(), ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN);
+      for (const auto& alg_type : alg_type_list) {
+        if (alg_type == ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE) {
+          get_and_print_anomaly(ttts::ConflictSerializableAlgorithm<true>(), alg_type);
+        } else if (alg_type == ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN) {
+          ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t> alg;
+          get_and_print_anomaly(ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>(), alg_type);
+        }
       }
     }
   }

@@ -247,4 +247,3 @@ static AnomalyType IdentifyAnomalyMultiple(const std::vector<PreceInfo>& preces)
 }
 
 }
-
