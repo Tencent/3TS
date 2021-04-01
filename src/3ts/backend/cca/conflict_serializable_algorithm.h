@@ -9,61 +9,6 @@
  *
  */
 
-#ifdef ENUM_BEGIN
-#ifdef ENUM_MEMBER
-#ifdef ENUM_END
-
-ENUM_BEGIN(PreceType)
-ENUM_MEMBER(PreceType, RW)
-ENUM_MEMBER(PreceType, WR)
-ENUM_MEMBER(PreceType, WCR)
-ENUM_MEMBER(PreceType, WW)
-ENUM_MEMBER(PreceType, WCW)
-ENUM_MEMBER(PreceType, RA)
-ENUM_MEMBER(PreceType, WC)
-ENUM_MEMBER(PreceType, WA)
-ENUM_END(PreceType)
-
-ENUM_BEGIN(AnomalyType)
-// ======== WAT - 1 =========
-ENUM_MEMBER(AnomalyType, WAT_1_DIRTY_WRITE)
-ENUM_MEMBER(AnomalyType, WAT_1_FULL_WRITE)
-ENUM_MEMBER(AnomalyType, WAT_1_LOST_SELF_UPDATE)
-ENUM_MEMBER(AnomalyType, WAT_1_LOST_UPDATE)
-// ======== WAT - 2 =========
-ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_1)
-ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_2)
-ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_1)
-ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_2)
-ENUM_MEMBER(AnomalyType, WAT_2_FULL_WRITE_SKEW)
-// ======== WAT - 3 =========
-ENUM_MEMBER(AnomalyType, WAT_STEP)
-// ======== RAT - 1 =========
-ENUM_MEMBER(AnomalyType, RAT_1_DIRTY_READ)
-ENUM_MEMBER(AnomalyType, RAT_1_INTERMEDIATE_READ)
-ENUM_MEMBER(AnomalyType, RAT_1_NON_REPEATABLE_READ)
-// ======== RAT - 2 =========
-ENUM_MEMBER(AnomalyType, RAT_2_WRITE_READ_SKEW)
-ENUM_MEMBER(AnomalyType, RAT_2_DOUBLE_WRITE_SKEW_COMMITTED)
-ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW)
-ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW_2)
-// ======== RAT - 3 =========
-ENUM_MEMBER(AnomalyType, RAT_STEP)
-// ======== IAT - 1 =========
-ENUM_MEMBER(AnomalyType, IAT_1_LOST_UPDATE_COMMITTED)
-// ======== IAT - 2 =========
-ENUM_MEMBER(AnomalyType, IAT_2_READ_WRITE_SKEW_COMMITTED)
-ENUM_MEMBER(AnomalyType, IAT_2_WRITE_SKEW)
-// ======== IAT - 3 =========
-ENUM_MEMBER(AnomalyType, IAT_STEP)
-// ======== Unknown =========
-ENUM_MEMBER(AnomalyType, UNKNOWN_1)
-ENUM_MEMBER(AnomalyType, UNKNOWN_2)
-ENUM_END(AnomalyType)
-
-#endif
-#endif
-#endif
 
 #ifndef CCA_CONFLICT_SERIALIZABLE_ALGORITHM
 #define CCA_CONFLICT_SERIALIZABLE_ALGORITHM
@@ -73,31 +18,30 @@ ENUM_END(AnomalyType)
 #include <iterator>
 #include <algorithm>
 #include "algorithm.h"
+#include "anomaly_type.h"
+#include "prece_type.h"
 
 namespace ttts {
 
-#define ENUM_FILE "../cca/conflict_serializable_algorithm.h"
-#include "../util/extend_enum.h"
-
-class PreceInfo {
+class DAPreceInfo {
  public:
-  PreceInfo(const uint64_t pre_trans_id, const uint64_t trans_id, const uint64_t item_id, const PreceType type, const uint32_t order)
+  DAPreceInfo(const uint64_t pre_trans_id, const uint64_t trans_id, const uint64_t item_id, const PreceType type, const uint32_t order)
     : pre_trans_id_(pre_trans_id), trans_id_(trans_id), item_id_(item_id), type_(type), order_(order) {}
-  PreceInfo(const PreceInfo&) = default;
+  DAPreceInfo(const DAPreceInfo&) = default;
 
-  friend std::ostream& operator<<(std::ostream& os, const PreceInfo prece) {
+  friend std::ostream& operator<<(std::ostream& os, const DAPreceInfo prece) {
     return os << 'T' << static_cast<char>('0' + prece.pre_trans_id_) << "-[" << prece.type_ << "-"
               << static_cast<char>('a' + prece.item_id_) << "]->" << 'T' << static_cast<char>('0' + prece.trans_id_);
   }
-  bool operator>(const PreceInfo& p) const { return order_ > p.order_; }
-  bool operator<(const PreceInfo& p) const { return order_ < p.order_; }
+  bool operator>(const DAPreceInfo& p) const { return order_ > p.order_; }
+  bool operator<(const DAPreceInfo& p) const { return order_ < p.order_; }
 
   uint64_t item_id() const { return item_id_; }
   PreceType type() const { return type_; }
 
  private:
-  uint64_t trans_id_;
   uint64_t pre_trans_id_;
+  uint64_t trans_id_;
   uint64_t item_id_;
   PreceType type_;
   uint32_t order_;
@@ -111,19 +55,19 @@ class ConflictGraphNode {
   bool HasNoPreTrans() const { return pre_trans_set_.empty(); }
   void AddPreTrans(const uint64_t pre_trans_id, const uint64_t item_id, const PreceType type, const uint32_t order) {
     // we only record the first precedence between the two specific transactions
-    pre_trans_set_.try_emplace(pre_trans_id, PreceInfo{pre_trans_id, trans_id_, item_id, type, order});
+    pre_trans_set_.try_emplace(pre_trans_id, DAPreceInfo{pre_trans_id, trans_id_, item_id, type, order});
   }
   void RemovePreTrans(const uint64_t pre_trans_id) { pre_trans_set_.erase(pre_trans_id); }
   void Remove() { removed_ = true; }
   bool IsRemoved() const { return removed_; }
   std::optional<bool>& is_committed() { return is_committed_; }
   const std::optional<bool>& is_committed() const { return is_committed_; }
-  const std::map<uint64_t, PreceInfo>& pre_trans_set() const { return pre_trans_set_; }
+  const std::map<uint64_t, DAPreceInfo>& pre_trans_set() const { return pre_trans_set_; }
   uint64_t trans_id() const { return trans_id_; }
 
  private:
   const uint64_t trans_id_;
-  std::map<uint64_t, PreceInfo> pre_trans_set_;
+  std::map<uint64_t, DAPreceInfo> pre_trans_set_;
   bool removed_;
   std::optional<bool> is_committed_;
 };
@@ -135,17 +79,17 @@ static void sort(Container&& container, Compare&& comp) {
   }
 }
 
-class Path {
+class DAPath {
  public:
-  Path() {}
-  Path(std::vector<PreceInfo>&& preces) : preces_((sort(preces, std::greater<PreceInfo>()), std::move(preces))) {}
-  Path(const PreceInfo& prece) : preces_{prece} {}
-  Path(const Path&) = default;
-  Path(Path&&) = default;
-  Path& operator=(const Path&) = default;
-  Path& operator=(Path&&) = default;
+  DAPath() {}
+  DAPath(std::vector<DAPreceInfo>&& preces) : preces_((sort(preces, std::greater<DAPreceInfo>()), std::move(preces))) {}
+  DAPath(const DAPreceInfo& prece) : preces_{prece} {}
+  DAPath(const DAPath&) = default;
+  DAPath(DAPath&&) = default;
+  DAPath& operator=(const DAPath&) = default;
+  DAPath& operator=(DAPath&&) = default;
 
-  bool operator<(const Path& p) const {
+  bool operator<(const DAPath& p) const {
     // impassable has the greatest weight
     if (!passable()) {
       return false;
@@ -156,30 +100,30 @@ class Path {
     return std::lexicographical_compare(preces_.begin(), preces_.end(), p.preces_.begin(), p.preces_.end());
   }
 
-  Path operator+(const Path& p) const {
+  DAPath operator+(const DAPath& p) const {
     if (!passable() || !p.passable()) {
       return {};
     }
-    std::vector<PreceInfo> preces;
-    std::merge(preces_.begin(), preces_.end(), p.preces_.begin(), p.preces_.end(), std::back_inserter(preces), std::greater<PreceInfo>());
+    std::vector<DAPreceInfo> preces;
+    std::merge(preces_.begin(), preces_.end(), p.preces_.begin(), p.preces_.end(), std::back_inserter(preces), std::greater<DAPreceInfo>());
     return preces;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const Path& path) {
+  friend std::ostream& operator<<(std::ostream& os, const DAPath& path) {
     if (path.preces_.empty()) {
       os << "Empty path";
     } else {
-      std::copy(path.preces_.begin(), path.preces_.end(), std::ostream_iterator<PreceInfo>(os, ", "));
+      std::copy(path.preces_.begin(), path.preces_.end(), std::ostream_iterator<DAPreceInfo>(os, ", "));
     }
     return os;
   }
 
   bool passable() const { return !preces_.empty(); }
 
-  const std::vector<PreceInfo>& preces() const { return preces_; }
+  const std::vector<DAPreceInfo>& preces() const { return preces_; }
 
  private:
-  std::vector<PreceInfo> preces_;
+  std::vector<DAPreceInfo> preces_;
 };
 
 class ConflictGraph {
@@ -222,9 +166,9 @@ class ConflictGraph {
   std::optional<bool>& is_committed(const uint64_t trans_id) { return nodes_[trans_id].is_committed(); }
 
   // Find the first conflict cycle in history. The latest precedence is at the head of return path.
-  Path MinCycleByFloyd() const {
+  DAPath MinCycleByFloyd() const {
     const size_t trans_num = nodes_.size();
-    Path matrix[trans_num][trans_num];
+    DAPath matrix[trans_num][trans_num];
 
     // init matrix
     for (uint64_t pre_trans_id = 0; pre_trans_id < trans_num; ++pre_trans_id) {
@@ -237,13 +181,13 @@ class ConflictGraph {
       }
     }
 
-    static auto update_path = [](Path& path, Path&& new_path) {
+    static auto update_path = [](DAPath& path, DAPath&& new_path) {
       if (new_path < path) {
         path = std::move(new_path); // do not use std::min because there is a copy cost when assign self
       }
     };
 
-    Path min_cycle;
+    DAPath min_cycle;
     for (uint64_t mid = 0; mid < trans_num; ++mid) {
       // find mini cycle when pass mid node
       for (uint64_t start = 0; start < mid; ++start) {
@@ -402,7 +346,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   }
 
  private:
-  static uint64_t ItemCount_(const std::vector<PreceInfo>& preces) {
+  static uint64_t ItemCount_(const std::vector<DAPreceInfo>& preces) {
     std::set<uint64_t> item_ids;
     for (const auto prece : preces) {
       item_ids.emplace(prece.item_id());
@@ -410,12 +354,12 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     return item_ids.size();
   }
 
-  static AnomalyType IdentifyAnomaly_(const std::vector<PreceInfo>& preces) {
+  static AnomalyType IdentifyAnomaly_(const std::vector<DAPreceInfo>& preces) {
     assert(preces.size() >= 2);
-    if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
       // WA and WC precedence han only appear
       return AnomalyType::WAT_1_DIRTY_WRITE;
-    } else if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
+    } else if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
       return AnomalyType::RAT_1_DIRTY_READ;
     } else if (preces.size() >= 3) {
       return IdentifyAnomalyMultiple_(preces);
@@ -483,11 +427,11 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     }
   }
 
-  static AnomalyType IdentifyAnomalyMultiple_(const std::vector<PreceInfo>& preces) {
-    if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WW; })) {
+  static AnomalyType IdentifyAnomalyMultiple_(const std::vector<DAPreceInfo>& preces) {
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WW; })) {
       return AnomalyType::WAT_STEP;
     }
-    if (std::any_of(preces.begin(), preces.end(), [](const PreceInfo& prece) { return prece.type() == PreceType::WR || prece.type() == PreceType::WCR; })) {
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WR || prece.type() == PreceType::WCR; })) {
       return AnomalyType::RAT_STEP;
     }
     return AnomalyType::IAT_STEP;

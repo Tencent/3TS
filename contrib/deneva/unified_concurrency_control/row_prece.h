@@ -8,71 +8,8 @@
  *
  */
 
-#ifdef ENUM_BEGIN
-#ifdef ENUM_MEMBER
-#ifdef ENUM_END
-
-ENUM_BEGIN(OperationType)
-ENUM_MEMBER(OperationType, W)
-ENUM_MEMBER(OperationType, R)
-ENUM_MEMBER(OperationType, C)
-ENUM_MEMBER(OperationType, A)
-ENUM_END(OperationType)
-
-ENUM_BEGIN(PreceType)
-ENUM_MEMBER(PreceType, RW)
-ENUM_MEMBER(PreceType, WR)
-ENUM_MEMBER(PreceType, WCR)
-ENUM_MEMBER(PreceType, WW)
-ENUM_MEMBER(PreceType, WCW)
-ENUM_MEMBER(PreceType, RA)
-ENUM_MEMBER(PreceType, WC)
-ENUM_MEMBER(PreceType, WA)
-ENUM_END(PreceType)
-
-ENUM_BEGIN(AnomalyType)
-// ======== WAT - 1 =========
-ENUM_MEMBER(AnomalyType, WAT_1_DIRTY_WRITE)
-ENUM_MEMBER(AnomalyType, WAT_1_FULL_WRITE)
-ENUM_MEMBER(AnomalyType, WAT_1_LOST_SELF_UPDATE)
-ENUM_MEMBER(AnomalyType, WAT_1_LOST_UPDATE)
-// ======== WAT - 2 =========
-ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_1)
-ENUM_MEMBER(AnomalyType, WAT_2_DOUBLE_WRITE_SKEW_2)
-ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_1)
-ENUM_MEMBER(AnomalyType, WAT_2_READ_WRITE_SKEW_2)
-ENUM_MEMBER(AnomalyType, WAT_2_FULL_WRITE_SKEW)
-// ======== WAT - 3 =========
-ENUM_MEMBER(AnomalyType, WAT_STEP)
-// ======== RAT - 1 =========
-ENUM_MEMBER(AnomalyType, RAT_1_DIRTY_READ)
-ENUM_MEMBER(AnomalyType, RAT_1_INTERMEDIATE_READ)
-ENUM_MEMBER(AnomalyType, RAT_1_NON_REPEATABLE_READ)
-// ======== RAT - 2 =========
-ENUM_MEMBER(AnomalyType, RAT_2_WRITE_READ_SKEW)
-ENUM_MEMBER(AnomalyType, RAT_2_DOUBLE_WRITE_SKEW_COMMITTED)
-ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW)
-ENUM_MEMBER(AnomalyType, RAT_2_READ_SKEW_2)
-// ======== RAT - 3 =========
-ENUM_MEMBER(AnomalyType, RAT_STEP)
-// ======== IAT - 1 =========
-ENUM_MEMBER(AnomalyType, IAT_1_LOST_UPDATE_COMMITTED)
-// ======== IAT - 2 =========
-ENUM_MEMBER(AnomalyType, IAT_2_READ_WRITE_SKEW_COMMITTED)
-ENUM_MEMBER(AnomalyType, IAT_2_WRITE_SKEW)
-// ======== IAT - 3 =========
-ENUM_MEMBER(AnomalyType, IAT_STEP)
-// ======== Unknown =========
-ENUM_MEMBER(AnomalyType, UNKNOWN_1)
-ENUM_MEMBER(AnomalyType, UNKNOWN_2)
-ENUM_END(AnomalyType)
-
-#endif
-#endif
-#endif
-
-#ifndef ROW_PRECE_H
-#define ROW_PRECE_H
+#ifndef TTTS_DENEVA_ROW_PRECE_H_
+#define TTTS_DENEVA_ROW_PRECE_H_
 
 #include <mutex>
 #include <unordered_map>
@@ -82,11 +19,11 @@ ENUM_END(AnomalyType)
 #include <iostream>
 #include <vector>
 #include "util.h"
+#include "../../../src/3ts/backend/cca/anomaly_type.h"
+#include "../../../src/3ts/backend/cca/prece_type.h"
+#include "operation_type.h"
 
 namespace ttts {
-
-#define ENUM_FILE "../unified_concurrency_control/row_prece.h"
-#include "../system/extend_enum.h"
 
 class TxnNode;
 
@@ -192,10 +129,8 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
             to_preces_.try_emplace(to_txn_id, prece);
             to_txn_node->from_preces_.try_emplace(txn_id_, prece);
             // For dirty precedence, W1W2 has higher priority than W1R2 because W1R2C1 is not dirty read
-            if ((type == PreceType::WR || type == PreceType::WW) &&
-                (!dirty_to_prece_ || (dirty_to_prece_->type() == PreceType::WR &&
-                                                type == PreceType::WW))) {
-                dirty_to_prece_ = prece;
+            if (type == PreceType::WR || type == PreceType::WW) {
+                dirty_to_preces_.emplace_back(prece);
             }
         }
     }
@@ -204,7 +139,7 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
 
     const auto& UnsafeGetToPreces() const { return to_preces_; }
     const auto& UnsafeGetFromPreces() const { return from_preces_; }
-    const std::shared_ptr<PreceInfo>& UnsafeGetDirtyToTxn() const { return dirty_to_prece_; }
+    const auto& UnsafeGetDirtyToPreces() const { return dirty_to_preces_; }
 
     std::mutex& mutex() const { return m_; }
 
@@ -212,14 +147,14 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
     {
         std::lock_guard<std::mutex> l(m_);
         state_ = State::COMMITTED;
-        dirty_to_prece_ = nullptr;
+        dirty_to_preces_.clear();
     }
 
     void Abort(const bool clear_to_preces)
     {
         std::lock_guard<std::mutex> l(m_);
         state_ = State::ABORTED;
-        dirty_to_prece_ = nullptr;
+        dirty_to_preces_.clear();
         if (clear_to_preces) {
             to_preces_.clear();
         }
@@ -285,7 +220,7 @@ class TxnNode : public std::enable_shared_from_this<TxnNode>
     // reference. Key is txn_id;
     std::unordered_map<uint64_t, std::weak_ptr<PreceInfo>> from_preces_;
     // The prece may also stored in to_preces_.
-    std::shared_ptr<PreceInfo> dirty_to_prece_;
+    std::vector<std::shared_ptr<PreceInfo>> dirty_to_preces_;
 };
 
 inline uint64_t PreceInfo::to_txn_id() const { return to_txn_->txn_id(); }
@@ -341,7 +276,7 @@ class VersionInfo
 
 template <UniAlgs ALG, typename Data>
 class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_CYCLE ||
-                                                      ALG == UniAlgs::UNI_DLI_IDENTIFY_MERGE>>
+                                                      ALG == UniAlgs::UNI_DLI_IDENTIFY_CHAIN>>
 {
   public:
     using Txn = TxnManager<ALG, Data>;
@@ -352,6 +287,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
                       0))
     {}
 
+    RowManager() {}
     std::optional<Data> Read(Txn& txn)
     {
         std::lock_guard<std::mutex> l(m_);
@@ -424,4 +360,4 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
 }
 
-#endif
+#endif // TTTS_DENEVA_ROW_PRECE_H_

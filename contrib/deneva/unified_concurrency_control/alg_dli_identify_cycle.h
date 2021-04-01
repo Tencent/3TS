@@ -65,7 +65,9 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         if (!txn.cycle_) {
             // we can only identify the dirty write/read anomaly rather than avoiding it
             Path cycle = DirtyCycle<false /*is_commit*/>(*txn.node_);
-            txn.cycle_ = std::make_unique<Path>(std::move(cycle));
+            if (cycle.Passable()) {
+                txn.cycle_ = std::make_unique<Path>(std::move(cycle));
+            }
         }
         if (const std::unique_ptr<Path>& cycle = txn.cycle_) {
             txn.node_->Abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
