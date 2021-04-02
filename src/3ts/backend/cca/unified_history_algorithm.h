@@ -5,25 +5,25 @@
 #include "algorithm.h"
 #include "../../../../contrib/deneva/unified_concurrency_control/dli_identify_util.h"
 #include "../../../../contrib/deneva/unified_concurrency_control/txn_dli_identify.h"
+#include "../../../../contrib/deneva/unified_concurrency_control/txn_ssi.h"
 #include "../../../../contrib/deneva/unified_concurrency_control/row_prece.h"
+#include "../../../../contrib/deneva/unified_concurrency_control/row_ssi.h"
 #include "../../../../contrib/deneva/unified_concurrency_control/alg_dli_identify_chain.h"
 #include "../../../../contrib/deneva/unified_concurrency_control/alg_dli_identify_cycle.h"
+#include "../../../../contrib/deneva/unified_concurrency_control/alg_ssi.h"
 #include <optional>
 
 namespace ttts {
 
 template<UniAlgs ALG, typename Data>
 class UnifiedHistoryAlgorithm : public HistoryAlgorithm {
-public:
-  UnifiedHistoryAlgorithm() : HistoryAlgorithm(ToString(ALG)), anomaly_counts_{0} {}
+private:
+  static constexpr bool IDENTIFY_ANOMALY = ALG == UniAlgs::UNI_DLI_IDENTIFY_CHAIN || ALG == UniAlgs::UNI_DLI_IDENTIFY_CYCLE;
 
-  virtual bool Check(const History& history, std::ostream* const os) const override {
-    return !(GetAnomaly(history, os).has_value());
-  }
-
-  std::optional<AnomalyType> GetAnomaly(const History& history, std::ostream* const os) const {
+  std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> CheckInternal_(
+          const History& history, std::ostream* const os) const {
     std::unique_ptr<AlgManager<ALG, Data>> alg_manager = std::make_unique<AlgManager<ALG, Data>>();
-    std::unordered_map<uint64_t, std::unique_ptr<TxnManager<ALG, Data>>> txn_map;
+    std::unordered_map<uint64_t, std::shared_ptr<TxnManager<ALG, Data>>> txn_map;
     std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>> row_map;
     std::unordered_map<uint64_t, uint64_t> row_value_map;
     std::vector<std::vector<std::pair<uint64_t, uint64_t>>> trans_write_set_list(history.trans_num());
@@ -32,7 +32,7 @@ public:
       const uint64_t trans_id = operation.trans_id();
       // init txn_map
       if (txn_map.count(trans_id) == 0) {
-        std::unique_ptr<TxnManager<ALG, Data>> txn = std::make_unique<TxnManager<ALG, Data>>(trans_id);
+        std::shared_ptr<TxnManager<ALG, Data>> txn = std::make_shared<TxnManager<ALG, Data>>(trans_id, i);
         txn_map.emplace(trans_id, std::move(txn));
       }
       // check operation whether R or W
@@ -64,21 +64,26 @@ public:
         for (const auto& item_write : trans_write_set_list[trans_id]) {
           row_map[item_write.first]->Revoke(item_write.second, *txn_map[trans_id]);
         }
-        // check data anomaly in abort
-        if (txn_map[trans_id]->cycle_ != nullptr) {
-          //std::cout << "abort::preces_size:" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
-          const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
-          ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
-          return anomaly;
+        if constexpr (IDENTIFY_ANOMALY) {
+          if (txn_map[trans_id]->cycle_ != nullptr) {
+            //std::cout << "abort::preces_size:" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
+            const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
+            ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
+            return anomaly;
+          }
         }
+        // check data anomaly in abort
+        txn_map.erase(trans_id);
       } else if (Operation::Type::COMMIT == operation.type()) {
         bool ret = alg_manager->Validate(*txn_map[trans_id]);
         if (ret) {
-          alg_manager->Commit(*txn_map[trans_id]);
+          alg_manager->Commit(*txn_map[trans_id], i);
           // data persistence
           for (const auto& row : row_map) {
             row.second->Write(row_value_map[row.first], *txn_map[trans_id]);
           }
+        } else if constexpr (!IDENTIFY_ANOMALY) {
+          return false;
         } else {
           alg_manager->Abort(*txn_map[trans_id]);
           // rollback written row
@@ -86,18 +91,49 @@ public:
             row_map[item_write.first]->Revoke(item_write.second, *txn_map[trans_id]);
           }
         }
-        // check data anomaly in commit
-        if (txn_map[trans_id]->cycle_ != nullptr) {
-          //std::cout << "commit::preces_size" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
-          const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
-          ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
-          return anomaly;
+        if constexpr (IDENTIFY_ANOMALY) {
+          // check data anomaly in commit
+          if (txn_map[trans_id]->cycle_ != nullptr) {
+            //std::cout << "commit::preces_size" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
+            const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
+            ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
+            return anomaly;
+          }
         }
+        txn_map.erase(trans_id);
       }
     }
-    return {};
+    if constexpr (IDENTIFY_ANOMALY) {
+      return {};
+    } else {
+      return true;
+    }
   }
 
+public:
+  UnifiedHistoryAlgorithm() : HistoryAlgorithm(ToString(ALG)), anomaly_counts_{0} {}
+
+  virtual bool Check(const History& history, std::ostream* const os) const override {
+    if constexpr (IDENTIFY_ANOMALY) {
+        return !CheckInternal_(history, os).has_value();
+    } else {
+        return CheckInternal_(history, os);
+    }
+    return !(GetAnomaly(history, os).has_value());
+  }
+
+  std::optional<AnomalyType> GetAnomaly(const History& history, std::ostream* const os) const {
+    if constexpr (IDENTIFY_ANOMALY) {
+        return CheckInternal_(history, os);
+    } else {
+        if (CheckInternal_(history, os)) {
+            return {};
+        } else {
+            // TODO: forbid GetAnomaly in compile time
+            return AnomalyType::UNKNOWN_1;
+        }
+    }
+  }
 private:
   mutable std::array<std::atomic<uint64_t>, Count<AnomalyType>()> anomaly_counts_;
 };
