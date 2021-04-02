@@ -22,11 +22,19 @@ namespace ttts {
 template <UniAlgs ALG, typename Data>
 class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_CYCLE ||
                                                       ALG == UniAlgs::UNI_DLI_IDENTIFY_CHAIN>>
+        : public std::enable_shared_from_this<TxnManager<ALG, Data>>
 {
   public:
-    TxnManager(const uint64_t txn_id) : node_(std::make_shared<TxnNode>(txn_id)) {}
+    template <typename ...Args>
+    static std::shared_ptr<TxnManager> Construct(Args&&... args)
+    {
+        return std::make_shared<TxnManager>(std::forward<Args>(args)...);
+    }
+
+    TxnManager(const uint64_t txn_id, const uint64_t start_ts) : node_(std::make_shared<TxnNode>(txn_id)) {}
     TxnManager() {}
-    const uint64_t txn_id() const { return node_->txn_id(); }
+
+    uint64_t txn_id() const { return node_->txn_id(); }
 
     std::unique_lock<std::mutex> l_;
     std::shared_ptr<TxnNode> node_; // release condition (1) for TxnNode

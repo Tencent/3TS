@@ -25,6 +25,11 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
   public:
     using Txn = TxnManager<ALG, Data>;
 
+    void Start(const uint64_t txn_id)
+    {
+        return std::make_unique<Txn>(txn_id);
+    }
+
     bool Validate(Txn& txn)
     {
         txn.node_->state() = TxnNode::State::PREPARING;
@@ -55,7 +60,7 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         }
     }
 
-    void Commit(Txn& txn)
+    void Commit(Txn& txn, const uint64_t /*commit_ts*/)
     {
         txn.node_->Commit();
     }

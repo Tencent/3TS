@@ -1,3 +1,13 @@
+/* Tencent is pleased to support the open source community by making 3TS available.
+ *
+ * Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved. The below software
+ * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
+ * Tencent Modifications are Copyright (C) THL A29 Limited.
+ *
+ * Author: williamcliu@tencent.com
+ *
+ */
+
 #pragma once
 
 #include "dli_identify_util.h"
@@ -36,7 +46,7 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         }
     }
 
-    void Commit(Txn& txn)
+    void Commit(Txn& txn, const uint64_t /*commit_ts*/)
     {
         txn.node_->Commit();
     }
@@ -134,3 +144,4 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 };
 
 }
+

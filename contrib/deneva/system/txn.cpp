@@ -737,9 +737,6 @@ void TxnManager::register_thread(Thread * h_thd) {
 
 void TxnManager::set_txn_id(txnid_t txn_id) {
     txn->txn_id = txn_id;
-#if IS_GENERIC_ALG
-    uni_txn_man_ = std::make_unique<UniTxnManager<CC_ALG>>(txn_id);
-#endif
 }
 
 txnid_t TxnManager::get_txn_id() const { return txn->txn_id; }
@@ -878,7 +875,7 @@ void TxnManager::cleanup(RC rc) {
 #endif
 #if IS_GENERIC_ALG && MODE == NORMAL_MODE
     if (rc == RCOK) {
-        uni_alg_man.Commit(*uni_txn_man_);
+        uni_alg_man.Commit(*uni_txn_man_, commit_timestamp);
     } else {
         assert(rc == Abort);
         uni_alg_man.Abort(*uni_txn_man_);
@@ -1147,6 +1144,10 @@ RC TxnManager::validate() {
 #if IS_GENERIC_ALG
     else if (IS_GENERIC_ALG) {
         rc = uni_alg_man.Validate(*this->uni_txn_man_) ? RCOK : Abort;
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
+            // TODO: support distributed transaction and get commit_ts
+            this->commit_timestamp = glob_manager.get_ts(get_thd_id());
+        }
     }
 #endif
 #if CC_ALG == SILO

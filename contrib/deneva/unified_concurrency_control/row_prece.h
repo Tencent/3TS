@@ -227,6 +227,7 @@ inline PreceInfo::PreceInfo(std::shared_ptr<TxnNode> from_txn, std::shared_ptr<T
         const PreceType type, const uint64_t row_id, const uint64_t from_ver_id, const uint64_t to_ver_id)
     : from_txn_id_(from_txn->txn_id()), from_txn_(std::move(from_txn)), to_txn_(std::move(to_txn)), type_(type), row_id_(row_id),
         from_ver_id_(from_ver_id), to_ver_id_(to_ver_id) {}
+
 // Not thread safe. Protected by RowManager<DLI_IDENTIFY>::m_
 //
 // A VersionInfo can be released when it will not be read anymore.
@@ -310,12 +311,12 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         return true;
     }
 
-    void Write(Data data, Txn& txn)
+    void Write(Data /*data*/, Txn& txn)
     {
         // do nothing
     }
 
-    void Revoke(Data data, Txn& txn)
+    void Revoke(Data /*data*/, Txn& txn)
     {
         std::lock_guard<std::mutex> l(m_);
         const auto it = txn.pre_versions_.find(row_id_);
@@ -353,7 +354,6 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     const uint64_t row_id_;
     std::mutex m_;
     uint64_t cur_ver_id_;
-    //std::map<uint64_t, std::shared_ptr<VersionInfo>> versions_; // key is write timestamp (snapshot read)
     std::shared_ptr<VersionInfo<Data>> latest_version_;
 };
 
