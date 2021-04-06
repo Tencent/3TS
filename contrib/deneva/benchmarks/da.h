@@ -22,8 +22,9 @@ extern std::vector<Message*> DA_delayed_operations;
 extern bool abort_history;
 extern ofstream commit_file;
 extern ofstream abort_file;
-template <typename Txn>
-extern std::optional<ttts::Path<Txn>> g_da_cycle;
+#if IS_GENERIC_ALG
+extern std::optional<ttts::Path<UniTxnManager<CC_ALG>>> g_da_cycle;
+#endif
 
 class DAWorkload : public Workload {
   public:
