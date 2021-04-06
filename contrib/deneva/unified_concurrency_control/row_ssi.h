@@ -21,69 +21,20 @@
 
 namespace ttts {
 
-class SSITxnNode
+template <UniAlgs ALG, typename Data>
+class VerManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_SSI>>
 {
   public:
-    enum class State { ACTIVE, PREPARING, COMMITTED, ABORTED };
+    using Txn = TxnManager<ALG, Data>;
 
-    SSITxnNode(const uint64_t txn_id, const uint64_t start_time)
-        : txn_id_(txn_id), start_ts_(start_time), state_(State::ACTIVE), commit_ts_(UINT64_MAX),
-          w_side_conf_(false), r_side_conf_(false) {}
-
-    uint64_t txn_id() const { return txn_id_; }
-    uint64_t start_ts() const { return start_ts_; }
-    uint64_t commit_ts() const { return commit_ts_.load(); }
-
-    void Commit(const uint64_t commit_ts)
-    {
-        commit_ts_ = commit_ts;
-        state_ = State::COMMITTED;
-    }
-
-    void Abort()
-    {
-        state_ = State::ABORTED;
-    }
-
-    State state() const { return state_.load(); }
-
-    bool WConf() const { return w_side_conf_.load(); }
-    void SetWConf() { w_side_conf_ = true; }
-
-    bool RConf() const { return r_side_conf_.load(); }
-    void SetRConf() { r_side_conf_ = true; }
-
-    static bool BuildRWConf(SSITxnNode& r_side, SSITxnNode& w_side)
-    {
-        if (r_side.WConf() || w_side.RConf()) {
-            return false;
-        }
-        r_side.SetRConf();
-        w_side.SetWConf();
-        return true;
-    }
-
-  private:
-    const uint64_t txn_id_;
-    const uint64_t start_ts_;
-    std::atomic<State> state_;
-    std::atomic<uint64_t> commit_ts_;
-    std::atomic<bool> w_side_conf_;
-    std::atomic<bool> r_side_conf_;
-};
-
-template <typename Data>
-class SSIVersionInfo
-{
-  public:
     // Default unreadable so set w_ts to UINT64_MAX
-    SSIVersionInfo(std::shared_ptr<SSITxnNode> w_txn, Data data, const uint64_t w_ts = UINT64_MAX)
+    VerManager(std::shared_ptr<Txn> w_txn, Data data, const uint64_t w_ts = UINT64_MAX)
         : w_txn_(std::move(w_txn)), data_(std::move(data)), w_ts_(w_ts) {}
-    SSIVersionInfo(const SSIVersionInfo&) = default;
-    SSIVersionInfo(SSIVersionInfo&&) = default;
-    ~SSIVersionInfo() {}
+    VerManager(const VerManager&) = default;
+    VerManager(VerManager&&) = default;
+    ~VerManager() {}
 
-    std::shared_ptr<SSITxnNode> w_txn() const { return w_txn_; }
+    std::shared_ptr<Txn> w_txn() const { return w_txn_; }
 
     const Data& data() const { return data_; }
     void set_data(Data data) { data_ = std::move(data); }
@@ -100,11 +51,11 @@ class SSIVersionInfo
         return w_txn_ && w_txn_->txn_id() == txn_id;
     }
 
-    const std::shared_ptr<SSITxnNode> w_txn_;
+    const std::shared_ptr<Txn> w_txn_;
     Data data_;
     uint64_t w_ts_;
     // There may be two versions on same the row which have the same ver_id due to version revoking
-    std::vector<std::shared_ptr<SSITxnNode>> r_txns_; // use shared_ptr instead of weak_ptr or readonly transactions will be released
+    std::vector<std::shared_ptr<Txn>> r_txns_; // use shared_ptr instead of weak_ptr or readonly transactions will be released
 };
 
 template <UniAlgs ALG, typename Data>
@@ -113,8 +64,9 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
   public:
     using Alg = AlgManager<ALG, Data>;
     using Txn = TxnManager<ALG, Data>;
+    using Ver = VerManager<ALG, Data>;
 
-    RowManager(const uint64_t row_id, Data init_data) : row_id_(row_id), versions_{SSIVersionInfo(nullptr, init_data, 0)} {}
+    RowManager(const uint64_t row_id, Data init_data) : row_id_(row_id), versions_{Ver(nullptr, init_data, 0)} {}
 
     std::optional<Data> Read(Txn& txn)
     {
@@ -131,10 +83,10 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
             continue;
         }
         assert(it != versions_.rend());
-        it->r_txns_.emplace_back(txn.node_);
+        it->r_txns_.emplace_back(txn.shared_from_this());
 
         { // logical not contains in SSI ---- build RW precedence
-            if (it != versions_.rbegin() && !SSITxnNode::BuildRWConf(*txn.node_, *std::prev(it)->w_txn())) {
+            if (it != versions_.rbegin() && !Txn::BuildRWConf(txn, *std::prev(it)->w_txn())) {
                 return {};
             }
         }
@@ -149,7 +101,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         auto& latest_version = versions_.back();
         if (latest_version.IsWrittenBy(txn.txn_id())) {
             latest_version.set_data(data);
-        } else if (latest_version.w_ts() > txn.node_->start_ts()) { // prevent S1W2 precedence
+        } else if (latest_version.w_ts() > txn.start_ts()) { // prevent S1W2 precedence
             return false;
         }
 
@@ -160,17 +112,17 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
                     continue;
                 }
                 const auto r_txn_state = r_txn->state();
-                const bool is_concurrent = r_txn_state == SSITxnNode::State::ACTIVE ||
-                                        r_txn_state == SSITxnNode::State::PREPARING ||
-                                        (r_txn_state == SSITxnNode::State::COMMITTED &&
-                                            r_txn->commit_ts() > txn.node_->start_ts());
-                if (is_concurrent && !SSITxnNode::BuildRWConf(*r_txn, *txn.node_)) {
+                const bool is_concurrent = r_txn_state == Txn::State::ACTIVE ||
+                                        r_txn_state == Txn::State::PREPARING ||
+                                        (r_txn_state == Txn::State::COMMITTED &&
+                                            r_txn->commit_ts() > txn.start_ts());
+                if (is_concurrent && !Txn::BuildRWConf(*r_txn, txn)) {
                     return false;
                 }
             }
         }
 
-        versions_.emplace_back(txn.node_, std::move(data));
+        versions_.emplace_back(txn.shared_from_this(), std::move(data));
 
         return true;
     }
@@ -180,7 +132,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         std::lock_guard<std::mutex> l(m_);
         auto& latest_version = versions_.back();
         if (latest_version.IsWrittenBy(txn.txn_id())) {
-            latest_version.set_w_ts(txn.node_->commit_ts());
+            latest_version.set_w_ts(txn.commit_ts());
         }
     }
 
@@ -203,7 +155,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
   private:
     const uint64_t row_id_;
     std::mutex m_;
-    std::deque<SSIVersionInfo<Data>> versions_; // old version is in front
+    std::deque<Ver> versions_; // old version is in front
 };
 
 }

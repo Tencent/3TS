@@ -32,12 +32,12 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     bool Validate(Txn& txn)
     {
-        txn.node_->state() = TxnNode::State::PREPARING;
+        txn.state() = Txn::State::PREPARING;
 
         //txn-.lock(m_); // release after build WC, WA or RA precedence
         const auto cc_txns = [this, &txn] {
             std::scoped_lock l(m_);
-            cc_txns_.emplace_back(txn.node_);
+            cc_txns_.emplace_back(txn.shared_from_this());
             return RefreshAndLockTxns_();
         }();
         const auto txn_num = cc_txns.size();
@@ -46,38 +46,38 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         auto matrix = InitPathMatrix_(cc_txns);
         UpdatePathMatrix_(matrix);
 
-        Path cycle = MinCycle_(matrix, this_idx);
+        Path<Txn> cycle = MinCycle_(matrix, this_idx);
 
         if (!cycle.Passable()) {
-            cycle = DirtyCycle<true /*is_commit*/>(*txn.node_);
+            cycle = DirtyCycle<Txn, true /*is_commit*/>(txn);
         }
 
         if (!cycle.Passable()) {
             return true;
         } else {
-            txn.cycle_ = std::make_unique<Path>(std::move(cycle));
+            txn.cycle_ = std::make_unique<Path<Txn>>(std::move(cycle));
             return false;
         }
     }
 
     void Commit(Txn& txn, const uint64_t /*commit_ts*/)
     {
-        txn.node_->Commit();
+        txn.Commit();
     }
 
     void Abort(Txn& txn)
     {
         if (!txn.cycle_) {
             // we can only identify the dirty write/read anomaly rather than avoiding it
-            Path cycle = DirtyCycle<false /*is_commit*/>(*txn.node_);
+            Path<Txn> cycle = DirtyCycle<Txn, false /*is_commit*/>(txn);
             if (cycle.Passable()) {
-                txn.cycle_ = std::make_unique<Path>(std::move(cycle));
+                txn.cycle_ = std::make_unique<Path<Txn>>(std::move(cycle));
             }
         }
-        if (const std::unique_ptr<Path>& cycle = txn.cycle_) {
-            txn.node_->Abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
+        if (const std::unique_ptr<Path<Txn>>& cycle = txn.cycle_) {
+            txn.Abort(true /*clear_to_txns*/); // break cycles to prevent memory leak
         } else {
-            txn.node_->Abort(false /*clear_to_txns*/);
+            txn.Abort(false /*clear_to_txns*/);
         }
     }
 
@@ -96,17 +96,17 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         assert(cc_txns_.empty());
     }
 
-    static AnomalyType IdentifyAnomaly(const std::vector<PreceInfo>& preces)
+    static AnomalyType IdentifyAnomaly(const std::vector<PreceInfo<Txn>>& preces)
     {
         assert(preces.size() >= 2);
         const auto& p1 = preces.front();
         const auto& p2 = preces.back();
         if (std::any_of(preces.begin(), preces.end(),
-                    [](const PreceInfo& prece) { return prece.type() == PreceType::WA ||
+                    [](const PreceInfo<Txn>& prece) { return prece.type() == PreceType::WA ||
                                                         prece.type() == PreceType::WC; })) {
             return AnomalyType::WAT_1_DIRTY_WRITE;
         } else if (std::any_of(preces.begin(), preces.end(),
-                    [](const PreceInfo& prece) { return prece.type() == PreceType::RA; })) {
+                    [](const PreceInfo<Txn>& prece) { return prece.type() == PreceType::RA; })) {
             return AnomalyType::RAT_1_DIRTY_READ;
         } else if (preces.size() >= 3) {
             return IdentifyAnomalyMultiple(preces);
@@ -119,9 +119,9 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     }
 
   private:
-    std::vector<std::shared_ptr<TxnNode>> RefreshAndLockTxns_()
+    std::vector<std::shared_ptr<Txn>> RefreshAndLockTxns_()
     {
-        std::vector<std::shared_ptr<TxnNode>> txns;
+        std::vector<std::shared_ptr<Txn>> txns;
         for (auto it = cc_txns_.begin(); it != cc_txns_.end(); ) {
             if (auto txn = it->lock()) {
                 txns.emplace_back(std::move(txn));
@@ -133,14 +133,14 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         return txns;
     }
 
-    std::vector<std::vector<Path>> InitPathMatrix_(
-        const std::vector<std::shared_ptr<TxnNode>>& cc_txns) const
+    std::vector<std::vector<Path<Txn>>> InitPathMatrix_(
+        const std::vector<std::shared_ptr<Txn>>& cc_txns) const
     {
         const uint64_t txn_num = cc_txns.size();
-        std::vector<std::vector<Path>> matrix(txn_num);
+        std::vector<std::vector<Path<Txn>>> matrix(txn_num);
         for (uint64_t from_idx = 0; from_idx < txn_num; ++from_idx) {
             matrix[from_idx].resize(txn_num);
-            TxnNode& from_txn_node = *cc_txns[from_idx];
+            Txn& from_txn_node = *cc_txns[from_idx];
             std::lock_guard<std::mutex> l(from_txn_node.mutex());
             const auto& to_preces = from_txn_node.UnsafeGetToPreces();
             for (uint64_t to_idx = 0; to_idx < txn_num; ++to_idx) {
@@ -153,13 +153,13 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         return matrix;
     }
 
-    static void UpdatePath_(Path& path, Path&& new_path) {
+    static void UpdatePath_(Path<Txn>& path, Path<Txn>&& new_path) {
         if (new_path < path) {
             path = std::move(new_path); // do not use std::min because there is a copy cost when assign self
         }
     };
 
-    void UpdatePathMatrix_(std::vector<std::vector<Path>>& matrix) const
+    void UpdatePathMatrix_(std::vector<std::vector<Path<Txn>>>& matrix) const
     {
         const uint64_t txn_num = matrix.size();
         for (uint64_t mid = 0; mid < txn_num; ++mid) {
@@ -176,10 +176,10 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         }
     }
 
-    Path MinCycle_(std::vector<std::vector<Path>>& matrix, const uint64_t this_idx) const
+    Path<Txn> MinCycle_(std::vector<std::vector<Path<Txn>>>& matrix, const uint64_t this_idx) const
     {
         const uint64_t txn_num = matrix.size();
-        Path min_cycle;
+        Path<Txn> min_cycle;
         for (uint64_t start = 0; start < txn_num; ++start) {
             if (start == this_idx) {
                 continue;
@@ -200,7 +200,7 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     }
 
     std::mutex m_;
-    std::list<std::weak_ptr<TxnNode>> cc_txns_;
+    std::list<std::weak_ptr<Txn>> cc_txns_;
 };
 
 }

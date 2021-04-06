@@ -28,21 +28,20 @@ class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
   public:
     using Txn = TxnManager<ALG, Data>;
 
-    bool Validate(Txn& txn)
+    bool Validate(const Txn& txn)
     {
-        return !txn.node_->WConf() || !txn.node_->RConf();
+        return !txn.WConf() || !txn.RConf();
     }
 
     void Commit(Txn& txn, const uint64_t commit_ts)
     {
-        txn.node_->Commit(commit_ts);
+        txn.Commit(commit_ts);
     }
 
     void Abort(Txn& txn)
     {
-        txn.node_->Abort();
+        txn.Abort();
     }
 };
-
 
 }

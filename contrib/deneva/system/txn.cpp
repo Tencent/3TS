@@ -59,7 +59,8 @@
 #include "../unified_concurrency_control/txn_dli_identify.h"
 
 #if WORKLOAD == DA
-extern std::optional<ttts::Path> g_da_cycle;
+template <typename Txn>
+extern std::optional<ttts::Path<Txn>> g_da_cycle;
 #endif
 
 void TxnStats::init() {
