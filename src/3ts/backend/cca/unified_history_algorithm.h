@@ -48,12 +48,22 @@ private:
           row_map.emplace(item_id, std::move(row));
         }
         // Exec Read
-        if (Operation::Type::READ == operation.type()) {
-          row_map[item_id]->Read(*txn_map[trans_id]);
+        if (Operation::Type::READ == operation.type() && !row_map[item_id]->Read(*txn_map[trans_id])) {
+          if constexpr (IDENTIFY_ANOMALY) {
+            return AnomalyType::UNKNOWN_1;
+          } else {
+            return false;
+          }
         // Exec Prewrite
         } else if (Operation::Type::WRITE == operation.type()) {
           row_value_map[item_id] += 1;
-          row_map[item_id]->Prewrite(row_value_map[item_id], *txn_map[trans_id]);
+          if (!row_map[item_id]->Prewrite(row_value_map[item_id], *txn_map[trans_id])) {
+            if constexpr (IDENTIFY_ANOMALY) {
+                return AnomalyType::UNKNOWN_1;
+            } else {
+                return false;
+            }
+          }
           trans_write_set_list[trans_id].emplace_back(std::pair<uint64_t, uint64_t>(item_id, row_value_map[item_id]));
           //std::cout << "W->tx_id:" << trans_id << " item_id:" << item_id << " value:" << row_value_map[item_id] << std::endl;
         // Exec Abort

@@ -104,7 +104,7 @@ class SSIVersionInfo
     Data data_;
     uint64_t w_ts_;
     // There may be two versions on same the row which have the same ver_id due to version revoking
-    std::vector<std::weak_ptr<SSITxnNode>> r_txns_;
+    std::vector<std::shared_ptr<SSITxnNode>> r_txns_; // use shared_ptr instead of weak_ptr or readonly transactions will be released
 };
 
 template <UniAlgs ALG, typename Data>
@@ -120,6 +120,13 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     {
         std::lock_guard<std::mutex> l(m_);
         auto it = versions_.rbegin();
+
+        // read version just written by itself
+        if (const auto& latest_version = versions_.back(); latest_version.IsWrittenBy(txn.txn_id())) {
+            return latest_version.data();
+        }
+
+        // read version written by another transaction with snapshot timestamp
         for (; it != versions_.rend() && it->w_ts() > txn.start_ts(); ++it) {
             continue;
         }
@@ -147,9 +154,9 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         }
 
         { // logical not contains in SSI ---- build RW precedence
-            for (const auto& r_txn_weak : latest_version.r_txns_) {
-                const auto r_txn = r_txn_weak.lock();
-                if (r_txn == nullptr) {
+            for (const auto& r_txn : latest_version.r_txns_) {
+                assert(r_txn != nullptr);
+                if (r_txn->txn_id() == txn.txn_id()) {
                     continue;
                 }
                 const auto r_txn_state = r_txn->state();

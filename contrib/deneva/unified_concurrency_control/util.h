@@ -30,8 +30,11 @@ namespace ttts {
 #define ENUM_FILE "../../../../contrib/deneva/unified_concurrency_control/util.h"
 #include "../../../src/3ts/backend/util/extend_enum.h"
 
+// Each history has only one AlgManager
 template <UniAlgs ALG, typename Data, typename T = void> class AlgManager;
+// Each row or variable has a RowManager
 template <UniAlgs ALG, typename Data, typename T = void> class RowManager;
+// Each transaction has a TxnManager
 template <UniAlgs ALG, typename Data, typename T = void> class TxnManager;
 
 }
