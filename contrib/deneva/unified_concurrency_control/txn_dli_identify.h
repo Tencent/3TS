@@ -34,14 +34,12 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     static std::shared_ptr<TxnManager> Construct(Args&&... args)
     {
         // release condition (1) for TxnManager
-        return std::make_shared<TxnManager>(std::forward<Args>(args)...);
+        return std::shared_ptr<TxnManager>(new TxnManager(std::forward<Args>(args)...));
     }
 
     using Ver = VerManager<ALG, Data>;
 
     enum class State { ACTIVE, PREPARING, COMMITTED, ABORTED };
-
-    TxnManager(const uint64_t txn_id, const uint64_t /*start_ts*/) : txn_id_(txn_id), state_(State::ACTIVE) {}
 
     // We use ver_id but not the count of operation to support snapshot read.
     // [Note] Should ensure to_txn_node thread safe.
@@ -114,6 +112,8 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     std::unordered_map<uint64_t, std::shared_ptr<Ver>> pre_versions_; // record for revoke
 
   private:
+    TxnManager(const uint64_t txn_id, const uint64_t /*start_ts*/) : txn_id_(txn_id), state_(State::ACTIVE) {}
+
     std::optional<PreceType> RealPreceType_(const std::optional<PreceType>& active_prece_type,
             const std::optional<PreceType>& committed_prece_type,
             const std::optional<PreceType>& aborted_prece_type) const

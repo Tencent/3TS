@@ -26,9 +26,11 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
   public:
     enum class State { ACTIVE, PREPARING, COMMITTED, ABORTED };
 
-    TxnManager(const uint64_t txn_id, const uint64_t start_time)
-        : txn_id_(txn_id), start_ts_(start_time), state_(State::ACTIVE), commit_ts_(UINT64_MAX),
-          w_side_conf_(false), r_side_conf_(false) {}
+    template <typename ...Args>
+    static std::shared_ptr<TxnManager> Construct(Args&&... args)
+    {
+        return std::shared_ptr<TxnManager>(new TxnManager(std::forward<Args>(args)...));
+    }
 
     uint64_t txn_id() const { return txn_id_; }
     uint64_t start_ts() const { return start_ts_; }
@@ -64,6 +66,10 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     }
 
   private:
+    TxnManager(const uint64_t txn_id, const uint64_t start_time)
+        : txn_id_(txn_id), start_ts_(start_time), state_(State::ACTIVE), commit_ts_(UINT64_MAX),
+          w_side_conf_(false), r_side_conf_(false) {}
+
     const uint64_t txn_id_;
     const uint64_t start_ts_;
     std::atomic<State> state_;

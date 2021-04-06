@@ -32,7 +32,7 @@ private:
       const uint64_t trans_id = operation.trans_id();
       // init txn_map
       if (txn_map.count(trans_id) == 0) {
-        std::shared_ptr<TxnManager<ALG, Data>> txn = std::make_shared<TxnManager<ALG, Data>>(trans_id, i);
+        std::shared_ptr<TxnManager<ALG, Data>> txn = TxnManager<ALG, Data>::Construct(trans_id, i);
         txn_map.emplace(trans_id, std::move(txn));
       }
       // check operation whether R or W

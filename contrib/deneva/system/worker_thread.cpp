@@ -821,7 +821,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
         const uint64_t start_ts = get_next_ts();
 #endif
         txn_man->set_timestamp(start_ts);
-        txn_man->uni_txn_man_ = std::make_shared<UniTxnManager<CC_ALG>>(txn_id, start_ts);
+        txn_man->uni_txn_man_ = UniTxnManager<CC_ALG>::Construct(txn_id, start_ts);
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,start_ts);
 #elif CC_ALG == MVCC
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
