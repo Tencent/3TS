@@ -56,7 +56,7 @@
 #include "ssi.h"
 #include "wsi.h"
 #include "manager.h"
-#include "../unified_concurrency_control/txn_dli_identify.h"
+#include "../../../src/3ts/backend/cca/unified_history_algorithm/txn/txn_dli_identify.h"
 
 #if WORKLOAD == DA
 template <typename Txn>

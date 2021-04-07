@@ -48,7 +48,7 @@
 #include "bocc.h"
 #include "dta.h"
 #include "da.h"
-#include "unified_concurrency_control/util.h"
+#include "../../../src/3ts/backend/cca/unified_history_algorithm/util/util.h"
 
 #define SUPPORT_ANOMALY_IDENTIFY (CC_ALG == DLI_IDENTIFY_CHAIN || CC_ALG == DLI_IDENTIFY_CYCLE)
 

@@ -19,7 +19,7 @@
 #include "../cca/occ_algorithm/trans/wsi_trans.h"
 #include "../cca/occ_algorithm/trans/dli_trans.h"
 #include "../cca/serializable_algorithm.h"
-#include "../cca/unified_history_algorithm.h"
+#include "../cca/unified_history_algorithm/unified_history_algorithm.h"
 #include "../util/generic.h"
 #include "generator.h"
 #include "outputter.h"

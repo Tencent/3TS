@@ -17,8 +17,8 @@
 #include <memory>
 #include <iostream>
 #include <vector>
-#include "util.h"
-#include "txn_dli_identify.h"
+#include "../util/util.h"
+#include "../txn/txn_dli_identify.h"
 
 namespace ttts {
 

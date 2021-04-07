@@ -14,8 +14,8 @@
 #include <memory>
 #include <mutex>
 #include <type_traits>
-#include "util.h"
-#include "dli_identify_util.h"
+#include "../util/util.h"
+#include "../util/dli_identify_util.h"
 
 namespace ttts {
 

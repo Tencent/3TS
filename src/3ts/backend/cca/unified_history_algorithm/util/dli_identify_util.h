@@ -17,8 +17,8 @@
 #include <iterator>
 #include <algorithm>
 #include "operation_type.h"
-#include "../../../src/3ts/backend/cca/anomaly_type.h"
-#include "../../../src/3ts/backend/cca/prece_type.h"
+#include "../util/anomaly_type.h"
+#include "../util/prece_type.h"
 
 #define CYCLE_ORDER 1
 

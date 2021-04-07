@@ -47,8 +47,8 @@ ENUM_END(AnomalyType)
 #define TTTS_CCA_ANOMALY_TYPE_H_
 
 namespace ttts {
-#define ENUM_FILE "../cca/anomaly_type.h"
-#include "../util/extend_enum.h"
+#define ENUM_FILE "../cca/unified_history_algorithm/util/anomaly_type.h"
+#include "../../../util/extend_enum.h"
 }
 
 #endif // TTTS_CCA_ANOMALY_TYPE_H_

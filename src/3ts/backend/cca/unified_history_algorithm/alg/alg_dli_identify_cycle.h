@@ -10,8 +10,8 @@
 
 #pragma once
 
-#include "dli_identify_util.h"
-#include "row_prece.h"
+#include "../util/dli_identify_util.h"
+#include "../row/row_prece.h"
 #include <mutex>
 #include <type_traits>
 #include <list>

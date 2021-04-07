@@ -14,8 +14,8 @@
 #include <memory>
 #include <mutex>
 #include <type_traits>
-#include "util.h"
-#include "row_ssi.h"
+#include "../util/util.h"
+#include "../row/row_ssi.h"
 
 namespace ttts {
 

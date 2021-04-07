@@ -18,8 +18,8 @@
 #include <iterator>
 #include <algorithm>
 #include "algorithm.h"
-#include "anomaly_type.h"
-#include "prece_type.h"
+#include "unified_history_algorithm/util/anomaly_type.h"
+#include "unified_history_algorithm/util/prece_type.h"
 
 namespace ttts {
 

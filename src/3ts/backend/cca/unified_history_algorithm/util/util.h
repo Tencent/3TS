@@ -27,8 +27,8 @@ ENUM_END(UniAlgs)
 
 namespace ttts {
 
-#define ENUM_FILE "../../../../contrib/deneva/unified_concurrency_control/util.h"
-#include "../../../src/3ts/backend/util/extend_enum.h"
+#define ENUM_FILE "../cca/unified_history_algorithm/util/util.h"
+#include "../../../util/extend_enum.h"
 
 // Each history has only one AlgManager which stores global infomation for algorithm.
 template <UniAlgs ALG, typename Data, typename T = void> class AlgManager;
