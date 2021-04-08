@@ -17,11 +17,111 @@ namespace ttts {
 
 template<UniAlgs ALG, typename Data>
 class UnifiedHistoryAlgorithm : public HistoryAlgorithm {
+public:
+  UnifiedHistoryAlgorithm() : HistoryAlgorithm(ToString(ALG)), anomaly_counts_{0} {}
+
+  virtual bool Check(const History& history, std::ostream* const os) const override {
+    if constexpr (IDENTIFY_ANOMALY) {
+        return !CheckInternal_(history, os).has_value();
+    } else {
+        return CheckInternal_(history, os);
+    }
+
+    return !(GetAnomaly(history, os).has_value());
+  }
+
+  std::optional<AnomalyType> GetAnomaly(const History& history, std::ostream* const os) const {
+    if constexpr (IDENTIFY_ANOMALY) {
+        return CheckInternal_(history, os);
+    } else {
+        if (CheckInternal_(history, os)) {
+            return {};
+        } else {
+            // TODO: forbid GetAnomaly in compile time
+            return AnomalyType::UNKNOWN_1;
+        }
+    }
+  }
+
 private:
   static constexpr bool IDENTIFY_ANOMALY = ALG == UniAlgs::UNI_DLI_IDENTIFY_CHAIN || ALG == UniAlgs::UNI_DLI_IDENTIFY_CYCLE;
+  mutable std::array<std::atomic<uint64_t>, Count<AnomalyType>()> anomaly_counts_;
+
+  std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> ReturnWithUnknowDA_() const {
+    if constexpr (IDENTIFY_ANOMALY) {
+      return AnomalyType::UNKNOWN_1;
+    } else {
+      return false;
+    }
+  }
+
+  std::optional<AnomalyType> ReturnWithDA_(const TxnManager<ALG, Data>& txn_manager) const {
+    if constexpr (IDENTIFY_ANOMALY) {
+      if (txn_manager.cycle_ != nullptr) {
+        const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_manager.cycle_->Preces());
+        ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
+        return anomaly;
+      }
+    }
+
+    return {};
+  }
+
+  std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> ReturnWithNoDA_() const {
+    if constexpr (IDENTIFY_ANOMALY) {
+      return {};
+    } else {
+      return true;
+    }
+  }
+
+  std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> ExecAbortInternal_(
+      AlgManager<ALG, Data>& alg_manager, TxnManager<ALG, Data>& txn_manager,
+      const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set,
+      const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map) const{
+    alg_manager.Abort(txn_manager);
+    // rollback written row
+    RollbackWrittenRow(trans_write_set, row_map, txn_manager);
+
+    return ReturnWithDA_(txn_manager);
+  }
+
+  std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> ExecCommitInternal_(
+      AlgManager<ALG, Data>& alg_manager, TxnManager<ALG, Data>& txn_manager,
+      const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map,
+      const std::unordered_map<uint64_t, uint64_t>& row_value_map, uint64_t start_ts,
+      const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set) const {
+    bool ret = alg_manager.Validate(txn_manager);
+
+    if (ret) {
+      alg_manager.Commit(txn_manager, start_ts);
+      // data persistence
+      for (const auto& row : row_map) {
+        row.second->Write(row_value_map.at(row.first), txn_manager);
+      }
+
+      return ReturnWithNoDA_();
+    } else {
+      alg_manager.Abort(txn_manager);
+      // rollback written row
+      RollbackWrittenRow(trans_write_set, row_map, txn_manager);
+
+      return ReturnWithDA_(txn_manager);
+    }
+  }
+
+  void RollbackWrittenRow(
+      const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set,
+      const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map,
+      TxnManager<ALG, Data>& txn_manager) const {
+    // rollback written row
+    for (const auto& item_write : trans_write_set) {
+      row_map.at(item_write.first)->Revoke(item_write.second, txn_manager);
+    }
+  }
 
   std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> CheckInternal_(
-          const History& history, std::ostream* const os) const {
+      const History& history, std::ostream* const os) const {
     std::unique_ptr<AlgManager<ALG, Data>> alg_manager = std::make_unique<AlgManager<ALG, Data>>();
     std::unordered_map<uint64_t, std::shared_ptr<TxnManager<ALG, Data>>> txn_map;
     std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>> row_map;
@@ -49,103 +149,37 @@ private:
         }
         // Exec Read
         if (Operation::Type::READ == operation.type() && !row_map[item_id]->Read(*txn_map[trans_id])) {
-          if constexpr (IDENTIFY_ANOMALY) {
-            return AnomalyType::UNKNOWN_1;
-          } else {
-            return false;
-          }
+          return ReturnWithUnknowDA_();
         // Exec Prewrite
         } else if (Operation::Type::WRITE == operation.type()) {
           row_value_map[item_id] += 1;
           if (!row_map[item_id]->Prewrite(row_value_map[item_id], *txn_map[trans_id])) {
-            if constexpr (IDENTIFY_ANOMALY) {
-                return AnomalyType::UNKNOWN_1;
-            } else {
-                return false;
-            }
+            return ReturnWithUnknowDA_();
           }
+
           trans_write_set_list[trans_id].emplace_back(std::pair<uint64_t, uint64_t>(item_id, row_value_map[item_id]));
-          //std::cout << "W->tx_id:" << trans_id << " item_id:" << item_id << " value:" << row_value_map[item_id] << std::endl;
-        // Exec Abort
         }
+      // Exec Abort
       } else if (Operation::Type::ABORT == operation.type()) {
-        alg_manager->Abort(*txn_map[trans_id]);
-        // rollback written row
-        for (const auto& item_write : trans_write_set_list[trans_id]) {
-          row_map[item_write.first]->Revoke(item_write.second, *txn_map[trans_id]);
-        }
-        if constexpr (IDENTIFY_ANOMALY) {
-          if (txn_map[trans_id]->cycle_ != nullptr) {
-            //std::cout << "abort::preces_size:" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
-            const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
-            ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
-            return anomaly;
-          }
-        }
-        // check data anomaly in abort
+        const auto& ret = ExecAbortInternal_(*alg_manager, *txn_map[trans_id], trans_write_set_list[trans_id], row_map);
         txn_map.erase(trans_id);
+
+        if (ret.has_value()) {
+          return ret;
+        }
+      // Exec Commit
       } else if (Operation::Type::COMMIT == operation.type()) {
-        bool ret = alg_manager->Validate(*txn_map[trans_id]);
-        if (ret) {
-          alg_manager->Commit(*txn_map[trans_id], i);
-          // data persistence
-          for (const auto& row : row_map) {
-            row.second->Write(row_value_map[row.first], *txn_map[trans_id]);
-          }
-        } else if constexpr (!IDENTIFY_ANOMALY) {
-          return false;
-        } else {
-          alg_manager->Abort(*txn_map[trans_id]);
-          // rollback written row
-          for (const auto& item_write : trans_write_set_list[trans_id]) {
-            row_map[item_write.first]->Revoke(item_write.second, *txn_map[trans_id]);
-          }
-        }
-        if constexpr (IDENTIFY_ANOMALY) {
-          // check data anomaly in commit
-          if (txn_map[trans_id]->cycle_ != nullptr) {
-            //std::cout << "commit::preces_size" << txn_map[trans_id]->cycle_->Preces().size() << std::endl;
-            const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_map[trans_id]->cycle_->Preces());
-            ++(anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
-            return anomaly;
-          }
-        }
+        const auto& ret = ExecCommitInternal_(*alg_manager, *txn_map[trans_id], row_map,
+                                              row_value_map, i, trans_write_set_list[trans_id]);
         txn_map.erase(trans_id);
+
+        if (ret.has_value()) {
+          return ret;
+        }
       }
     }
-    if constexpr (IDENTIFY_ANOMALY) {
-      return {};
-    } else {
-      return true;
-    }
+
+    return ReturnWithNoDA_();
   }
-
-public:
-  UnifiedHistoryAlgorithm() : HistoryAlgorithm(ToString(ALG)), anomaly_counts_{0} {}
-
-  virtual bool Check(const History& history, std::ostream* const os) const override {
-    if constexpr (IDENTIFY_ANOMALY) {
-        return !CheckInternal_(history, os).has_value();
-    } else {
-        return CheckInternal_(history, os);
-    }
-    return !(GetAnomaly(history, os).has_value());
-  }
-
-  std::optional<AnomalyType> GetAnomaly(const History& history, std::ostream* const os) const {
-    if constexpr (IDENTIFY_ANOMALY) {
-        return CheckInternal_(history, os);
-    } else {
-        if (CheckInternal_(history, os)) {
-            return {};
-        } else {
-            // TODO: forbid GetAnomaly in compile time
-            return AnomalyType::UNKNOWN_1;
-        }
-    }
-  }
-private:
-  mutable std::array<std::atomic<uint64_t>, Count<AnomalyType>()> anomaly_counts_;
-};
-
-}
+}; // class: UnifiedHistoryAlgorithm
+} // namespace: ttts
