@@ -17,8 +17,8 @@ ENUM_END(OperationType)
 #define TTTS_DENEVA_OPERATION_TYPE_H_
 
 namespace ttts {
-#define ENUM_FILE "../../../../contrib/deneva/unified_concurrency_control/operation_type.h"
-#include "../../../src/3ts/backend/util/extend_enum.h"
+#define ENUM_FILE "../cca/unified_history_algorithm/util/operation_type.h"
+#include "../../../util/extend_enum.h"
 }
 
 #endif // TTTS_DENEVA_OPERATION_TYPE_H_

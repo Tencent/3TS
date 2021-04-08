@@ -48,8 +48,9 @@
 #include "bocc.h"
 #include "dta.h"
 #include "da.h"
+#include "../../../src/3ts/backend/cca/unified_history_algorithm/util/util.h"
 
-#define SUPPORT_ANOMALY_IDENTIFY (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
+#define SUPPORT_ANOMALY_IDENTIFY (CC_ALG == DLI_IDENTIFY_CHAIN || CC_ALG == DLI_IDENTIFY_CYCLE)
 
 #if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
 static std::array<std::atomic<uint64_t>, ttts::Count<ttts::AnomalyType>()> g_anomaly_counts = {0};
@@ -810,11 +811,21 @@ RC WorkerThread::process_rtxn(Message * msg) {
             txn_man->set_timestamp(get_next_ts());
 #endif
         }
-
-#if CC_ALG == MVCC
-        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
+#if IS_GENERIC_ALG
+#if WORKLOAD == DA //mvcc use timestamp
+        if (da_stamp_tab.count(txn_man->get_txn_id()) == 0) {
+            da_stamp_tab[txn_man->get_txn_id()] = get_next_ts();
+        }
+        const uint64_t start_ts = da_stamp_tab[txn_man->get_txn_id()];
+#else
+        const uint64_t start_ts = get_next_ts();
 #endif
-#if CC_ALG == WSI || CC_ALG == SSI
+        txn_man->set_timestamp(start_ts);
+        txn_man->uni_txn_man_ = UniTxnManager<CC_ALG>::Construct(txn_id, start_ts);
+        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,start_ts);
+#elif CC_ALG == MVCC
+        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
+#elif CC_ALG == WSI || CC_ALG == SSI
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
 #if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI

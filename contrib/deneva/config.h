@@ -92,7 +92,7 @@
 // # of transactions to run for warmup
 #define WARMUP            0
 // YCSB or TPCC or PPS or DA
-#define WORKLOAD TPCC
+#define WORKLOAD DA
 // print the transaction latency distribution
 #define PRT_LAT_DISTR false
 #define STATS_ENABLE        true
@@ -152,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG DLI_IDENTIFY_CHAIN
+#define CC_ALG DLI_IDENTIFY_SSI
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.
@@ -394,8 +394,9 @@ enum PPSTxnType {
 #define CNULL 28
 #define DLI_IDENTIFY_CYCLE 29
 #define DLI_IDENTIFY_CHAIN 30
+#define DLI_IDENTIFY_SSI 31
 
-#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY_CYCLE || CC_ALG == DLI_IDENTIFY_CHAIN)
+#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY_CYCLE || CC_ALG == DLI_IDENTIFY_CHAIN || CC_ALG == DLI_IDENTIFY_SSI)
 
 // TIMESTAMP allocation method.
 #define TS_MUTEX          1

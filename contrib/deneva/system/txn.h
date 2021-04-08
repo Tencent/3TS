@@ -301,7 +301,7 @@ public:
     Message* last_msg;
 
 #if IS_GENERIC_ALG
-    std::unique_ptr<ttts::TxnManager<uni_alg<CC_ALG>, row_t*>> uni_txn_man_;
+    std::shared_ptr<ttts::TxnManager<uni_alg<CC_ALG>, row_t*>> uni_txn_man_;
 #endif
 
 protected:

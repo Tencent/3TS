@@ -21,8 +21,8 @@ ENUM_END(PreceType)
 #define TTTS_CCA_PRECE_TYPE_H_
 
 namespace ttts {
-#define ENUM_FILE "../cca/prece_type.h"
-#include "../util/extend_enum.h"
+#define ENUM_FILE "../cca/unified_history_algorithm/util/prece_type.h"
+#include "../../../util/extend_enum.h"
 }
 
 #endif // TTTS_CCA_PRECE_TYPE_H_

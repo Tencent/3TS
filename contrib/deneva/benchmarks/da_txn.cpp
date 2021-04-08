@@ -20,7 +20,9 @@ std::vector<Message*> DA_delayed_operations;
 bool abort_history;
 ofstream commit_file;
 ofstream abort_file;
-std::optional<ttts::Path> g_da_cycle;
+#if IS_GENERIC_ALG
+std::optional<ttts::Path<UniTxnManager<CC_ALG>>> g_da_cycle;
+#endif
 
 void DATxnManager::init(uint64_t thd_id, Workload *h_wl) {
     TxnManager::init(thd_id, h_wl);
