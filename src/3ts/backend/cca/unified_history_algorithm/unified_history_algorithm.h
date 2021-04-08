@@ -81,7 +81,7 @@ private:
       const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map) const{
     alg_manager.Abort(txn_manager);
     // rollback written row
-    RollbackWrittenRow(trans_write_set, row_map, txn_manager);
+    RollbackWrittenRow_(trans_write_set, row_map, txn_manager);
 
     return ReturnWithDA_(txn_manager);
   }
@@ -89,12 +89,11 @@ private:
   std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> ExecCommitInternal_(
       AlgManager<ALG, Data>& alg_manager, TxnManager<ALG, Data>& txn_manager,
       const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map,
-      const std::unordered_map<uint64_t, uint64_t>& row_value_map, uint64_t start_ts,
+      const std::unordered_map<uint64_t, uint64_t>& row_value_map, uint64_t commit_ts,
       const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set) const {
-    bool ret = alg_manager.Validate(txn_manager);
 
-    if (ret) {
-      alg_manager.Commit(txn_manager, start_ts);
+    if (alg_manager.Validate(txn_manager)) {
+      alg_manager.Commit(txn_manager, commit_ts);
       // data persistence
       for (const auto& row : row_map) {
         row.second->Write(row_value_map.at(row.first), txn_manager);
@@ -104,13 +103,13 @@ private:
     } else {
       alg_manager.Abort(txn_manager);
       // rollback written row
-      RollbackWrittenRow(trans_write_set, row_map, txn_manager);
+      RollbackWrittenRow_(trans_write_set, row_map, txn_manager);
 
       return ReturnWithDA_(txn_manager);
     }
   }
 
-  void RollbackWrittenRow(
+  void RollbackWrittenRow_(
       const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set,
       const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map,
       TxnManager<ALG, Data>& txn_manager) const {
