@@ -21,15 +21,14 @@ class RUTransactionDesc : public TransactionDescBase<TransDesc, EnvDesc, Anomaly
   virtual std::optional<AnomalyType> CheckConflict(const uint64_t commit_ts) = 0;
 
   virtual void Write(const uint64_t item_id) {
-    RU_w_items_[item_id].push_back(&env_desc_.CommitVersion(
-        item_id, static_cast<typename env_desc_type::trans_desc_type*>(this)));
+    RU_w_items_[item_id]
+        .push_back(&env_desc_.CommitVersion(item_id, static_cast<typename env_desc_type::trans_desc_type*>(this)));
   }
 
   virtual void Read(const uint64_t item_id, std::function<bool(const uint64_t)>&& predicate = {}) {
     const uint64_t version = env_desc_.GetVisiableVersion(item_id, static_cast<TransDesc*>(this));
     if (!predicate || predicate(version)) {  // without predicate || predicate satisfied
-      RU_r_items_[item_id].push_back(
-          &env_desc_.ReadVersion(item_id, version, static_cast<TransDesc*>(this)));
+      RU_r_items_[item_id].push_back(&env_desc_.ReadVersion(item_id, version, static_cast<TransDesc*>(this)));
     }
   }
   void set_last_op_ts(const uint64_t last_op_ts) { last_op_ts_ = last_op_ts; }
@@ -59,9 +58,8 @@ class RUTransactionDesc : public TransactionDescBase<TransDesc, EnvDesc, Anomaly
 
 template <typename TransDesc, typename AnomalyType>
 class RUEnvironmentDesc : public EnvironmentBase<TransDesc, AnomalyType> {
-  static_assert(
-      std::is_base_of_v<RUTransactionDesc<TransDesc, RUEnvironmentDesc, AnomalyType>, TransDesc>,
-      "TransDesc with EnvironmentDesc should base of RUTransactionDesc");
+  static_assert(std::is_base_of_v<RUTransactionDesc<TransDesc, RUEnvironmentDesc, AnomalyType>, TransDesc>,
+                "TransDesc with EnvironmentDesc should base of RUTransactionDesc");
 
  private:
   using EnvironmentBase<TransDesc, AnomalyType>::item_vers_;
@@ -106,8 +104,7 @@ class RUEnvironmentDesc : public EnvironmentBase<TransDesc, AnomalyType> {
         case Operation::Type::COMMIT: {
           if (std::optional<AnomalyType> a = trans.Commit(act_cnt_); a.has_value()) {
             TRY_LOG(os_) << a.value() << " " << op.trans_id() << std::endl;
-            ret_anomally.push_back(
-                a.value());  // add by ym : TODO we do not check what anomaly it is, yet.
+            ret_anomally.push_back(a.value());  // add by ym : TODO we do not check what anomaly it is, yet.
             trans.Abort();
             abort_trans_[op.trans_id()] = std::move(active_trans_[op.trans_id()]);
             active_trans_.erase(op.trans_id());
@@ -121,8 +118,7 @@ class RUEnvironmentDesc : public EnvironmentBase<TransDesc, AnomalyType> {
         case Operation::Type::ABORT: {
           if (std::optional<AnomalyType> a = trans.Abort(); a.has_value()) {
             TRY_LOG(os_) << a.value() << " " << op.trans_id() << std::endl;
-            ret_anomally.push_back(
-                a.value());  // add by ym : TODO we do not check what anomaly it is, yet.
+            ret_anomally.push_back(a.value());  // add by ym : TODO we do not check what anomaly it is, yet.
           }
           abort_trans_[op.trans_id()] = std::move(active_trans_[op.trans_id()]);
           active_trans_.erase(op.trans_id());

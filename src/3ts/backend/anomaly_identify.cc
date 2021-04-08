@@ -112,7 +112,7 @@ int main() {
     } else if (text.find("\\A") != text.npos || text.find("authors") != text.npos) {
       Printer::PrintAuthorInfo();
     } else if (text.find("R") != text.npos || text.find("W") != text.npos) {
-        checker.ExecAnomalyIdentify(text, printer.Algs());
+      checker.ExecAnomalyIdentify(text, printer.Algs());
     }
   }
   return 0;

@@ -51,4 +51,4 @@ namespace ttts {
 #include "../../../util/extend_enum.h"
 }
 
-#endif // TTTS_CCA_ANOMALY_TYPE_H_
+#endif  // TTTS_CCA_ANOMALY_TYPE_H_

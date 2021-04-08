@@ -15,13 +15,11 @@
 namespace ttts {
 namespace occ_algorithm {
 
-class WSITransactionDesc
-    : public SITransactionDesc<WSITransactionDesc, SIEnvironmentDesc, Anomally> {
+class WSITransactionDesc : public SITransactionDesc<WSITransactionDesc, SIEnvironmentDesc, Anomally> {
  public:
-  WSITransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot,
-                     env_desc_type& env_desc)
-      : SITransactionDesc<WSITransactionDesc, SIEnvironmentDesc, Anomally>(
-            trans_id, start_ts, std::move(snapshot), env_desc) {}
+  WSITransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot, env_desc_type& env_desc)
+      : SITransactionDesc<WSITransactionDesc, SIEnvironmentDesc, Anomally>(trans_id, start_ts, std::move(snapshot),
+                                                                           env_desc) {}
   static std::string name;
   std::optional<Anomally> CheckConflict(uint64_t commit_ts) override {
     if (!w_items_.empty())

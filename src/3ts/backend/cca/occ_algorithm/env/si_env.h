@@ -26,8 +26,7 @@ template <typename TransDesc, template <typename, typename> class EnvDesc, typen
 class SITransactionDesc : public TransactionDescBase<TransDesc, EnvDesc, AnomalyType> {
  public:
   using env_desc_type = EnvDesc<TransDesc, AnomalyType>;
-  SITransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot,
-                    env_desc_type& env_desc)
+  SITransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot, env_desc_type& env_desc)
       : TransactionDescBase<TransDesc, EnvDesc, AnomalyType>(trans_id, env_desc),
         start_ts_(start_ts),
         commit_ts_(0),
@@ -43,7 +42,9 @@ class SITransactionDesc : public TransactionDescBase<TransDesc, EnvDesc, Anomaly
   const Snapshot& snapshot() const { return snapshot_; }
   uint64_t start_ts() const { return start_ts_; }
   uint64_t commit_ts() const { return commit_ts_; }
-  void set_back_check() { back_check_ = true; };
+  void set_back_check() {
+    back_check_ = true;
+  };
   bool back_check() { return back_check_; }
 
  private:
@@ -55,9 +56,8 @@ class SITransactionDesc : public TransactionDescBase<TransDesc, EnvDesc, Anomaly
 
 template <typename TransDesc, typename AnomalyType>
 class SIEnvironmentDesc : public EnvironmentBase<TransDesc, AnomalyType> {
-  static_assert(
-      std::is_base_of_v<SITransactionDesc<TransDesc, SIEnvironmentDesc, AnomalyType>, TransDesc>,
-      "TransDesc with SIEnvironmentDesc should base of SITransactionDesc");
+  static_assert(std::is_base_of_v<SITransactionDesc<TransDesc, SIEnvironmentDesc, AnomalyType>, TransDesc>,
+                "TransDesc with SIEnvironmentDesc should base of SITransactionDesc");
 
  public:
   using EnvironmentBase<TransDesc, AnomalyType>::item_vers_;
@@ -104,8 +104,7 @@ class SIEnvironmentDesc : public EnvironmentBase<TransDesc, AnomalyType> {
       const uint64_t real_id = valueRealTransId(op.trans_id());
       if (abort_trans_.count(real_id)) continue;
       if (active_trans_.count(real_id) == 0) {
-        active_trans_[real_id] =
-            std::make_unique<TransDesc>(real_id, act_cnt_, valueSnapShot(real_id), *this);
+        active_trans_[real_id] = std::make_unique<TransDesc>(real_id, act_cnt_, valueSnapShot(real_id), *this);
       }
       auto& trans = *active_trans_[real_id];
       switch (op.type()) {
@@ -163,12 +162,10 @@ class SIEnvironmentDesc : public EnvironmentBase<TransDesc, AnomalyType> {
 
   std::optional<uint64_t> GetLatestCommitTime(const uint64_t item_id) const {
     const auto it = latest_commit_time_.find(item_id);
-    return it == latest_commit_time_.end() ? std::optional<uint64_t>()
-                                           : std::optional<uint64_t>(it->second);
+    return it == latest_commit_time_.end() ? std::optional<uint64_t>() : std::optional<uint64_t>(it->second);
   }
   void UpdateCommitTime(const uint64_t item_id, uint64_t ts) { latest_commit_time_[item_id] = ts; }
-  static bool TupleSatisfiesMVCC(std::unique_ptr<ItemVersionDesc<TransDesc>>& tuple,
-                                 const Snapshot& snapshot) {
+  static bool TupleSatisfiesMVCC(std::unique_ptr<ItemVersionDesc<TransDesc>>& tuple, const Snapshot& snapshot) {
     if (tuple->w_trans_->is_aborted()) {
       return false;
     }

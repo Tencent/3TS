@@ -26,8 +26,7 @@
 #include "run.h"
 
 template <typename EnumType>
-EnumType EnumParse(const std::string& s)
-{
+EnumType EnumParse(const std::string &s) {
   for (const auto e : Members<EnumType>()) {
     if (s == ToString(e)) {
       return e;
@@ -36,8 +35,7 @@ EnumType EnumParse(const std::string& s)
   throw std::string("Parse Enum failed: ") + s + " type:" + typeid(EnumType).name();
 }
 
-std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &cfg,
-                                                       const std::string &name) {
+std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &cfg, const std::string &name) {
   try {
     const libconfig::Setting &s = cfg.lookup(name);
     std::shared_ptr<ttts::HistoryGenerator> res;
@@ -66,7 +64,8 @@ std::shared_ptr<ttts::HistoryGenerator> GeneratorParse(const libconfig::Config &
     }
 
     return res;
-  } catch (const libconfig::SettingNotFoundException &nfex) {
+  }
+  catch (const libconfig::SettingNotFoundException &nfex) {
     throw name + "setting " + std::string(nfex.getPath()) + " no found";
   }
 }
@@ -85,47 +84,44 @@ void AlgorithmParseInternal_(const libconfig::Config &cfg, const std::string &al
   } else if (algorithm_name == "DLI") {
     add_algorithm(std::make_shared<ttts::OCCAlgorithm<occ_algorithm::DLITransactionDesc>>());
   } else if constexpr (only_rollback_rate) {
-    throw "Unknown algorithm name " + algorithm_name +
-        " in algorithms supporting rollback rate statistics";
-  } else if (algorithm_name == "SerializableAlgorithm_ALL_SAME_RR") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::ALL_SAME, SerializeReadPolicy::REPEATABLE_READ>>());
+      throw "Unknown algorithm name " + algorithm_name + " in algorithms supporting rollback rate statistics";
+  }
+  else if (algorithm_name == "SerializableAlgorithm_ALL_SAME_RR") {
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::ALL_SAME, SerializeReadPolicy::REPEATABLE_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_ALL_SAME_RC") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::ALL_SAME, SerializeReadPolicy::COMMITTED_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::ALL_SAME, SerializeReadPolicy::COMMITTED_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_ALL_SAME_RU") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::ALL_SAME, SerializeReadPolicy::UNCOMMITTED_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::ALL_SAME, SerializeReadPolicy::UNCOMMITTED_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_ALL_SAME_SI") {
     add_algorithm(
-        std::make_shared<ttts::HistorySerializableAlgorithm<SerializeLevel::ALL_SAME,
-                                                            SerializeReadPolicy::SI_READ>>());
+        std::make_shared<ttts::HistorySerializableAlgorithm<SerializeLevel::ALL_SAME, SerializeReadPolicy::SI_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_COMMIT_SAME_RR") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::COMMIT_SAME, SerializeReadPolicy::REPEATABLE_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::COMMIT_SAME, SerializeReadPolicy::REPEATABLE_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_COMMIT_SAME_RC") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::COMMIT_SAME, SerializeReadPolicy::COMMITTED_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::COMMIT_SAME, SerializeReadPolicy::COMMITTED_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_COMMIT_SAME_RU") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::COMMIT_SAME, SerializeReadPolicy::UNCOMMITTED_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::COMMIT_SAME, SerializeReadPolicy::UNCOMMITTED_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_COMMIT_SAME_SI") {
-    add_algorithm(
-        std::make_shared<ttts::HistorySerializableAlgorithm<SerializeLevel::COMMIT_SAME,
-                                                            SerializeReadPolicy::SI_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::COMMIT_SAME, SerializeReadPolicy::SI_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_FINAL_SAME_RR") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::FINAL_SAME, SerializeReadPolicy::REPEATABLE_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::FINAL_SAME, SerializeReadPolicy::REPEATABLE_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_FINAL_SAME_RC") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::FINAL_SAME, SerializeReadPolicy::COMMITTED_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::FINAL_SAME, SerializeReadPolicy::COMMITTED_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_FINAL_SAME_RU") {
-    add_algorithm(std::make_shared<ttts::HistorySerializableAlgorithm<
-                      SerializeLevel::FINAL_SAME, SerializeReadPolicy::UNCOMMITTED_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::FINAL_SAME, SerializeReadPolicy::UNCOMMITTED_READ>>());
   } else if (algorithm_name == "SerializableAlgorithm_FINAL_SAME_SI") {
-    add_algorithm(
-        std::make_shared<ttts::HistorySerializableAlgorithm<SerializeLevel::FINAL_SAME,
-                                                            SerializeReadPolicy::SI_READ>>());
+    add_algorithm(std::make_shared<
+        ttts::HistorySerializableAlgorithm<SerializeLevel::FINAL_SAME, SerializeReadPolicy::SI_READ>>());
   } else if (algorithm_name == "ConflictSerializableAlgorithm") {
     add_algorithm(std::make_shared<ttts::ConflictSerializableAlgorithm<false>>());
   } else if (algorithm_name == "DLI_IDENTIFY") {
@@ -142,24 +138,30 @@ void AlgorithmParseInternal_(const libconfig::Config &cfg, const std::string &al
 }
 
 #define CONSTEXPR_CONDITIONAL(cond, v1, v2) \
-  [&]() -> decltype(auto) {                 \
-    if constexpr ((cond)) {                 \
+  [&]()->decltype(auto) {                   \
+    if constexpr ((cond)) {                  \
       return (v1);                          \
     } else {                                \
       return (v2);                          \
     }                                       \
   }()
-enum ParseAlgorithmType { ONLY_NORMAL_ALGS, ONLY_ROLLBACK_RATE_ALGS, MIXED_ALGS };
+
+enum ParseAlgorithmType {
+  ONLY_NORMAL_ALGS,
+  ONLY_ROLLBACK_RATE_ALGS,
+  MIXED_ALGS
+};
+
 template <ParseAlgorithmType parse_algorithm_type>
-using AutoAlgorithm = std::conditional_t<
-    parse_algorithm_type == MIXED_ALGS,
-    std::variant<std::shared_ptr<HistoryAlgorithm>, std::shared_ptr<RollbackRateAlgorithm>>,
-    std::conditional_t<parse_algorithm_type == ONLY_ROLLBACK_RATE_ALGS,
-                       std::shared_ptr<RollbackRateAlgorithm>, std::shared_ptr<HistoryAlgorithm>>>;
+using AutoAlgorithm =
+    std::conditional_t<parse_algorithm_type == MIXED_ALGS,
+                       std::variant<std::shared_ptr<HistoryAlgorithm>, std::shared_ptr<RollbackRateAlgorithm>>,
+                       std::conditional_t<parse_algorithm_type == ONLY_ROLLBACK_RATE_ALGS,
+                                          std::shared_ptr<RollbackRateAlgorithm>, std::shared_ptr<HistoryAlgorithm>>>;
 template <ParseAlgorithmType parse_algorithm_type, bool enable_filter>
-using AlgorithmList = std::vector<std::conditional_t<
-    enable_filter, std::pair<AutoAlgorithm<parse_algorithm_type>, std::optional<bool>>,
-    AutoAlgorithm<parse_algorithm_type>>>;
+using AlgorithmList =
+    std::vector<std::conditional_t<enable_filter, std::pair<AutoAlgorithm<parse_algorithm_type>, std::optional<bool>>,
+                                   AutoAlgorithm<parse_algorithm_type>>>;
 
 // If parse_algorithm_type is set, algorithms will convert to RollbackRateAlgorithm if is base of.
 // If enable_filter is set, a optional<bool> for each algorithm will be returned to show filter.
@@ -171,30 +173,27 @@ auto MultiAlgorithmParse(const libconfig::Config &cfg, const libconfig::Setting 
     throw "algorithm list is empty";
   }
   for (int i = 0; i < len; i++) {
-    const std::string &algorithm_name =
-        CONSTEXPR_CONDITIONAL(enable_filter, s[i].lookup("name"), s[i]);
-    AlgorithmParseInternal_<parse_algorithm_type ==
-                            ONLY_ROLLBACK_RATE_ALGS /* only_rollback_rate */>(
+    const std::string &algorithm_name = CONSTEXPR_CONDITIONAL(enable_filter, s[i].lookup("name"), s[i]);
+    AlgorithmParseInternal_<parse_algorithm_type == ONLY_ROLLBACK_RATE_ALGS /* only_rollback_rate */>(
         cfg, algorithm_name, [&s, i, &algorithms, &algorithm_name](auto &&algorithm) {
           constexpr bool is_rollback_rate_algorithm =
               std::is_base_of_v<RollbackRateAlgorithm, std::decay_t<decltype(*algorithm)>>;
           using AlgorithmType =
-              std::shared_ptr<std::conditional_t<parse_algorithm_type != ONLY_NORMAL_ALGS &&
-                                                     is_rollback_rate_algorithm,
+              std::shared_ptr<std::conditional_t<parse_algorithm_type != ONLY_NORMAL_ALGS &&is_rollback_rate_algorithm,
                                                  RollbackRateAlgorithm, HistoryAlgorithm>>;
           if (!is_rollback_rate_algorithm && parse_algorithm_type == ONLY_ROLLBACK_RATE_ALGS) {
             throw algorithm_name + " does not support rollback rate statistic";
           }
           if constexpr (enable_filter) {
-            std::optional<bool> filter;
-            try {
-              filter = s[i].lookup("filter");
-            } catch (const libconfig::SettingNotFoundException &nfex) {
-              // If <filter> cannot find, it means we need not do filter, do nothing there
-            }
-            algorithms.emplace_back(
-                AutoAlgorithm<parse_algorithm_type>(std::forward<AlgorithmType>(algorithm)),
-                filter);
+              std::optional<bool> filter;
+              try {
+                filter = s[i].lookup("filter");
+              }
+              catch (const libconfig::SettingNotFoundException &nfex) {
+                // If <filter> cannot find, it means we need not do filter, do nothing there
+              }
+              algorithms.emplace_back(AutoAlgorithm<parse_algorithm_type>(std::forward<AlgorithmType>(algorithm)),
+                                      filter);
           } else {
             algorithms.emplace_back(std::forward<AlgorithmType>(algorithm));
           }
@@ -206,10 +205,9 @@ auto MultiAlgorithmParse(const libconfig::Config &cfg, const libconfig::Setting 
 
 auto OneAlgorithmParse(const libconfig::Config &cfg, const std::string &algorithm_name) {
   std::shared_ptr<HistoryAlgorithm> algorithm_res;
-  AlgorithmParseInternal_<false /* only_rollback_rate */>(
-      cfg, algorithm_name, [&algorithm_res](auto &&algorithm) {
-        algorithm_res = std::forward<std::shared_ptr<HistoryAlgorithm>>(algorithm);
-      });
+  AlgorithmParseInternal_<false /* only_rollback_rate */>(cfg, algorithm_name, [&algorithm_res](auto &&algorithm) {
+    algorithm_res = std::forward<std::shared_ptr<HistoryAlgorithm>>(algorithm);
+  });
   return algorithm_res;
 }
 
@@ -234,7 +232,8 @@ std::vector<std::shared_ptr<ttts::Outputter>> OutputterParse(const libconfig::Co
         throw "outputter name err";
       }
     }
-  } catch (const libconfig::SettingNotFoundException &nfex) {
+  }
+  catch (const libconfig::SettingNotFoundException &nfex) {
     throw "Outputter setting " + std::string(nfex.getPath()) + " no found";
   }
   return res;
@@ -244,12 +243,12 @@ void FilterRunParse(const libconfig::Config &cfg) {
   try {
     const libconfig::Setting &s = cfg.lookup("FilterRun");
     auto generator = GeneratorParse(cfg, s.lookup("generator"));
-    auto algorithms =
-        MultiAlgorithmParse<MIXED_ALGS, true /* enable_filter */>(cfg, s.lookup("algorithms"));
+    auto algorithms = MultiAlgorithmParse<MIXED_ALGS, true /* enable_filter */>(cfg, s.lookup("algorithms"));
     auto outputters = OutputterParse(cfg, s.lookup("outputters"));
     const uint64_t thread_num = s.lookup("thread_num");
     FilterRun(generator, algorithms, outputters, thread_num);
-  } catch (const libconfig::SettingNotFoundException &nfex) {
+  }
+  catch (const libconfig::SettingNotFoundException &nfex) {
     throw "Func FilterRun setting " + std::string(nfex.getPath()) + "  no found";
   }
 }
@@ -257,8 +256,7 @@ void FilterRunParse(const libconfig::Config &cfg) {
 void BenchmarkRunParse(const libconfig::Config &cfg) {
   try {
     const libconfig::Setting &s = cfg.lookup("BenchmarkRun");
-    auto algorithms = MultiAlgorithmParse<ONLY_NORMAL_ALGS, false /* enable_filter */>(
-        cfg, s.lookup("algorithms"));
+    auto algorithms = MultiAlgorithmParse<ONLY_NORMAL_ALGS, false /* enable_filter */>(cfg, s.lookup("algorithms"));
 
     std::vector<uint64_t> trans_nums, item_nums;
     const libconfig::Setting &trans_nums_ = s.lookup("trans_nums");
@@ -279,9 +277,9 @@ void BenchmarkRunParse(const libconfig::Config &cfg) {
     if (os == "cout")
       BenchmarkRun(trans_nums, item_nums, history_num, algorithms, std::cout, with_abort, tcl_position);
     else
-      BenchmarkRun(trans_nums, item_nums, history_num, algorithms, std::ofstream(os), with_abort,
-                   tcl_position);
-  } catch (const libconfig::SettingNotFoundException &nfex) {
+      BenchmarkRun(trans_nums, item_nums, history_num, algorithms, std::ofstream(os), with_abort, tcl_position);
+  }
+  catch (const libconfig::SettingNotFoundException &nfex) {
     throw "Func BenchmarkRun setting " + std::string(nfex.getPath()) + " no found";
   }
 }
@@ -301,7 +299,8 @@ void TargetParse(const libconfig::Config &cfg) {
         throw "func name err";
       }
     }
-  } catch (const libconfig::SettingNotFoundException &nfex) {
+  }
+  catch (const libconfig::SettingNotFoundException &nfex) {
     throw "Target setting " + std::string(nfex.getPath()) + " no found";
   }
 }
@@ -310,9 +309,11 @@ void ReadAndRun(const std::string &conf_path) {
   libconfig::Config cfg;
   try {
     cfg.readFile(conf_path.c_str());
-  } catch (const libconfig::FileIOException &fioex) {
+  }
+  catch (const libconfig::FileIOException &fioex) {
     throw "I/O error while reading file.";
-  } catch (const libconfig::ParseException &pex) {
+  }
+  catch (const libconfig::ParseException &pex) {
     throw "Parse error";
   }
   TargetParse(cfg);

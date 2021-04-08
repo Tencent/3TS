@@ -23,25 +23,14 @@
 namespace ttts {
 
 template <UniAlgs ALG, typename Data>
-class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_SSI>>
-{
-  public:
-    using Txn = TxnManager<ALG, Data>;
+class AlgManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_IDENTIFY_SSI>> {
+ public:
+  using Txn = TxnManager<ALG, Data>;
 
-    bool Validate(const Txn& txn)
-    {
-        return !txn.WConf() || !txn.RConf();
-    }
+  bool Validate(const Txn& txn) { return !txn.WConf() || !txn.RConf(); }
 
-    void Commit(Txn& txn, const uint64_t commit_ts)
-    {
-        txn.Commit(commit_ts);
-    }
+  void Commit(Txn& txn, const uint64_t commit_ts) { txn.Commit(commit_ts); }
 
-    void Abort(Txn& txn)
-    {
-        txn.Abort();
-    }
+  void Abort(Txn& txn) { txn.Abort(); }
 };
-
 }

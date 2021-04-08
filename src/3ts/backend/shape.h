@@ -34,5 +34,6 @@ void draw() {
     }
     putchar('\n');
   }
-  std::cout << "Congratulations on finding the Easter egg! Here's a gift from us for you!" << std::endl;;
+  std::cout << "Congratulations on finding the Easter egg! Here's a gift from us for you!" << std::endl;
+  ;
 }

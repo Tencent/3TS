@@ -64,9 +64,7 @@ class HistoryResult {
   HistoryResult& operator=(HistoryResult&&) = default;
 
   // Check if all transactions read the same versions
-  bool ReadEqual(const HistoryResult& result) const {
-    return trans_results_ == result.trans_results_;
-  }
+  bool ReadEqual(const HistoryResult& result) const { return trans_results_ == result.trans_results_; }
 
   // Check if all committed transaction read the same versions, ignore aborted transactions
   bool CommitReadEqual(const HistoryResult& result) const {
@@ -77,8 +75,7 @@ class HistoryResult {
       if ((trans_results_[trans_id].committed_ !=
            result.trans_results_[trans_id].committed_) ||  // different transaction status
           (trans_results_[trans_id].committed_ &&
-           trans_results_[trans_id].read_results_ !=
-               result.trans_results_[trans_id].read_results_)) {
+           trans_results_[trans_id].read_results_ != result.trans_results_[trans_id].read_results_)) {
         return false;
       }  // different read results
     }
@@ -86,21 +83,16 @@ class HistoryResult {
   }
 
   // Check if the final versions of each item are same.
-  bool FinalEqual(const HistoryResult& result) const {
-    return item_final_versions_ == result.item_final_versions_;
-  }
+  bool FinalEqual(const HistoryResult& result) const { return item_final_versions_ == result.item_final_versions_; }
 
   // Add version to read result to compare with other history results.
-  void PushTransReadResult(const uint64_t trans_id, const uint64_t item_id,
-                           const uint64_t version) {
+  void PushTransReadResult(const uint64_t trans_id, const uint64_t item_id, const uint64_t version) {
     assert(trans_id < trans_results_.size());
-    trans_results_[trans_id].read_results_.emplace_back(
-        std::vector<std::pair<uint64_t, uint64_t>>{{item_id, version}});
+    trans_results_[trans_id].read_results_.emplace_back(std::vector<std::pair<uint64_t, uint64_t>>{{item_id, version}});
   }
 
   // Add versions to read result to compare with other history results.
-  void PushTransReadResult(const uint64_t trans_id,
-                           std::vector<std::pair<uint64_t, uint64_t>>&& item_vers) {
+  void PushTransReadResult(const uint64_t trans_id, std::vector<std::pair<uint64_t, uint64_t>>&& item_vers) {
     assert(trans_id < trans_results_.size());
     trans_results_[trans_id].read_results_.emplace_back(std::move(item_vers));
   }
@@ -112,9 +104,7 @@ class HistoryResult {
   }
 
   // Record the final version of each variables to compare with other history results.
-  void SetItemFinalVersions(std::vector<uint64_t>&& versions) {
-    item_final_versions_ = std::move(versions);
-  }
+  void SetItemFinalVersions(std::vector<uint64_t>&& versions) { item_final_versions_ = std::move(versions); }
 
  private:
   // Record each version the transaction has been read and whether the transaction is committed or
@@ -165,8 +155,7 @@ inline static HistoryResult Result(const History& history);
 template <SerializeLevel L, SerializeReadPolicy R>
 class HistorySerializableAlgorithm : public HistoryAlgorithm {
  public:
-  HistorySerializableAlgorithm()
-      : HistoryAlgorithm("Serialize " + ToString<L>() + " " + ToString<R>()) {}
+  HistorySerializableAlgorithm() : HistoryAlgorithm("Serialize " + ToString<L>() + " " + ToString<R>()) {}
   virtual ~HistorySerializableAlgorithm() {}
 
   virtual bool Check(const History& history, std::ostream* const os) const override {
@@ -202,8 +191,8 @@ bool ResultsEqual<SerializeLevel::FINAL_SAME>(const HistoryResult& _1, const His
 }
 
 // Call read_version for each item to determine which version to read and check whether is odd.
-std::vector<std::pair<uint64_t, uint64_t>> ScanOdd(
-    const uint64_t item_num, const std::function<uint64_t(const uint64_t)>& read_version) {
+std::vector<std::pair<uint64_t, uint64_t>> ScanOdd(const uint64_t item_num,
+                                                   const std::function<uint64_t(const uint64_t)>& read_version) {
   std::vector<std::pair<uint64_t, uint64_t>> scan_item_vers;
   for (uint64_t item_id = 0; item_id < item_num; ++item_id) {
     const uint64_t version = read_version(item_id);
@@ -224,8 +213,8 @@ HistoryResult Result<SerializeReadPolicy::UNCOMMITTED_READ>(const History& histo
   HistoryResult result(history.trans_num());
   std::vector<std::vector<std::optional<uint64_t>>> trans_write_item_versions(
       history.trans_num(), std::vector<std::optional<uint64_t>>(history.item_num()));
-  std::vector<std::vector<std::optional<uint64_t>>> item_version_link(
-      history.item_num(), {0}); /* 0 is always the first version */
+  std::vector<std::vector<std::optional<uint64_t>>> item_version_link(history.item_num(),
+                                                                      {0}); /* 0 is always the first version */
   const auto latest_version = [&item_version_link](const uint64_t item_id) {
     const std::vector<std::optional<uint64_t>>& version_link = item_version_link[item_id];
     uint64_t i = version_link.size() - 1;
@@ -234,8 +223,7 @@ HistoryResult Result<SerializeReadPolicy::UNCOMMITTED_READ>(const History& histo
     assert(i < version_link.size());
     return version_link[i].value();
   };
-  const auto release_version = [&item_version_link](const uint64_t item_id,
-                                                    const uint64_t version) {
+  const auto release_version = [&item_version_link](const uint64_t item_id, const uint64_t version) {
     for (std::optional<uint64_t>& cur_version : item_version_link[item_id]) {
       if (cur_version.has_value() && cur_version.value() == version) {
         cur_version = {};
@@ -248,13 +236,11 @@ HistoryResult Result<SerializeReadPolicy::UNCOMMITTED_READ>(const History& histo
     if (operation.type() == Operation::Type::READ) {
       // we did not change version when resort operations, so we use latest version instead of
       // operation.version()
-      result.PushTransReadResult(operation.trans_id(), operation.item_id(),
-                                 latest_version(operation.item_id()));
+      result.PushTransReadResult(operation.trans_id(), operation.item_id(), latest_version(operation.item_id()));
     } else if (operation.type() == Operation::Type::SCAN_ODD) {
       result.PushTransReadResult(
           operation.trans_id(),
-          ScanOdd(history.item_num(),
-                  [&latest_version](const uint64_t item_id) { return latest_version(item_id); }));
+          ScanOdd(history.item_num(), [&latest_version](const uint64_t item_id) { return latest_version(item_id); }));
     } else if (operation.type() == Operation::Type::WRITE) {
       item_version_link[operation.item_id()].push_back(operation.version());
       std::optional<uint64_t>& my_last_write_version =
@@ -265,8 +251,7 @@ HistoryResult Result<SerializeReadPolicy::UNCOMMITTED_READ>(const History& histo
       my_last_write_version = operation.version();
     } else if (operation.type() == Operation::Type::ABORT) {
       for (uint64_t item_id = 0; item_id < history.item_num(); ++item_id) {
-        const std::optional<uint64_t>& my_last_write_version =
-            trans_write_item_versions[operation.trans_id()][item_id];
+        const std::optional<uint64_t>& my_last_write_version = trans_write_item_versions[operation.trans_id()][item_id];
         if (my_last_write_version.has_value()) {
           release_version(item_id, my_last_write_version.value());
         }
@@ -300,23 +285,21 @@ HistoryResult ResultAtLeastCommittedRead(const History& history, ReadVersion&& r
   std::vector<uint64_t> latest_versions(history.item_num(), 0);
   for (const Operation& operation : history.operations()) {
     if (operation.type() == Operation::Type::READ) {
-      result.PushTransReadResult(operation.trans_id(), operation.item_id(),
-                                 read_version(operation.trans_id(), operation.item_id(),
-                                              trans_write_item_versions, latest_versions));
+      result.PushTransReadResult(
+          operation.trans_id(), operation.item_id(),
+          read_version(operation.trans_id(), operation.item_id(), trans_write_item_versions, latest_versions));
     } else if (operation.type() == Operation::Type::SCAN_ODD) {
       result.PushTransReadResult(
           operation.trans_id(),
-          ScanOdd(history.item_num(),
-                  std::bind(read_version, operation.trans_id(), std::placeholders::_1,
-                            trans_write_item_versions, latest_versions)));
+          ScanOdd(history.item_num(), std::bind(read_version, operation.trans_id(), std::placeholders::_1,
+                                                trans_write_item_versions, latest_versions)));
     } else if (operation.type() == Operation::Type::WRITE) {
       trans_write_item_versions[operation.trans_id()][operation.item_id()] = operation.version();
     } else if (operation.type() == Operation::Type::ABORT) {
       result.SetTransCommitted(operation.trans_id(), false);
     } else if (operation.type() == Operation::Type::COMMIT) {
       for (uint64_t item_id = 0; item_id < history.item_num(); item_id++) {
-        std::optional<uint64_t> write_version =
-            trans_write_item_versions[operation.trans_id()][item_id];
+        std::optional<uint64_t> write_version = trans_write_item_versions[operation.trans_id()][item_id];
         if (write_version.has_value()) {
           latest_versions[item_id] = write_version.value();
         }
@@ -335,10 +318,9 @@ HistoryResult ResultAtLeastCommittedRead(const History& history, ReadVersion&& r
 template <>
 HistoryResult Result<SerializeReadPolicy::COMMITTED_READ>(const History& history) {
   return ResultAtLeastCommittedRead(
-      history,
-      [](const uint64_t trans_id, const uint64_t item_id,
-         const std::vector<std::vector<std::optional<uint64_t>>>& trans_write_item_versions,
-         const std::vector<uint64_t>& latest_versions) {
+      history, [](const uint64_t trans_id, const uint64_t item_id,
+                  const std::vector<std::vector<std::optional<uint64_t>>>& trans_write_item_versions,
+                  const std::vector<uint64_t>& latest_versions) {
         const std::optional<uint64_t>& write_version = trans_write_item_versions[trans_id][item_id];
         if (write_version.has_value()) {  // item has written
           return write_version.value();
@@ -356,10 +338,9 @@ HistoryResult Result<SerializeReadPolicy::REPEATABLE_READ>(const History& histor
       history.trans_num(), std::vector<std::optional<uint64_t>>(history.item_num()));
   return ResultAtLeastCommittedRead(
       history,
-      [&trans_read_item_versions](
-          const uint64_t trans_id, const uint64_t item_id,
-          const std::vector<std::vector<std::optional<uint64_t>>>& trans_write_item_versions,
-          const std::vector<uint64_t>& latest_versions) {
+      [&trans_read_item_versions](const uint64_t trans_id, const uint64_t item_id,
+                                  const std::vector<std::vector<std::optional<uint64_t>>>& trans_write_item_versions,
+                                  const std::vector<uint64_t>& latest_versions) {
         const std::optional<uint64_t>& write_version = trans_write_item_versions[trans_id][item_id];
         if (write_version.has_value()) {  // item has written
           return write_version.value();
@@ -385,14 +366,13 @@ HistoryResult Result<SerializeReadPolicy::SI_READ>(const History& history) {
       trans_item_versions_backup[operation.trans_id()] = latest_versions;
     }
     if (operation.type() == Operation::Type::READ) {
-      uint64_t read_version =
-          trans_item_versions_snapshot[operation.trans_id()][operation.item_id()];
+      uint64_t read_version = trans_item_versions_snapshot[operation.trans_id()][operation.item_id()];
       result.PushTransReadResult(operation.trans_id(), operation.item_id(), read_version);
     } else if (operation.type() == Operation::Type::SCAN_ODD) {
       result.PushTransReadResult(
           operation.trans_id(),
-          ScanOdd(history.item_num(), [&trans_item_versions_snapshot,
-                                       trans_id = operation.trans_id()](const uint64_t item_id) {
+          ScanOdd(history.item_num(),
+                  [&trans_item_versions_snapshot, trans_id = operation.trans_id() ](const uint64_t item_id) {
             return trans_item_versions_snapshot[trans_id][item_id];
           }));
     } else if (operation.type() == Operation::Type::WRITE) {

@@ -81,8 +81,7 @@ class Semaphore {
 
 class ThreadPool {
  public:
-  ThreadPool(const uint64_t size)
-      : is_over_(false), workers_(size), produce_conf_(buffer_size_), consumer_conf_(0) {
+  ThreadPool(const uint64_t size) : is_over_(false), workers_(size), produce_conf_(buffer_size_), consumer_conf_(0) {
     for (std::thread &worker : workers_) {
       worker = std::thread(std::bind(&ThreadPool::WorkerThread, this));
     }

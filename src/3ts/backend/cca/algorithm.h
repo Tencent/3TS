@@ -38,7 +38,6 @@ class RollbackRateAlgorithm : public HistoryAlgorithm {
   virtual bool Check(const History& history, std::ostream* const os = nullptr) const {
     return RollbackNum(history, os).size() == 0;
   }
-  virtual std::vector<int> RollbackNum(const History& history,
-                                       std::ostream* const os = nullptr) const = 0;
+  virtual std::vector<int> RollbackNum(const History& history, std::ostream* const os = nullptr) const = 0;
 };
 }  // namespace ttts

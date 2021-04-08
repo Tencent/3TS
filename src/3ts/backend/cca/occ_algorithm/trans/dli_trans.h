@@ -15,13 +15,11 @@
 namespace ttts {
 namespace occ_algorithm {
 
-class DLITransactionDesc
-    : public SITransactionDesc<DLITransactionDesc, SIEnvironmentDesc, Anomally> {
+class DLITransactionDesc : public SITransactionDesc<DLITransactionDesc, SIEnvironmentDesc, Anomally> {
  public:
   static std::string name;
 
-  DLITransactionDesc(const uint64_t trans_id, const uint64_t start_ts,
-                                    Snapshot&& snapshot, env_desc_type& env_desc)
+  DLITransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot, env_desc_type& env_desc)
       : SITransactionDesc(trans_id, start_ts, std::move(snapshot), env_desc) {}
 
   virtual std::optional<Anomally> CheckConflict(const uint64_t) override {
@@ -30,8 +28,7 @@ class DLITransactionDesc
     // transaction can do conflict check without considering of the thread safe problem when other
     // transaction access the gloval environment concurrently.
     std::list<DLITransactionDesc*> l;
-    const auto add_to_link = [trans_id = trans_id_,
-                              &l](const std::unique_ptr<DLITransactionDesc>& ptr) {
+    const auto add_to_link = [ trans_id = trans_id_, &l ](const std::unique_ptr<DLITransactionDesc> & ptr) {
       if (ptr->trans_id() != trans_id && !ptr->is_aborted()) {
         l.emplace_back(ptr.get());
       }
@@ -46,8 +43,7 @@ class DLITransactionDesc
   }
 
  private:
-  std::optional<Anomally> CheckConflict_(
-      const std::list<DLITransactionDesc*>& transs) {
+  std::optional<Anomally> CheckConflict_(const std::list<DLITransactionDesc*>& transs) {
     DLITransactionDesc combined_trans = *this;
     for (const auto& tl : transs) {
       THROW_ANOMALY(combined_trans.CheckDynamicEdgeCross(*tl));
@@ -85,8 +81,8 @@ class DLITransactionDesc
     return {};
   };
 
-  std::optional<Anomally> CheckWWOrRRIntersection(const set_type& s1, bool& upper1,
-                                                  const set_type& s2, bool& upper2) const {
+  std::optional<Anomally> CheckWWOrRRIntersection(const set_type& s1, bool& upper1, const set_type& s2,
+                                                  bool& upper2) const {
     for (const auto& inter_item : GetIntersection(s1, s2)) {
       if (inter_item.version_1_ > inter_item.version_2_) {
         upper1 = true;
@@ -100,8 +96,8 @@ class DLITransactionDesc
     return {};
   }
 
-  std::optional<Anomally> CheckWRIntersection(const set_type& w_items, bool& w_upper,
-                                              const set_type& r_items, bool& r_upper) const {
+  std::optional<Anomally> CheckWRIntersection(const set_type& w_items, bool& w_upper, const set_type& r_items,
+                                              bool& r_upper) const {
     for (const auto& inter_item : GetIntersection(w_items, r_items)) {
       if (inter_item.version_1_ > inter_item.version_2_) {
         w_upper = true;
@@ -116,16 +112,13 @@ class DLITransactionDesc
   }
 
   static std::vector<IntersectionItem> GetIntersection(const set_type& s1, const set_type& s2) {
-    static const auto get_version =
-        [](const ItemVersionDesc<DLITransactionDesc>* ver) {
-          return ver ? ver->version_
-                     : UINT64_MAX;  // ver is empty only when it is written by current transction
-        };
+    static const auto get_version = [](const ItemVersionDesc<DLITransactionDesc>* ver) {
+      return ver ? ver->version_ : UINT64_MAX;  // ver is empty only when it is written by current transction
+    };
     std::vector<IntersectionItem> ret;
     for (const auto& pair : s1) {
       if (Has(s2, pair.first)) {
-        ret.emplace_back(pair.first, get_version(pair.second),
-                         get_version(AssertGet(s2, pair.first)));
+        ret.emplace_back(pair.first, get_version(pair.second), get_version(AssertGet(s2, pair.first)));
       }
     }
     return ret;

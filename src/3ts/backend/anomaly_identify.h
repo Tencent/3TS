@@ -125,23 +125,32 @@ public:
   }
 
   static void TrimSpace(std::string& str) {
-      auto itor = remove_if(str.begin(), str.end(), ::isspace);
-      str.erase(itor, str.end());
+    auto itor = remove_if(str.begin(), str.end(), ::isspace);
+    str.erase(itor, str.end());
   }
 
-  std::vector<ttts::UniAlgs> Algs() const { return alg_type_list_; };
-  void SetAlgs(std::vector<ttts::UniAlgs> alg_type_list) { alg_type_list_ = alg_type_list; };
+  std::vector<ttts::UniAlgs> Algs() const {
+    return alg_type_list_;
+  };
+  void SetAlgs(std::vector<ttts::UniAlgs> alg_type_list) {
+    alg_type_list_ = alg_type_list;
+  };
 
-  std::unordered_map<std::string, std::string> InfoMap() const { return info_map_; };
-  std::unordered_map<std::string, std::string> AnomalyMap() const { return anomaly_map_; };
-private:
+  std::unordered_map<std::string, std::string> InfoMap() const {
+    return info_map_;
+  };
+  std::unordered_map<std::string, std::string> AnomalyMap() const {
+    return anomaly_map_;
+  };
+
+ private:
   std::vector<ttts::UniAlgs> alg_type_list_ = {ttts::UniAlgs::UNI_DLI_IDENTIFY_CYCLE};
   std::unordered_map<std::string, std::string> info_map_;
   std::unordered_map<std::string, std::string> anomaly_map_;
 };
 
 class Checker {
-public:
+ public:
   static void split(const std::string& str, std::vector<std::string>& tokens, const std::string delim) {
     tokens.clear();
     auto start = str.find_first_not_of(delim, 0);
@@ -157,7 +166,7 @@ public:
     ttts::History history;
     std::istringstream is(text);
 
-    const auto get_and_print_anomaly = [&] (auto&& alg, auto&& alg_type) {
+    const auto get_and_print_anomaly = [&](auto&& alg, auto&& alg_type) {
       const std::optional<ttts::AnomalyType> anomaly = alg.GetAnomaly(history, nullptr);
       PrintAnomalyInfo(anomaly, alg_type);
     };
@@ -168,7 +177,8 @@ public:
           get_and_print_anomaly(ttts::ConflictSerializableAlgorithm<true>(), alg_type);
         } else if (alg_type == ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN) {
           ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t> alg;
-          get_and_print_anomaly(ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>(), alg_type);
+          get_and_print_anomaly(ttts::UnifiedHistoryAlgorithm<ttts::UniAlgs::UNI_DLI_IDENTIFY_CHAIN, uint64_t>(),
+                                alg_type);
         }
       }
     }
@@ -180,7 +190,9 @@ public:
     } else {
       const std::vector<std::string> anomaly_info = AnomalyInfo(ttts::ToString(anomaly.value()));
       std::cout << ttts::ToString(alg_type) << "'s Identification Result:" << std::endl;
-      std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1] << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3] << "\n" <<   std::endl;
+      std::cout << "Anomaly Type: " << anomaly_info[0] << "\nAnomaly SubType: " << anomaly_info[1]
+                << "\nAnomaly Name: " << anomaly_info[2] << "\nAnomaly Format: " << anomaly_info[3] << "\n"
+                << std::endl;
     }
   }
 
@@ -214,7 +226,7 @@ public:
           } else if (is_head == true) {
             is_head = false;
           } else if (name[i] >= 'A' && name[i] <= 'Z') {
-              name[i] += 'a' - 'A'; // Convert to lowercase
+            name[i] += 'a' - 'A';  // Convert to lowercase
           }
         }
       } else {
@@ -275,4 +287,3 @@ public:
     return anomaly_info;
   }
 };
-

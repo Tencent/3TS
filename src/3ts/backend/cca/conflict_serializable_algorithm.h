@@ -9,7 +9,6 @@
  *
  */
 
-
 #ifndef CCA_CONFLICT_SERIALIZABLE_ALGORITHM
 #define CCA_CONFLICT_SERIALIZABLE_ALGORITHM
 
@@ -25,8 +24,9 @@ namespace ttts {
 
 class DAPreceInfo {
  public:
-  DAPreceInfo(const uint64_t pre_trans_id, const uint64_t trans_id, const uint64_t item_id, const PreceType type, const uint32_t order)
-    : pre_trans_id_(pre_trans_id), trans_id_(trans_id), item_id_(item_id), type_(type), order_(order) {}
+  DAPreceInfo(const uint64_t pre_trans_id, const uint64_t trans_id, const uint64_t item_id, const PreceType type,
+              const uint32_t order)
+      : pre_trans_id_(pre_trans_id), trans_id_(trans_id), item_id_(item_id), type_(type), order_(order) {}
   DAPreceInfo(const DAPreceInfo&) = default;
 
   friend std::ostream& operator<<(std::ostream& os, const DAPreceInfo prece) {
@@ -105,7 +105,8 @@ class DAPath {
       return {};
     }
     std::vector<DAPreceInfo> preces;
-    std::merge(preces_.begin(), preces_.end(), p.preces_.begin(), p.preces_.end(), std::back_inserter(preces), std::greater<DAPreceInfo>());
+    std::merge(preces_.begin(), preces_.end(), p.preces_.begin(), p.preces_.end(), std::back_inserter(preces),
+               std::greater<DAPreceInfo>());
     return preces;
   }
 
@@ -147,7 +148,8 @@ class ConflictGraph {
   }
 
   template <PreceType TYPE>
-  void Insert(const std::set<uint64_t>& pre_trans_id_set, const uint64_t trans_id, const uint64_t item_id, const uint32_t order) {
+  void Insert(const std::set<uint64_t>& pre_trans_id_set, const uint64_t trans_id, const uint64_t item_id,
+              const uint32_t order) {
     for (const uint64_t pre_trans_id : pre_trans_id_set) {
       Insert<TYPE>(pre_trans_id, trans_id, item_id, order);
     }
@@ -183,7 +185,7 @@ class ConflictGraph {
 
     static auto update_path = [](DAPath& path, DAPath&& new_path) {
       if (new_path < path) {
-        path = std::move(new_path); // do not use std::min because there is a copy cost when assign self
+        path = std::move(new_path);  // do not use std::min because there is a copy cost when assign self
       }
     };
 
@@ -210,8 +212,10 @@ class ConflictGraph {
   }
 
  private:
-  std::optional<PreceType> RealPreceType_(const uint64_t pre_trans_id, const std::optional<PreceType>& active_prece_type,
-      const std::optional<PreceType>& committed_prece_type, const std::optional<PreceType>& aborted_prece_type) const {
+  std::optional<PreceType> RealPreceType_(const uint64_t pre_trans_id,
+                                          const std::optional<PreceType>& active_prece_type,
+                                          const std::optional<PreceType>& committed_prece_type,
+                                          const std::optional<PreceType>& aborted_prece_type) const {
     if (!nodes_[pre_trans_id].is_committed().has_value()) {
       return active_prece_type;
     } else if (nodes_[pre_trans_id].is_committed().value()) {
@@ -257,16 +261,22 @@ class ConflictGraph {
 template <bool IDENTIFY_ANOMALY>
 class ConflictSerializableAlgorithm : public HistoryAlgorithm {
  public:
-  ConflictSerializableAlgorithm() : HistoryAlgorithm(IDENTIFY_ANOMALY ? "DLI_IDENTIFY OK" : "Conflict Serializable"), anomaly_counts_{0}, no_anomaly_count_(0) {}
+  ConflictSerializableAlgorithm()
+      : HistoryAlgorithm(IDENTIFY_ANOMALY ? "DLI_IDENTIFY OK" : "Conflict Serializable"),
+        anomaly_counts_{0},
+        no_anomaly_count_(0) {}
   virtual ~ConflictSerializableAlgorithm() {}
 
   void Statistics() const override {
-    if (!IDENTIFY_ANOMALY) { return; }
+    if (!IDENTIFY_ANOMALY) {
+      return;
+    }
     std::cout.setf(std::ios::right);
     std::cout.precision(4);
 
     static auto print_percent = [](auto&& value, auto&& total) {
-      std::cout << std::setw(10) << static_cast<double>(value) / total * 100 << "% = " << std::setw(5) << value << " / " << std::setw(5) << total;
+      std::cout << std::setw(10) << static_cast<double>(value) / total * 100 << "% = " << std::setw(5) << value << " / "
+                << std::setw(5) << total;
     };
 
     const auto anomaly_count = std::accumulate(anomaly_counts_.begin(), anomaly_counts_.end(), 0);
@@ -280,8 +290,9 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     for (const auto anomaly : Members<AnomalyType>()) {
       sorted_anomaly_counts_.emplace_back(anomaly, anomaly_counts_.at(static_cast<uint32_t>(anomaly)));
     }
-    std::sort(sorted_anomaly_counts_.begin(), sorted_anomaly_counts_.end(), [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
-    for (const auto& [anomaly, count] : sorted_anomaly_counts_) {
+    std::sort(sorted_anomaly_counts_.begin(), sorted_anomaly_counts_.end(),
+              [](auto&& _1, auto&& _2) { return _1.second > _2.second; });
+    for (const auto & [ anomaly, count ] : sorted_anomaly_counts_) {
       std::cout << std::setw(40) << (std::string("[") + ToString(anomaly) + "] ");
       print_percent(count, anomaly_count);
       std::cout << std::endl;
@@ -302,14 +313,14 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
         std::set<uint64_t>& read_trans_set = read_trans_set_for_items[item_id];
         std::set<uint64_t>& write_trans_set = write_trans_set_for_items[item_id];
         if (Operation::Type::READ == operation.type()) {
-          graph.Insert<PreceType::WR>(write_trans_set, trans_id, item_id, i); // WR or WCR is both possible
+          graph.Insert<PreceType::WR>(write_trans_set, trans_id, item_id, i);  // WR or WCR is both possible
           read_trans_set.insert(trans_id);
         } else if (Operation::Type::WRITE == operation.type()) {
           // WW precedence's priority is higher than RW precedence
-          graph.Insert<PreceType::WW>(write_trans_set, trans_id, item_id, i); // WW or WCW is both possible
+          graph.Insert<PreceType::WW>(write_trans_set, trans_id, item_id, i);  // WW or WCW is both possible
           graph.Insert<PreceType::RW>(read_trans_set, trans_id, item_id, i);
           write_trans_set.insert(trans_id);
-          write_item_set_for_transs[trans_id].insert(item_id); // record for check WA or WC
+          write_item_set_for_transs[trans_id].insert(item_id);  // record for check WA or WC
         }
       } else if (Operation::Type::SCAN_ODD == operation.type()) {
         // TODO: realize scan odd
@@ -342,7 +353,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   }
 
   virtual bool Check(const History& history, std::ostream* const os) const override {
-      return !(GetAnomaly(history, os).has_value());
+    return !(GetAnomaly(history, os).has_value());
   }
 
  private:
@@ -356,14 +367,17 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
 
   static AnomalyType IdentifyAnomaly_(const std::vector<DAPreceInfo>& preces) {
     assert(preces.size() >= 2);
-    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) {
+          return prece.type() == PreceType::WA || prece.type() == PreceType::WC;
+        })) {
       // WA and WC precedence han only appear
       return AnomalyType::WAT_1_DIRTY_WRITE;
-    } else if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
+    } else if (std::any_of(preces.begin(), preces.end(),
+                           [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
       return AnomalyType::RAT_1_DIRTY_READ;
     } else if (preces.size() >= 3) {
       return IdentifyAnomalyMultiple_(preces);
-    // when build path, later happened precedence is sorted to front
+      // when build path, later happened precedence is sorted to front
     } else if (preces.back().item_id() != preces.front().item_id()) {
       return IdentifyAnomalyDouble_(preces.back().type(), preces.front().type());
     } else {
@@ -373,27 +387,30 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
 
   // require type1 precedence happens before type2 precedence
   static AnomalyType IdentifyAnomalySingle_(const PreceType early_type, const PreceType later_type) {
-    if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
-      return AnomalyType::WAT_1_FULL_WRITE; // WW-WW | WR-WW = WWW
+    if ((early_type == PreceType::WW || early_type == PreceType::WR) &&
+        (later_type == PreceType::WW || later_type == PreceType::WCW)) {
+      return AnomalyType::WAT_1_FULL_WRITE;  // WW-WW | WR-WW = WWW
     } else if (early_type == PreceType::WR && early_type == PreceType::WW) {
-      return AnomalyType::WAT_1_FULL_WRITE; // WR-WW = WWW
-    } else if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-      return AnomalyType::WAT_1_LOST_SELF_UPDATE; // WW-WR = WWR
+      return AnomalyType::WAT_1_FULL_WRITE;  // WR-WW = WWW
+    } else if ((early_type == PreceType::WW || early_type == PreceType::WR) &&
+               (later_type == PreceType::WR || later_type == PreceType::WCR)) {
+      return AnomalyType::WAT_1_LOST_SELF_UPDATE;  // WW-WR = WWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
-      return AnomalyType::WAT_1_LOST_UPDATE; // RW-WW | RW-RW = RWW
+      return AnomalyType::WAT_1_LOST_UPDATE;  // RW-WW | RW-RW = RWW
     } else if (early_type == PreceType::WR && later_type == PreceType::RW) {
-      return AnomalyType::RAT_1_INTERMEDIATE_READ; // WR-RW = WRW
+      return AnomalyType::RAT_1_INTERMEDIATE_READ;  // WR-RW = WRW
     } else if (early_type == PreceType::RW && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-      return AnomalyType::RAT_1_NON_REPEATABLE_READ; // RW-WR = RWR
+      return AnomalyType::RAT_1_NON_REPEATABLE_READ;  // RW-WR = RWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
-      return AnomalyType::IAT_1_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
+      return AnomalyType::IAT_1_LOST_UPDATE_COMMITTED;  // RW-WW(WCW) = RWW
     } else {
       return AnomalyType::UNKNOWN_1;
     }
   }
 
   static AnomalyType IdentifyAnomalyDouble_(const PreceType early_type, const PreceType later_type) {
-    const auto any_order = [early_type, later_type](const PreceType type1, const PreceType type2) -> std::optional<bool> {
+    const auto any_order = [ early_type, later_type ](const PreceType type1, const PreceType type2)
+                                                         ->std::optional<bool> {
       if (early_type == type1 && later_type == type2) {
         return true;
       } else if (early_type == type2 && later_type == type1) {
@@ -428,10 +445,13 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   }
 
   static AnomalyType IdentifyAnomalyMultiple_(const std::vector<DAPreceInfo>& preces) {
-    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WW; })) {
+    if (std::any_of(preces.begin(), preces.end(),
+                    [](const DAPreceInfo& prece) { return prece.type() == PreceType::WW; })) {
       return AnomalyType::WAT_STEP;
     }
-    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WR || prece.type() == PreceType::WCR; })) {
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) {
+          return prece.type() == PreceType::WR || prece.type() == PreceType::WCR;
+        })) {
       return AnomalyType::RAT_STEP;
     }
     return AnomalyType::IAT_STEP;

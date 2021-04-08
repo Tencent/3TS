@@ -31,20 +31,23 @@ void handler(int signum) {
 
 // Pass each history created by generator to task and run task in a new thread.
 // The function will not exit until all histories are checked.
-void ThreadRunBase(const std::shared_ptr<HistoryGenerator> &generator,
-                   const std::function<void(const History &)> &task, const uint32_t thread_num) {
+void ThreadRunBase(const std::shared_ptr<HistoryGenerator> &generator, const std::function<void(const History &)> &task,
+                   const uint32_t thread_num) {
   ThreadPool thread_pool(thread_num);
   generator->DeliverHistories([&thread_pool, &task](History &&history) {
-    thread_pool.PushTask([history_tmp = std::move(history), &task]() { task(history_tmp); });
+    thread_pool.PushTask([
+      history_tmp = std::move(history),
+      &task
+    ]() { task(history_tmp); });
   });
 }
 
 template <typename Algorithm>
 void SetCheckResult(Algorithm &&algorithm, const History &history, CheckResult &check_result) {
   if constexpr (std::is_same_v<RollbackRateAlgorithm, std::decay_t<Algorithm>> ||
-                std::is_base_of_v<RollbackRateAlgorithm, std::decay_t<Algorithm>>) {
-    check_result.rollback_type_vec_ = algorithm.RollbackNum(history, &check_result.info_);
-    check_result.ok_ = check_result.rollback_type_vec_->size() == 0;
+              std::is_base_of_v<RollbackRateAlgorithm, std::decay_t<Algorithm>>) {
+      check_result.rollback_type_vec_ = algorithm.RollbackNum(history, &check_result.info_);
+      check_result.ok_ = check_result.rollback_type_vec_->size() == 0;
   } else {
     check_result.ok_ = algorithm.Check(history, &check_result.info_);
   }
@@ -54,9 +57,8 @@ void SetCheckResult(Algorithm &&algorithm, const History &history, CheckResult &
 // filter.
 void FilterRun(
     const std::shared_ptr<HistoryGenerator> &generator,
-    const std::vector<std::pair<
-        std::variant<std::shared_ptr<HistoryAlgorithm>, std::shared_ptr<RollbackRateAlgorithm>>,
-        std::optional<bool>>> &algorithms,
+    const std::vector<std::pair<std::variant<std::shared_ptr<HistoryAlgorithm>, std::shared_ptr<RollbackRateAlgorithm>>,
+                                std::optional<bool>>> &algorithms,
     const std::vector<std::shared_ptr<Outputter>> &outputters, const uint64_t thread_num) {
   // For each history, call task(history)
   const auto task = [&algorithms, &outputters](const History &history) {
@@ -64,24 +66,23 @@ void FilterRun(
     // For each algorithm, check the history
     for (const auto &algorithm_and_filter : algorithms) {
       const std::optional<bool> &filter = algorithm_and_filter.second;
-      if (!std::visit(
-              [&filter, &history, &check_results](auto &&algorithm) -> bool {
-                auto check_result = std::make_unique<CheckResult>();
-                const auto start_time = std::chrono::system_clock::now();
-                SetCheckResult(*algorithm, history, *check_result);
-                check_result->time_compt_ = (std::chrono::system_clock::now() - start_time).count();
-                check_result->algorithm_name_ = algorithm->name();
-                // If filter == true, output only if check passes;
-                // If filter == false, output only if check not passes;
-                // If filter not has a value, output whether check passes or not
-                if (!filter.has_value() || check_result->ok_ == filter.value()) {
-                  check_results.emplace_back(std::move(check_result));
-                  return true;  // result satisfies filter, go to next algorithm
-                } else {
-                  return false;  // result not satisfies filter, cannot output result
-                }
-              },
-              algorithm_and_filter.first)) {
+      if (!std::visit([&filter, &history, &check_results ](auto && algorithm)->bool {
+                        auto check_result = std::make_unique<CheckResult>();
+                        const auto start_time = std::chrono::system_clock::now();
+                        SetCheckResult(*algorithm, history, *check_result);
+                        check_result->time_compt_ = (std::chrono::system_clock::now() - start_time).count();
+                        check_result->algorithm_name_ = algorithm->name();
+                        // If filter == true, output only if check passes;
+                        // If filter == false, output only if check not passes;
+                        // If filter not has a value, output whether check passes or not
+                        if (!filter.has_value() || check_result->ok_ == filter.value()) {
+                          check_results.emplace_back(std::move(check_result));
+                          return true;  // result satisfies filter, go to next algorithm
+                        } else {
+                          return false;  // result not satisfies filter, cannot output result
+                        }
+                      },
+                      algorithm_and_filter.first)) {
         return;  // result not satisfies filter, cannot output result
       }
     }
@@ -95,10 +96,8 @@ void FilterRun(
   signal(SIGTERM, handler);
   outs = outputters;
   ThreadRunBase(generator, task, thread_num);
-  for (const auto& [variant_alg, _] : algorithms) {
-      std::visit([](auto&& alg){
-        alg->Statistics();
-      }, variant_alg);
+  for (const auto & [ variant_alg, _ ] : algorithms) {
+    std::visit([](auto &&alg) { alg->Statistics(); }, variant_alg);
   }
 }
 
@@ -125,17 +124,15 @@ template <typename OS>
 void BenchmarkRun(const std::shared_ptr<HistoryGenerator> &generator,
                   const std::vector<std::shared_ptr<HistoryAlgorithm>> &algorithms, OS &&os) {
   std::vector<History> histories;
-  generator->DeliverHistories(
-      [&histories](History &&history) { histories.emplace_back(std::move(history)); });
+  generator->DeliverHistories([&histories](History &&history) { histories.emplace_back(std::move(history)); });
   BenchmarkRun(histories, algorithms, std::forward<OS>(os));
 }
 
 // Each algorithm check the histories and record the time cost.
 template <typename OS>
-void BenchmarkRun(const std::vector<uint64_t> &trans_nums, const std::vector<uint64_t> &item_nums,
-                  const uint64_t num,
-                  const std::vector<std::shared_ptr<HistoryAlgorithm>> &algorithms, OS &&os,
-                  const bool with_abort, const TclPosition tcl_position) {
+void BenchmarkRun(const std::vector<uint64_t> &trans_nums, const std::vector<uint64_t> &item_nums, const uint64_t num,
+                  const std::vector<std::shared_ptr<HistoryAlgorithm>> &algorithms, OS &&os, const bool with_abort,
+                  const TclPosition tcl_position) {
   Options opts;
   opts.with_abort = with_abort;
   opts.tcl_position = tcl_position;
@@ -147,8 +144,7 @@ void BenchmarkRun(const std::vector<uint64_t> &trans_nums, const std::vector<uin
       opts.trans_num = trans_num;
       opts.item_num = item_num;
       opts.max_dml = dml_operation_num;
-      BenchmarkRun(std::make_shared<RandomHistoryGenerator>(opts, num), algorithms,
-                   std::forward<OS>(os));
+      BenchmarkRun(std::make_shared<RandomHistoryGenerator>(opts, num), algorithms, std::forward<OS>(os));
     }
     os << std::endl;
   }

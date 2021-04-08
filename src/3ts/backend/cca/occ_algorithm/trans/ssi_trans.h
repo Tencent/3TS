@@ -15,13 +15,11 @@
 namespace ttts {
 namespace occ_algorithm {
 
-class SSITransactionDesc
-    : public SITransactionDesc<SSITransactionDesc, SIEnvironmentDesc, Anomally> {
+class SSITransactionDesc : public SITransactionDesc<SSITransactionDesc, SIEnvironmentDesc, Anomally> {
  public:
-  SSITransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot,
-                     env_desc_type& env_desc)
-      : SITransactionDesc<SSITransactionDesc, SIEnvironmentDesc, Anomally>(
-            trans_id, start_ts, std::move(snapshot), env_desc) {}
+  SSITransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot, env_desc_type& env_desc)
+      : SITransactionDesc<SSITransactionDesc, SIEnvironmentDesc, Anomally>(trans_id, start_ts, std::move(snapshot),
+                                                                           env_desc) {}
   static std::string name;
   std::optional<Anomally> CheckConflict(uint64_t commit_ts) {
     std::optional<Anomally> a;
@@ -74,8 +72,7 @@ class SSITransactionDesc
       const auto& it = env_desc_.GetVersion(item_id, version);
       for (const auto& i : it.r_transs_) {
         if (i.second->trans_id() == trans_id()) continue;
-        if (i.second->is_running() ||
-            (i.second->is_committed() && i.second->commit_ts() > start_ts())) {
+        if (i.second->is_running() || (i.second->is_committed() && i.second->commit_ts() > start_ts())) {
           if (i.second->is_committed() && !i.second->in_conflict().empty()) {
             return std::optional<Anomally>(Anomally::WRITE_SKEW);
           }

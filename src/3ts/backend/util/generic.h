@@ -120,7 +120,12 @@ std::ostream& operator<<(std::ostream& os, const Anomally e) {
   }
 }
 
-enum class SerializeReadPolicy { UNCOMMITTED_READ, COMMITTED_READ, REPEATABLE_READ, SI_READ };
+enum class SerializeReadPolicy {
+  UNCOMMITTED_READ,
+  COMMITTED_READ,
+  REPEATABLE_READ,
+  SI_READ
+};
 
 class Operation {
  public:
@@ -139,16 +144,16 @@ class Operation {
   using ScanOddTypeConstant = std::integral_constant<Type, Type::SCAN_ODD>;
   Operation() : type_(Type::UNKNOWN), trans_id_(0) {}
   Operation(const std::integral_constant<Type, Type::COMMIT> dtl_type, const uint64_t trans_id)
-    : type_(dtl_type.value), trans_id_(trans_id) {}
+      : type_(dtl_type.value), trans_id_(trans_id) {}
   Operation(const std::integral_constant<Type, Type::ABORT> dtl_type, const uint64_t trans_id)
-    : type_(dtl_type.value), trans_id_(trans_id) {}
+      : type_(dtl_type.value), trans_id_(trans_id) {}
   Operation(const std::integral_constant<Type, Type::SCAN_ODD> dtl_type, const uint64_t trans_id)
-    : type_(dtl_type.value), trans_id_(trans_id) {}
-  Operation(const std::integral_constant<Type, Type::READ> dml_type, const uint64_t trans_id,
-            const uint64_t item_id, const std::optional<uint64_t> version = {})
+      : type_(dtl_type.value), trans_id_(trans_id) {}
+  Operation(const std::integral_constant<Type, Type::READ> dml_type, const uint64_t trans_id, const uint64_t item_id,
+            const std::optional<uint64_t> version = {})
       : type_(dml_type.value), trans_id_(trans_id), item_id_(item_id), version_(version) {}
-  Operation(const std::integral_constant<Type, Type::WRITE> dml_type, const uint64_t trans_id,
-            const uint64_t item_id, const std::optional<uint64_t> version = {})
+  Operation(const std::integral_constant<Type, Type::WRITE> dml_type, const uint64_t trans_id, const uint64_t item_id,
+            const std::optional<uint64_t> version = {})
       : type_(dml_type.value), trans_id_(trans_id), item_id_(item_id), version_(version) {}
   Operation& operator=(const Operation& operation) = default;
   virtual ~Operation() {}
@@ -221,9 +226,9 @@ class Operation {
       std::cerr << "Transaction ID character must be a number" << std::endl;
       return is;
     } else if (operation.trans_id_ >= 10 || operation.trans_id_ < 0) {
-        is.setstate(std::ios::failbit);
-        std::cerr << "Transaction ID must be less than 10 and more than 0." << std::endl;
-        return is;
+      is.setstate(std::ios::failbit);
+      std::cerr << "Transaction ID must be less than 10 and more than 0." << std::endl;
+      return is;
     }
     if (char item_c; operation.type_ == Type::WRITE || operation.type_ == Type::READ) {
       if (!(is >> item_c) || !std::islower(item_c)) {
@@ -267,21 +272,12 @@ class Operation {
 class History {
  public:
   History() : History(0, 0, {}) {}
-  History(const uint64_t trans_num, const uint64_t item_num,
-          const std::vector<Operation>& operations)
-      : trans_num_(trans_num),
-        item_num_(item_num),
-        operations_(operations),
-        abort_trans_num_(0),
-        anomaly_name_("") {}
+  History(const uint64_t trans_num, const uint64_t item_num, const std::vector<Operation>& operations)
+      : trans_num_(trans_num), item_num_(item_num), operations_(operations), abort_trans_num_(0), anomaly_name_("") {}
   History(const uint64_t trans_num, const uint64_t item_num, std::vector<Operation>&& operations)
-      : trans_num_(trans_num),
-        item_num_(item_num),
-        operations_(operations),
-        abort_trans_num_(0),
-        anomaly_name_("") {}
-  History(const uint64_t trans_num, const uint64_t item_num,
-          const std::vector<Operation>& operations, const uint64_t abort_trans_num)
+      : trans_num_(trans_num), item_num_(item_num), operations_(operations), abort_trans_num_(0), anomaly_name_("") {}
+  History(const uint64_t trans_num, const uint64_t item_num, const std::vector<Operation>& operations,
+          const uint64_t abort_trans_num)
       : trans_num_(trans_num),
         item_num_(item_num),
         operations_(operations),
@@ -298,7 +294,7 @@ class History {
       new_operations.push_back(operation);
     }
     return History(std::max(trans_num_, history.trans_num_), std::max(item_num_, history.item_num_),
-        std::move(new_operations), abort_trans_num_ + history.abort_trans_num_);
+                   std::move(new_operations), abort_trans_num_ + history.abort_trans_num_);
   }
   std::vector<Operation>& operations() { return operations_; }
   const std::vector<Operation>& operations() const { return operations_; }

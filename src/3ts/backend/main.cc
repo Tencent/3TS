@@ -24,13 +24,17 @@ int main(int argc, char **argv) {
 
   try {
     ReadAndRun(FLAGS_conf_path);
-  } catch (const libconfig::SettingNotFoundException &nfex) {
+  }
+  catch (const libconfig::SettingNotFoundException &nfex) {
     std::cerr << "setting no found" << std::endl;
-  } catch (char const *str) {
+  }
+  catch (char const *str) {
     std::cerr << str << std::endl;
-  } catch (std::string str) {
+  }
+  catch (std::string str) {
     std::cerr << str << std::endl;
-  } catch (const std::exception& e) {
+  }
+  catch (const std::exception &e) {
     std::cerr << e.what() << std::endl;
   }
 

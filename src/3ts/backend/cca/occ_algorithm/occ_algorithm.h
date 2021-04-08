@@ -40,8 +40,7 @@ bool Has(const Container& container, const typename Container::key_type& key) {
 }
 
 template <typename Container>
-typename Container::mapped_type AssertGet(const Container& container,
-                                          const typename Container::key_type& key) {
+typename Container::mapped_type AssertGet(const Container& container, const typename Container::key_type& key) {
   assert(Has(container, key));
   return container.find(key)->second;
 }
@@ -52,20 +51,16 @@ class EnvironmentBase {
       : item_vers_(history.item_num()), history_(history), os_(os) {}
   virtual ~EnvironmentBase() = default;
   virtual std::vector<int> DoCheck() = 0;
-  bool HasVersion(const uint64_t item_id, const uint64_t version) {
-    return item_vers_[item_id].size() > version;
-  }
+  bool HasVersion(const uint64_t item_id, const uint64_t version) { return item_vers_[item_id].size() > version; }
 
   ItemVersionDesc<TransDesc>& GetVersion(const uint64_t item_id, const uint64_t version) {
     assert(HasVersion(item_id, version));
     return *item_vers_[item_id][version];
   }
   // put an version in the item_vers_
-  virtual ItemVersionDesc<TransDesc>& CommitVersion(const uint64_t item_id,
-                                                    TransDesc* const w_trans) {
+  virtual ItemVersionDesc<TransDesc>& CommitVersion(const uint64_t item_id, TransDesc* const w_trans) {
     const uint64_t version = item_vers_[item_id].size();
-    item_vers_[item_id].push_back(
-        std::make_unique<ItemVersionDesc<TransDesc>>(item_id, version, w_trans));
+    item_vers_[item_id].push_back(std::make_unique<ItemVersionDesc<TransDesc>>(item_id, version, w_trans));
     return *item_vers_[item_id].back();
   }
 
@@ -119,10 +114,8 @@ class TransactionDescBase {
   }
 
   virtual std::optional<AnomalyType> Commit() {
-    for (auto& pair :
-         w_items_) {  // add by ym : while using RU, w_items_ is empty. So jump this for-loop
-      pair.second = &env_desc_.CommitVersion(
-          pair.first, static_cast<typename env_desc_type::trans_desc_type*>(this));
+    for (auto& pair : w_items_) {  // add by ym : while using RU, w_items_ is empty. So jump this for-loop
+      pair.second = &env_desc_.CommitVersion(pair.first, static_cast<typename env_desc_type::trans_desc_type*>(this));
     }
     committed_ = true;
     return {};

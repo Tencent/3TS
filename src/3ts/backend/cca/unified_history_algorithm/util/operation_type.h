@@ -21,4 +21,4 @@ namespace ttts {
 #include "../../../util/extend_enum.h"
 }
 
-#endif // TTTS_DENEVA_OPERATION_TYPE_H_
+#endif  // TTTS_DENEVA_OPERATION_TYPE_H_

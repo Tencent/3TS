@@ -29,8 +29,7 @@ class Outputter {
  public:
   Outputter(const std::string& output_filename) : os_(output_filename) {}
   virtual ~Outputter() {}
-  virtual void Output(const std::vector<std::unique_ptr<CheckResult>>& results,
-                      const History& history) = 0;
+  virtual void Output(const std::vector<std::unique_ptr<CheckResult>>& results, const History& history) = 0;
   virtual void ResultToFile(const std::string&) = 0;
 
  protected:
@@ -78,7 +77,7 @@ class DatumOutputter : public Outputter {
           missed_judgement_count_(0),
           wrong_judgement_count_(0),
           commit_trans_num_(0),
-          rollback_trans_num_(0),  // active_rollback_trans_num_ + passive_rollback_trans_num_
+          rollback_trans_num_(0),          // active_rollback_trans_num_ + passive_rollback_trans_num_
           passive_rollback_trans_num_(0),  // true_rollback_trans_num_ + false_rollback_trans_num_
           true_rollback_trans_num_(0),
           false_rollback_trans_num_(0) {}
@@ -112,11 +111,10 @@ class DatumOutputter : public Outputter {
     os_ << s << std::endl;
     os_ << "Datum Algorithm: " << datum_algorithm_name_ << std::endl;
     os_ << "Total Histories: " << history_count_ << std::endl;
-    os_ << "Total Transactions: " << trans_num_ << " (try commit: " << try_commit_trans_num_ << ")"
-        << std::endl;
+    os_ << "Total Transactions: " << trans_num_ << " (try commit: " << try_commit_trans_num_ << ")" << std::endl;
     os_ << std::endl;
 
-    for (auto& [algorithm_name, info] : infos_) {
+    for (auto & [ algorithm_name, info ] : infos_) {
       if (info.time_consume_ > 0) {
         os_ << ">>>>>> " << algorithm_name << " (" << info.time_consume_ << "s)" << std::endl;
       } else {
@@ -126,19 +124,18 @@ class DatumOutputter : public Outputter {
 
       os_ << "[ HISTORY LEVEL INFO ]" << std::endl;
       os_ << "Total Histories: " << history_count_ << std::endl;
-      os_ << " ├ OK Histories: " << info.ok_count_ << " ("
-          << 100.0 * info.ok_count_ / history_count_ << "%)" << std::endl;
+      os_ << " ├ OK Histories: " << info.ok_count_ << " (" << 100.0 * info.ok_count_ / history_count_ << "%)"
+          << std::endl;
       os_ << " |  └ Missed Judgement Histories: " << info.missed_judgement_count_ << " ("
           << 100.0 * info.missed_judgement_count_ / history_count_ << "%)" << std::endl;
-      os_ << " └ NG Histories: " << info.ng_count_ << " ("
-          << 100.0 * info.ng_count_ / history_count_ << "%)" << std::endl;
+      os_ << " └ NG Histories: " << info.ng_count_ << " (" << 100.0 * info.ng_count_ / history_count_ << "%)"
+          << std::endl;
       os_ << "    └ Wrong Judgement Histories: " << info.wrong_judgement_count_ << " ("
           << 100.0 * info.wrong_judgement_count_ / history_count_ << "%)" << std::endl;
 
       if (info.has_rollback_rate_) {
         os_ << "[ TRANSACTION LEVEL INFO ]" << std::endl;
-        os_ << "Total Transactions: " << trans_num_ << " (try commit: " << try_commit_trans_num_
-            << ")" << std::endl;
+        os_ << "Total Transactions: " << trans_num_ << " (try commit: " << try_commit_trans_num_ << ")" << std::endl;
         os_ << " ├ Commit Successfull Transactions: " << info.commit_trans_num_ << " ("
             << 100.0 * info.commit_trans_num_ / trans_num_ << "%)" << std::endl;
         os_ << " └ Rollback Transactions: " << info.rollback_trans_num_ << " ("
@@ -161,8 +158,7 @@ class DatumOutputter : public Outputter {
     }
   }
 
-  void Output(const std::vector<std::unique_ptr<CheckResult>>& results,
-              const History& history) override {
+  void Output(const std::vector<std::unique_ptr<CheckResult>>& results, const History& history) override {
     std::lock_guard<std::mutex> lock(mutex_);
 
     ++history_count_;
@@ -217,13 +213,11 @@ class DetailOutputter : public Outputter {
   DetailOutputter(const std::string& output_filename) : Outputter(output_filename), no_(0) {}
   virtual ~DetailOutputter() {}
   virtual void ResultToFile(const std::string&) override {}
-  virtual void Output(const std::vector<std::unique_ptr<CheckResult>>& results,
-                      const History& history) override {
+  virtual void Output(const std::vector<std::unique_ptr<CheckResult>>& results, const History& history) override {
     std::stringstream ss;
     ss << ">>>>>> {" << (++no_) << "} " << history << std::endl;
     for (const std::unique_ptr<CheckResult>& result : results) {
-      ss << "[ " << result->algorithm_name_ << " ] " << (result->ok_ ? "true" : "false")
-         << std::endl;
+      ss << "[ " << result->algorithm_name_ << " ] " << (result->ok_ ? "true" : "false") << std::endl;
       ss << result->info_.str() << std::endl;
     }
     std::lock_guard<std::mutex> lock(mutex_);
@@ -238,24 +232,21 @@ class DetailOutputter : public Outputter {
 // Compare each algorithm's result and do category
 class CompareOutputter : public Outputter {
  public:
-  CompareOutputter(const std::string& output_filename)
-      : Outputter(output_filename), inited_(false) {}
+  CompareOutputter(const std::string& output_filename) : Outputter(output_filename), inited_(false) {}
   virtual ~CompareOutputter() { ResultToFile("finish success"); }
   virtual void ResultToFile(const std::string& s) override {
     os_ << s << std::endl;
     for (std::unique_ptr<CompareCategory>& category : categories_) {
       os_ << "[Counts:" << category->count_ << "] " << category->cate_name_ << std::endl;
       category->temp_output_file_.close();
-      if (std::ifstream temp_if(category->temp_output_filename_);
-          temp_if.peek() != std::ifstream::traits_type::eof()) {
+      if (std::ifstream temp_if(category->temp_output_filename_); temp_if.peek() != std::ifstream::traits_type::eof()) {
         os_ << temp_if.rdbuf();
       }
       os_ << std::endl;
       category.reset();
     }
   }
-  virtual void Output(const std::vector<std::unique_ptr<CheckResult>>& results,
-                      const History& history) override {
+  virtual void Output(const std::vector<std::unique_ptr<CheckResult>>& results, const History& history) override {
     if (!inited_.load()) {
       InitCategories(results);
     }
@@ -284,15 +275,13 @@ class CompareOutputter : public Outputter {
     }
     for (uint64_t i = 0; i < (static_cast<uint64_t>(1) << results.size()); ++i) {
       const std::string cate_name = CategoryName(results, Int2Bits(results.size(), i));
-      const std::string temp_filename =
-          "__COMPARE_RESULT_OUTPUTTER_TEMP_FILE_" + std::to_string(i) + "__";
+      const std::string temp_filename = "__COMPARE_RESULT_OUTPUTTER_TEMP_FILE_" + std::to_string(i) + "__";
       categories_.emplace_back(new CompareCategory(cate_name, temp_filename));
     }
     inited_ = true;
   }
 
-  void OutputHistoryToTempFile(const std::vector<std::unique_ptr<CheckResult>>& results,
-                               const History& history) {
+  void OutputHistoryToTempFile(const std::vector<std::unique_ptr<CheckResult>>& results, const History& history) {
     CompareCategory& category = *categories_[Bits2Int(ExtractOKs(results))];
     std::lock_guard<std::mutex> lock(mutex_);
     category.temp_output_file_ << history << std::endl;

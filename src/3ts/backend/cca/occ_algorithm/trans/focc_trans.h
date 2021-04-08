@@ -13,13 +13,11 @@
 
 namespace ttts {
 namespace occ_algorithm {
-class FoccTransactionDesc
-    : public SITransactionDesc<FoccTransactionDesc, SIEnvironmentDesc, Anomally> {
+class FoccTransactionDesc : public SITransactionDesc<FoccTransactionDesc, SIEnvironmentDesc, Anomally> {
  public:
   static std::string name;
 
-  FoccTransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot,
-                      env_desc_type& env_desc)
+  FoccTransactionDesc(const uint64_t trans_id, const uint64_t start_ts, Snapshot&& snapshot, env_desc_type& env_desc)
       : SITransactionDesc(trans_id, start_ts, std::move(snapshot), env_desc) {}
   virtual std::optional<Anomally> CheckConflict(const uint64_t commit_ts) override {
     // History history_with_write_version = env_desc_.GetHistory();

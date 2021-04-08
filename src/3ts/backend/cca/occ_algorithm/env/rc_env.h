@@ -28,9 +28,8 @@ class TransactionDesc : public TransactionDescBase<TransDesc, EnvDesc, AnomalyTy
 
 template <typename TransDesc, typename AnomalyType>
 class EnvironmentDesc : public EnvironmentBase<TransDesc, AnomalyType> {
-  static_assert(
-      std::is_base_of_v<TransactionDesc<TransDesc, EnvironmentDesc, AnomalyType>, TransDesc>,
-      "TransDesc with EnvironmentDesc should base of TransactionDesc");
+  static_assert(std::is_base_of_v<TransactionDesc<TransDesc, EnvironmentDesc, AnomalyType>, TransDesc>,
+                "TransDesc with EnvironmentDesc should base of TransactionDesc");
 
  private:
   using EnvironmentBase<TransDesc, AnomalyType>::item_vers_;

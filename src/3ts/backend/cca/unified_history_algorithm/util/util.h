@@ -31,14 +31,18 @@ namespace ttts {
 #include "../../../util/extend_enum.h"
 
 // Each history has only one AlgManager which stores global infomation for algorithm.
-template <UniAlgs ALG, typename Data, typename T = void> class AlgManager;
+template <UniAlgs ALG, typename Data, typename T = void>
+class AlgManager;
 
 // Each row or variable has a RowManager.
-template <UniAlgs ALG, typename Data, typename T = void> class RowManager;
+template <UniAlgs ALG, typename Data, typename T = void>
+class RowManager;
 
-// Each transaction has a TxnManager. We recommend that enable shared_from_this for TxnManager and make constructor private to prevent misused shared_from_this().
+// Each transaction has a TxnManager. We recommend that enable shared_from_this for TxnManager and make constructor
+// private to prevent misused shared_from_this().
 //
-// A TxnManager can be released only when no more transactions build precedence before it. In this case, the transaction cannot be a part of cycle anymore.
+// A TxnManager can be released only when no more transactions build precedence before it. In this case, the transaction
+// cannot be a part of cycle anymore.
 //
 // For latest read, it should satisfies:
 // (1) The transaction is already finished (for latest read, no future transactions build RW precedence before it).
@@ -46,8 +50,10 @@ template <UniAlgs ALG, typename Data, typename T = void> class RowManager;
 // We use std::shared_ptr to realize it. When the pointer expired, the two conditions are satisified.
 //
 // For snapshot read, it should also satisfies:
-// (3) Minimum active transaction snapshot timestamp (start timestamp) > this transaction's largest write timestamp (commit timestamp). (no future transactions build RW precedence before it)
-template <UniAlgs ALG, typename Data, typename T = void> class TxnManager;
+// (3) Minimum active transaction snapshot timestamp (start timestamp) > this transaction's largest write timestamp
+// (commit timestamp). (no future transactions build RW precedence before it)
+template <UniAlgs ALG, typename Data, typename T = void>
+class TxnManager;
 
 // Each version has a VerManager. (nonessential)
 //
@@ -59,8 +65,8 @@ template <UniAlgs ALG, typename Data, typename T = void> class TxnManager;
 //
 // For snapshot read, it should also satisfies:
 // (3) Minimum active transaction snapshot timestamp (start timestamp) > the later version's write timestamp.
-template <UniAlgs ALG, typename Data, typename T = void> class VerManager;
-
+template <UniAlgs ALG, typename Data, typename T = void>
+class VerManager;
 }
 
-#endif // TTTS_DENEVA_UNI_ALGS_H_
+#endif  // TTTS_DENEVA_UNI_ALGS_H_
