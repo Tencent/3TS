@@ -55,20 +55,41 @@ std::unique_ptr<T> MakeUnique(Ts&&... args) ;
 template <typename T>
 class Optional final {
  public:
-  Optional();
-  Optional(const T& value);
-  Optional(T&& value);
-  Optional(const Optional<T>& o);
-  Optional(Optional<T>&& o);
-  ~Optional();
-  Optional<T>& operator=(const Optional& o);
-  Optional<T>& operator=(Optional&&);
+  Optional() : has_value_(false), value_(nullptr) {}
+  Optional(const T& value) : has_value_(true), value_(new T(value)) {}
+  Optional(T&& value) : has_value_(true), value_(new T(std::forward<T>(value))) {}
+  Optional(const Optional<T>& o)
+      : has_value_(o.has_value_), value_(o.value_ ? new T(*o.value_) : nullptr) {}
+  Optional(Optional<T>&& o) = default;
+  ~Optional() {}
+  Optional<T>& operator=(const Optional& o) {
+    has_value_ = o.has_value_;
+    value_ = o.value_ ? MakeUnique<T>(*o.value_) : nullptr;
+    return *this;
+  }
+  Optional<T>& operator=(Optional&&) = default;
 
-  bool HasValue() const;
-  void Set(T&& value) ;
-  void Set(const T& value) ;
-  T& Get();
-  const T& Get() const;
+  bool HasValue() const { return has_value_; }
+  void Set(T&& value) {
+    value_ = MakeUnique<T>(std::move(value));
+    has_value_ = true;
+  }
+  void Set(const T& value) {
+    value_ = MakeUnique<T>(value);
+    has_value_ = true;
+  }
+  T& Get() {
+    if (!has_value_) {
+      throw "Empty Optional";
+    }
+    return *value_;
+  }
+  const T& Get() const {
+    if (!has_value_) {
+      throw "Empty Optional";
+    }
+    return *value_;
+  }
 
  private:
   bool has_value_;
