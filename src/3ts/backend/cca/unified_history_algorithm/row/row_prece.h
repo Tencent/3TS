@@ -80,6 +80,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     std::optional<Data> Read(Txn& txn)
     {
+        return latest_version_->data();
         std::lock_guard<std::mutex> l(m_);
         const uint64_t to_ver_id = latest_version_->ver_id();
         build_prece_from_w_txn_(*latest_version_, txn, to_ver_id, PreceType::WR);
@@ -89,6 +90,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     bool Prewrite(Data data, Txn& txn)
     {
+        return true;
         std::lock_guard<std::mutex> l(m_);
         const uint64_t to_ver_id = (++cur_ver_id_);
         const auto pre_version = std::exchange(latest_version_,
@@ -108,6 +110,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     void Revoke(Data /*data*/, Txn& txn)
     {
+        return;
         std::lock_guard<std::mutex> l(m_);
         const auto it = txn.pre_versions_.find(row_id_);
         assert(it != txn.pre_versions_.end());
