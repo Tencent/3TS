@@ -211,8 +211,8 @@ bool Row_mvcc::conflict(TsType type, ts_t ts) {
     // else
     //      if exists writehis between them, NO conflict!!!!
     //      else, CONFLICT!!!
-    ts_t rts;
-    ts_t pts;
+    ts_t rts = 0;
+    ts_t pts = 0;
     if (type == R_REQ) {
         rts = ts;
         pts = 0;

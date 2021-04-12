@@ -23,7 +23,7 @@ void Inflight_entry::init() {
 }
 
 int32_t Inflight_entry::inc_inflight() {
-    int32_t result;
+    int32_t result = 0;
     sem_wait(&mutex);
     if (num_inflight_txns < g_inflight_max) {
     // if (num_inflight_txns < 1) {
@@ -36,7 +36,7 @@ int32_t Inflight_entry::inc_inflight() {
 }
 
 int32_t Inflight_entry::dec_inflight() {
-    int32_t result;
+    int32_t result = 0;
     sem_wait(&mutex);
     if(num_inflight_txns > 0) {
       result = --num_inflight_txns;
@@ -47,9 +47,8 @@ int32_t Inflight_entry::dec_inflight() {
 }
 
 int32_t Inflight_entry::get_inflight() {
-    int32_t result;
     sem_wait(&mutex);
-    result = num_inflight_txns;
+    int32_t result = num_inflight_txns;
     sem_post(&mutex);
     return result;
 }

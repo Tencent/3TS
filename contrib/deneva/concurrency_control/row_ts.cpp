@@ -171,7 +171,7 @@ ts_t Row_ts::cal_min(TsType type) {
 }
 
 RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
-    RC rc;
+    RC rc = RCOK;
     uint64_t starttime = get_sys_clock();
     ts_t ts = txn->get_timestamp();
     if (g_central_man)
