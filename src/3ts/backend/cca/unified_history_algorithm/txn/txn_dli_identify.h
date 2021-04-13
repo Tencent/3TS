@@ -46,6 +46,7 @@ class TxnManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     void AddToTxn(TxnManager& to_txn, const uint64_t row_id, const uint64_t from_ver_id,
             const uint64_t to_ver_id, const PreceType type)
     {
+        return;
         const uint64_t to_txn_id = to_txn.txn_id();
         if (const auto& real_type = RealPreceType_(type); txn_id_ != to_txn_id && real_type.has_value()) {
             std::lock_guard<std::mutex> l(m_);
