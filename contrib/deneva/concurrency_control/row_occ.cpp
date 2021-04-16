@@ -30,6 +30,7 @@ void Row_occ::init(row_t *row) {
 }
 
 RC Row_occ::access(TxnManager *txn, TsType type) {
+    return RCOK;
     RC rc = RCOK;
     //pthread_mutex_lock( _latch );
     uint64_t starttime = get_sys_clock();

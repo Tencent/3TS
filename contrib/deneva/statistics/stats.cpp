@@ -357,7 +357,7 @@ void Stats_thd::print_client(FILE * outf, bool prog) {
     if (total_runtime > 0) tput = txn_cnt / (total_runtime / BILLION);
     fprintf(outf,
         "total_runtime=%f"
-        ",tput=%f"
+        ",tput=%.0f"
         ",txn_cnt=%ld"
         ",txn_sent_cnt=%ld"
         ",txn_run_time=%f"

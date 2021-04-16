@@ -249,6 +249,11 @@ bool Row_mvcc::conflict(TsType type, ts_t ts) {
 }
 
 RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
+    // remove mvcc read
+    // assert(_row != latest_row);
+    // _row->copy(latest_row);
+    return RCOK;
+    // // test exclude below
     RC rc = RCOK;
     ts_t ts = txn->get_timestamp();
     uint64_t starttime = get_sys_clock();
