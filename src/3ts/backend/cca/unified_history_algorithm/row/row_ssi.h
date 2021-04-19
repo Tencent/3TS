@@ -70,6 +70,10 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     std::optional<Data> Read(Txn& txn)
     {
+        // directly pass the logic and return the data of last version
+        return versions_.back().data();
+        // following is ignored
+
         std::lock_guard<std::mutex> l(m_);
         auto it = versions_.rbegin();
 
@@ -96,6 +100,10 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     bool Prewrite(Data data, Txn& txn)
     {
+        // directly pass the logic
+        return true;
+        // below is doing nothing 
+
         std::lock_guard<std::mutex> l(m_);
         assert(!versions_.empty());
         auto& latest_version = versions_.back();
@@ -138,6 +146,10 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     void Revoke(Data /*data*/, Txn& txn)
     {
+        // directly pass the logic
+        return;
+        // below is doing nothing
+
         std::lock_guard<std::mutex> l(m_);
         auto& latest_version = versions_.back();
         if (latest_version.IsWrittenBy(txn.txn_id())) {
