@@ -206,6 +206,7 @@ void Row_mvcc::insert_history(ts_t ts, row_t *row) {
 }
 
 bool Row_mvcc::conflict(TsType type, ts_t ts) {
+    return false;
     // find the unique prewrite-read couple (prewrite before read)
     // if no such couple found, no conflict.
     // else
@@ -253,7 +254,7 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
     // assert(_row != latest_row);
     // _row->copy(latest_row);
     return RCOK;
-    // // test exclude below
+    // test exclude below
     RC rc = RCOK;
     ts_t ts = txn->get_timestamp();
     uint64_t starttime = get_sys_clock();
