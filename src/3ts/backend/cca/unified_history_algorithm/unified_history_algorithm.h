@@ -55,7 +55,7 @@ private:
     }
   }
 
-  std::optional<AnomalyType> ReturnWithDA_(const TxnManager<ALG, Data>& txn_manager) const {
+  std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> ReturnWithDA_(const TxnManager<ALG, Data>& txn_manager) const {
     if constexpr (IDENTIFY_ANOMALY) {
       if (txn_manager.cycle_ != nullptr) {
         const auto anomaly = AlgManager<ALG, Data>::IdentifyAnomaly(txn_manager.cycle_->Preces());
@@ -163,8 +163,10 @@ private:
         const auto& ret = ExecAbortInternal_(*alg_manager, *txn_map[trans_id], trans_write_set_list[trans_id], row_map);
         txn_map.erase(trans_id);
 
-        if (ret.has_value()) {
-          return ret;
+        if constexpr (IDENTIFY_ANOMALY) {
+          if (ret.has_value()) {
+            return ret;
+          }
         }
       // Exec Commit
       } else if (Operation::Type::COMMIT == operation.type()) {
@@ -172,8 +174,10 @@ private:
                                               row_value_map, i, trans_write_set_list[trans_id]);
         txn_map.erase(trans_id);
 
-        if (ret.has_value()) {
-          return ret;
+        if constexpr (IDENTIFY_ANOMALY) {
+          if (ret.has_value()) {
+            return ret;
+          }
         }
       }
     }
