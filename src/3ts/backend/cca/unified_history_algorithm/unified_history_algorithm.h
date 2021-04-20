@@ -95,8 +95,8 @@ private:
     if (alg_manager.Validate(txn_manager)) {
       alg_manager.Commit(txn_manager, commit_ts);
       // data persistence
-      for (const auto& row : row_map) {
-        row.second->Write(row_value_map.at(row.first), txn_manager);
+      for (const auto& item_write : trans_write_set) {
+        row_map.at(item_write.first)->Write(item_write.second, txn_manager);
       }
 
       return ReturnWithNoDA_();
