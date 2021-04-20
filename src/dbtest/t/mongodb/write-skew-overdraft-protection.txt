@@ -1,0 +1,27 @@
+0-1-account.put(s, 500)
+0-1-account.put(c, 500)
+1-1-begin
+2-1-account.get(s)
+3-1-account.get(c)
+4-2-begin
+5-2-account.get(s)
+6-2-account.get(c)
+7-2-account.vinc(c, +900)
+8-2-commit
+9-1-account.vinc(s, +900)
+10-1-commit
+11-3-account.get(*)
+
+serializable {
+2-s,500
+3-c,500
+5-s,1400
+6-c,500
+11-s,1400 c,1400
+
+2-c,1400
+3-s,500
+5-s,500
+6-c,500
+11-s,1400 c,1400
+}

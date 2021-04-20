@@ -1,6 +1,5 @@
 build/*
 .vscode/*
-*.txt
 *.cfg
 __*
 *.o

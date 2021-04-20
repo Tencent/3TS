@@ -1,0 +1,15 @@
+0-1-t1.put(0, 0)
+1-1-begin
+2-1-t1.put(1, 0)
+3-2-begin
+4-2-t1.put(0, 2)
+5-2-commit
+6-1-t1.put(0, 3)
+7-1-commit
+8-3-t1.get(*)
+
+serializable {
+8-0,2
+
+8-0,3
+}

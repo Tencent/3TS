@@ -1,0 +1,19 @@
+1-1-begin
+2-1-t1.getpred(0)
+3-2-begin
+4-2-t1.put(1, 1)
+5-2-t1.put(0, 0)
+6-2-commit
+7-1-t1.getpred(1)
+8-1-commit
+9-3-t1.get(*)
+
+serializable {
+2-null
+7-null
+9-0,0 1,1
+
+2-0,0
+7-1,1
+9-0,0 1,1
+}

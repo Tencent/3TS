@@ -1,0 +1,23 @@
+ParamNum:2
+0-1-DROP TABLE IF EXISTS t1;
+0-1-CREATE TABLE t1 (k INT PRIMARY KEY, v INT);
+0-1-COMMIT;
+1-1-BEGIN;
+2-1-SELECT * from t1 WHERE v=0;
+3-2-BEGIN;
+4-2-INSERT INTO t1 VALUES (0, 0);
+5-2-COMMIT;
+6-1-SELECT * from t1 WHERE v=0;
+7-1-COMMIT;
+8-3-SELECT * FROM t1;
+9-3-COMMIT;
+
+serializable {
+2-null
+6-null
+8-0,0
+
+2-0,0
+6-0,0
+8-0,0
+}

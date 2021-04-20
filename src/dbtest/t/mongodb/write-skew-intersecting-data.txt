@@ -1,0 +1,26 @@
+0-1-mytab.put(10, 1)
+0-1-mytab.put(20, 1)
+0-1-mytab.put(100, 2)
+0-1-mytab.put(200, 2)
+1-1-begin
+2-1-mytab.getpred(1)
+4-2-begin
+6-2-mytab.put(300, 1)
+5-2-mytab.getpred(2)
+3-1-mytab.put(30, 2)
+7-2-commit
+8-1-commit
+9-3-mytab.getpred(1)
+10-3-mytab.getpred(2)
+
+serializable {
+2-10,1 20,1
+5-100,2 200,2 30,2
+9-10,1 20,1 300,1
+10-100,2 200,2 30,2
+
+2-10,1 20,1 300,1
+5-100,2 200,2
+9-10,1 20,1 300,1
+10-100,2 200,2 30,2
+}

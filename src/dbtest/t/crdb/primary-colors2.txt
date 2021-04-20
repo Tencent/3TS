@@ -1,0 +1,44 @@
+ParamNum:2
+0-1-drop table if exists dots;
+0-1-create table dots(id int not null primary key auto_increment, color text not null);
+0-1-insert into dots(color) values('redredreda');
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) values('yellowabcd');
+0-1-insert into dots(color) values('yellowabcd');
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) (select color from dots);
+0-1-insert into dots(color) values('blue');
+0-1-insert into dots(color) values('blue');
+0-1-COMMIT;
+1-1-begin;
+2-1-update dots set color = 'yellow'   where color = 'redredreda';
+3-2-begin;
+4-2-update dots set color = 'red'   where color = 'blue';
+5-3-begin;
+6-3-update dots set color = 'blue'   where color = 'yellow';
+7-1-commit;
+8-2-commit;
+9-3-commit;
+10-4-select * from dots;
+11-4-commit;
+
+serializable {
+10-1,red 2,red 3,red 4,red 5,red 6,red
+10-1,blue 2,blue 3,red 4,blue 5,blue 6,red
+10-1,yellow 2,yellow 3,yellow 4,yellow 5,yellow 6,yellow
+10-1,yellow 2,red 3,red 4,yellow 5,red 6,red
+10-1,blue 2,blue 3,blue 4,blue 5,blue 6,blue
+10-1,yellow 2,blue 3,yellow 4,yellow 5,blue 6,yellow
+}

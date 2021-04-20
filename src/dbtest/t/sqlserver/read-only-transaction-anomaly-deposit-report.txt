@@ -1,0 +1,40 @@
+ParamNum:4
+0-1-drop table if exists control;
+0-1-drop table if exists receipt;
+0-1-create table control(deposit_no int not null);
+0-1-insert into control values (1);
+0-1-commit;
+0-2-create table receipt (receipt_no int primary key, deposit_no int not null, payee varchar(255) not null, amount int not null);
+0-2-commit;
+0-2-insert into receipt values (1, 1, 'Crosby', '100');
+0-2-insert into receipt values (2, 1, 'Stills', '200');
+0-2-insert into receipt values (3, 1, 'Nash', '300');
+0-2-commit;
+1-1-BEGIN;
+2-1-insert into receipt values (4, (select deposit_no from control), 'Young', '100');
+3-1-select * from receipt;
+4-2-BEGIN;
+5-2-select deposit_no from control;
+6-2-update control set deposit_no = 2;
+7-2-COMMIT;
+8-3-BEGIN;
+9-3-select * from receipt where deposit_no = 1;
+10-1-COMMIT;
+11-3-COMMIT;
+12-4-select * from receipt;
+13-4-select * from control;
+14-4-COMMIT;
+
+serializable {
+3-1,1,Crosby,100 2,1,Stills,200 3,1,Nash,300 4,1,Young,100
+5-1,,,
+9-1,1,Crosby,100 2,1,Stills,200 3,1,Nash,300 4,1,Young,100
+12-1,1,Crosby,100 2,1,Stills,200 3,1,Nash,300 4,1,Young,100
+13-2,,,
+
+3-1,1,Crosby,100 2,1,Stills,200 3,1,Nash,300 4,2,Young,100
+5-1,,,
+9-1,1,Crosby,100 2,1,Stills,200 3,1,Nash,300
+12-1,1,Crosby,100 2,1,Stills,200 3,1,Nash,300 4,2,Young,100
+13-2,,,
+}

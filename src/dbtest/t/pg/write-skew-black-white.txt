@@ -1,0 +1,25 @@
+ParamNum:2
+0-1-DROP TABLE IF EXISTS dots;
+0-1-create table dots(id int not null primary key, color varchar(255) not null);
+0-1-insert into dots values(1, 'black');
+0-1-insert into dots values(2, 'white');
+0-1-insert into dots values(3, 'black');
+0-1-insert into dots values(4, 'white');
+0-1-COMMIT;
+1-1-BEGIN;
+2-1-update dots set color = 'black' where color = 'white';
+3-2-BEGIN;
+4-2-update dots set color = 'white' where color = 'black';
+5-2-COMMIT;
+6-2-select * from dots order by id;
+7-1-COMMIT;
+8-3-select * from dots;
+9-3-COMMIT:
+
+serializable {
+6-1,white 2,white 3,white 4,white
+8-1,white 2,white 3,white 4,white
+
+6-1,white 2,white 3,white 4,white
+8-1,black 2,black 3,black 4,black
+}

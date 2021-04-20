@@ -1,0 +1,20 @@
+0-1-dots.put(1, black)
+0-1-dots.put(2, white)
+0-1-dots.put(3, black)
+0-1-dots.put(4, white)
+1-1-begin
+2-1-dots.putpred(white, black)
+3-2-begin
+4-2-dots.putpred(black, white)
+5-2-commit
+6-2-dots.get(*)
+7-1-commit
+8-3-dots.get(*)
+
+serializable {
+6-1,white 2,white 3,white 4,white
+8-1,white 2,white 3,white 4,white
+
+6-1,white 2,white 3,white 4,white
+8-1,black 2,black 3,black 4,black
+}

@@ -1,0 +1,14 @@
+0-1-t1.put(0, 0)
+1-1-begin
+2-1-t1.put(0, 1)
+3-2-begin
+4-2-t1.put(0, 2)
+5-2-commit
+6-1-rollback
+7-3-t1.get(*)
+
+serializable {
+7-0,1
+
+7-0,2
+}
