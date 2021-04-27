@@ -15,7 +15,7 @@
 
 namespace ttts {
 
-template<UniAlgs ALG, typename Data>
+template <UniAlgs ALG, typename Data>
 class UnifiedHistoryAlgorithm : public HistoryAlgorithm {
 public:
   UnifiedHistoryAlgorithm() : HistoryAlgorithm(ToString(ALG)), anomaly_counts_{0} {}
@@ -63,7 +63,6 @@ private:
         return anomaly;
       }
     }
-
     return {};
   }
 
@@ -79,11 +78,13 @@ private:
       AlgManager<ALG, Data>& alg_manager, TxnManager<ALG, Data>& txn_manager,
       const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set,
       const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map) const{
-    alg_manager.Abort(txn_manager);
-    // rollback written row
-    RollbackWrittenRow_(trans_write_set, row_map, txn_manager);
-
-    return ReturnWithDA_(txn_manager);
+    RevokeWrittenRow_(alg_manager, trans_write_set, row_map, txn_manager);
+    if constexpr (IDENTIFY_ANOMALY) {
+      return ReturnWithDA_(txn_manager);
+    } else {
+      // if not IDENTIFY_ANOMALY, there are no anomalies when execute Abort
+      return true;
+    }
   }
 
   std::conditional_t<IDENTIFY_ANOMALY, std::optional<AnomalyType>, bool> ExecCommitInternal_(
@@ -91,28 +92,41 @@ private:
       const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map,
       const std::unordered_map<uint64_t, uint64_t>& row_value_map, uint64_t commit_ts,
       const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set) const {
-
     if (alg_manager.Validate(txn_manager)) {
-      alg_manager.Commit(txn_manager, commit_ts);
-      // data persistence
-      for (const auto& row : row_map) {
-        row.second->Write(row_value_map.at(row.first), txn_manager);
-      }
-
+      WriteWrittenRow_(alg_manager, trans_write_set, row_map, txn_manager, commit_ts);
       return ReturnWithNoDA_();
-    } else {
-      alg_manager.Abort(txn_manager);
-      // rollback written row
-      RollbackWrittenRow_(trans_write_set, row_map, txn_manager);
-
+    } else if constexpr (IDENTIFY_ANOMALY) {
+      RevokeWrittenRow_(alg_manager, trans_write_set, row_map, txn_manager);
       return ReturnWithDA_(txn_manager);
+    } else {
+      return false;
     }
   }
 
-  void RollbackWrittenRow_(
+  static bool HasAnomaly_(const bool ret) {
+    return !ret;
+  }
+
+  static bool HasAnomaly_(const std::optional<AnomalyType> ret) {
+    return ret.has_value();
+  }
+
+  void WriteWrittenRow_(AlgManager<ALG, Data>& alg_manager,
+      const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set,
+      const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map,
+      TxnManager<ALG, Data>& txn_manager, const uint64_t commit_ts) const {
+    alg_manager.Commit(txn_manager, commit_ts);
+    // data persistence
+    for (const auto& item_write : trans_write_set) {
+      row_map.at(item_write.first)->Write(item_write.second, txn_manager);
+    }
+  }
+
+  void RevokeWrittenRow_(AlgManager<ALG, Data>& alg_manager,
       const std::vector<std::pair<uint64_t, uint64_t>>& trans_write_set,
       const std::unordered_map<uint64_t, std::unique_ptr<RowManager<ALG, Data>>>& row_map,
       TxnManager<ALG, Data>& txn_manager) const {
+    alg_manager.Abort(txn_manager);
     // rollback written row
     for (const auto& item_write : trans_write_set) {
       row_map.at(item_write.first)->Revoke(item_write.second, txn_manager);
@@ -163,16 +177,17 @@ private:
         const auto& ret = ExecAbortInternal_(*alg_manager, *txn_map[trans_id], trans_write_set_list[trans_id], row_map);
         txn_map.erase(trans_id);
 
-        if (ret.has_value()) {
+        if (HasAnomaly_(ret)) {
           return ret;
         }
+
       // Exec Commit
       } else if (Operation::Type::COMMIT == operation.type()) {
         const auto& ret = ExecCommitInternal_(*alg_manager, *txn_map[trans_id], row_map,
                                               row_value_map, i, trans_write_set_list[trans_id]);
         txn_map.erase(trans_id);
 
-        if (ret.has_value()) {
+        if (HasAnomaly_(ret)) {
           return ret;
         }
       }
@@ -181,4 +196,5 @@ private:
     return ReturnWithNoDA_();
   }
 }; // class: UnifiedHistoryAlgorithm
+
 } // namespace: ttts
