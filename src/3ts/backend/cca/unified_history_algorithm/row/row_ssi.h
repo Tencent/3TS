@@ -83,10 +83,15 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
             return latest_version.data();
         }
 
+        // // read version written by another transaction with snapshot timestamp
+        // for (; it != versions_.rend() && it->w_ts() > txn.start_ts(); ++it) {
+        //     continue;
+        // }
         // read version written by another transaction with snapshot timestamp
-        for (; it != versions_.rend() && it->w_ts() > txn.start_ts(); ++it) {
+        for (; it->w_ts() > txn.start_ts(); ++it) {
             continue;
         }
+
         assert(it != versions_.rend());
         it->r_txns_.emplace_back(txn.shared_from_this());
 
@@ -125,6 +130,12 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
                                         r_txn_state == Txn::State::PREPARING ||
                                         (r_txn_state == Txn::State::COMMITTED &&
                                             r_txn->commit_ts() > txn.start_ts());
+                // newly add rw+wcw
+                if (is_concurrent && r_txn_state == Txn::State::COMMITTED && r_txn->RConf()){
+                    return false;
+                }
+                // can combine into one phrase
+                
                 if (is_concurrent && !Txn::BuildRWConf(*r_txn, txn)) {
                     return false;
                 }
