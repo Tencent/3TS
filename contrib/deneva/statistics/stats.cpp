@@ -460,6 +460,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
     double multi_part_txn_avg_time = 0;
     double single_part_txn_avg_time = 0;
     double avg_parts_touched = 0;
+    int tput_int;
     if (total_runtime > 0) tput = txn_cnt / (total_runtime / BILLION);
     if(txn_cnt > 0) {
         txn_run_avg_time = txn_run_time / txn_cnt;
@@ -469,8 +470,10 @@ void Stats_thd::print(FILE * outf, bool prog) {
         multi_part_txn_avg_time = multi_part_txn_run_time / multi_part_txn_cnt;
     if(single_part_txn_cnt > 0)
         single_part_txn_avg_time = single_part_txn_run_time / single_part_txn_cnt;
+    // to integer
+    tput_int = *(int *) &tput;
     fprintf(outf,
-    ",tput=%.0f"
+    ",tput_int=%d"
     ",txn_cnt=%ld"
     ",remote_txn_cnt=%ld"
     ",local_txn_cnt=%ld"
@@ -495,7 +498,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",record_write_cnt=%ld"
     ",parts_touched=%ld"
           ",avg_parts_touched=%f",
-          tput, txn_cnt, remote_txn_cnt, local_txn_cnt, local_txn_start_cnt, total_txn_commit_cnt,
+          tput_int, txn_cnt, remote_txn_cnt, local_txn_cnt, local_txn_start_cnt, total_txn_commit_cnt,
           local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt,positive_txn_abort_cnt, unique_txn_abort_cnt,
           local_txn_abort_cnt, remote_txn_abort_cnt, txn_run_time / BILLION,
           txn_run_avg_time / BILLION, multi_part_txn_cnt, multi_part_txn_run_time / BILLION,
