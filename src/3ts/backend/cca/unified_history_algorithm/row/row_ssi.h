@@ -134,7 +134,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     void Write(Data /*data*/, Txn& txn)
     {
-        //std::lock_guard<std::mutex> l(m_);
+        std::lock_guard<std::mutex> l(m_);
         /*
         auto& latest_version = versions_.back();
         if (latest_version.IsWrittenBy(txn.txn_id())) {
