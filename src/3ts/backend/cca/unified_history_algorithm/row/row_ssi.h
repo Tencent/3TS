@@ -70,7 +70,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     std::optional<Data> Read(Txn& txn)
     {
-        std::lock_guard<std::mutex> l(m_);
+        //std::lock_guard<std::mutex> l(m_);
 
         /*
         auto it = versions_.rbegin();
