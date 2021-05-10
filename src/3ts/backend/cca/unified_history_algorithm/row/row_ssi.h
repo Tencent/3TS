@@ -95,7 +95,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
         return it->data();
         */
-        return {};
+        return versions_.back().data();
     }
 
     bool Prewrite(Data data, Txn& txn)
