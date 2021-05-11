@@ -101,7 +101,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
     bool Prewrite(Data data, Txn& txn)
     {
         std::lock_guard<std::mutex> l(m_);
-        /*
+        
         assert(!versions_.empty());
         auto& latest_version = versions_.back();
         if (latest_version.IsWrittenBy(txn.txn_id())) {
@@ -128,7 +128,7 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
         }
 
         versions_.emplace_back(txn.shared_from_this(), std::move(data));
-        */
+        
         return true;
     }
 
