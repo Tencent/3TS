@@ -333,23 +333,21 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
          **/
         
         SSIHisEntry  *latest_entry = writehis;
-
-        for (const auto& r_txn : latest_entry->visitors) {
+        if (latest_entry != nullptr) {
+          for (const auto &r_txn : latest_entry->visitors) {
             assert(r_txn != nullptr);
-            if (r_txn->get_txn_id() == txn->get_txn_id()) 
-               continue;
+            if (r_txn->get_txn_id() == txn->get_txn_id()) continue;
             const auto r_txn_state = r_txn->state();
             if (r_txn_state == TxnManager::txn_state::ACTIVE ||
                 r_txn->get_commit_timestamp() > start_ts) {
-               if (r_txn_state == TxnManager::txn_state::COMMITTED &&
-                   r_txn->is_in_rw()) {
-                       rc = Abort;
-                       goto end;
-                }
-                r_txn->set_out_rw(*r_txn, *txn);
+              if (r_txn_state == TxnManager::txn_state::COMMITTED && r_txn->is_in_rw()) {
+                rc = Abort;
+                goto end;
+              }
+              r_txn->set_out_rw(*r_txn, *txn);
             }
+          }
         }
-
         if (preq_len < g_max_pre_req){
             DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
             buffer_req(P_REQ, txn);
