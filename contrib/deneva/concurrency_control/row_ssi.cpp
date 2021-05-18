@@ -312,7 +312,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
            
            if (ptr_entry != NULL) {
                  txn->cur_row = ptr_entry->row;
-                 ptr_entry->visitors.emplace_back(txn);
+                 ptr_entry->visitors.push_back(txn);
            } else 
                  txn->cur_row = _row;
            
