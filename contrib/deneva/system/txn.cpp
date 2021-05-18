@@ -490,7 +490,7 @@ RC TxnManager::abort() {
 #if CC_ALG == SSI
     //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
     //inout_table.clear_Conflict(get_thd_id(), get_txn_id());
-    my_state = txn_state::ABORT;
+    my_state = txn_state::ABORTED;
     return Abort;
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
