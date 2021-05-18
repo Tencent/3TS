@@ -340,16 +340,14 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                continue;
             const auto r_txn_state = r_txn->state();
             if (r_txn_state == TxnManager::txn_state::ACTIVE ||
-                r_txn->get_commit_timestamp() > ts) {
+                r_txn->get_commit_timestamp() > start_ts) {
                if (r_txn_state == TxnManager::txn_state::COMMITTED &&
                    r_txn->is_in_rw()) {
                        rc = Abort;
                        goto end;
                 }
                 r_txn->set_out_rw(*r_txn, *txn);
-
             }
-           
         }
 
         if (preq_len < g_max_pre_req){
