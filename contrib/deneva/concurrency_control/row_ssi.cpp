@@ -76,7 +76,7 @@ SSIReqEntry * Row_ssi::get_req_entry() {
     return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry));
 }
 
-void Row_ssi::return_req_entry(SSIReqEntry * entry) {
+void Row_ssi::，return_req_entry(SSIReqEntry * entry) {
     mem_allocator.free(entry, sizeof(SSIReqEntry));
 }
 
@@ -138,8 +138,8 @@ SSIReqEntry * Row_ssi::debuffer_req( TsType type, TxnManager * txn) {
 void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 {
     SSIHisEntry * new_entry = get_his_entry();
-    new_entry->ts = ts;
-    new_entry->txn = txn->get_txn_id();
+    new_entry->commit_ts = ts;
+    new_entry->txn_id = txn->get_txn_id();
     new_entry->row = row;
     if (row != NULL) {
         whis_len ++;
@@ -225,12 +225,52 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
     }
 }
 
+/**
+ * Here, in the write operation we can only establish the rw-antidenpendcy for
+ * the writer and the version on which it updated. that is no need for the writer
+ * to build the rw anti-dependency with all reader on the row version before. the
+ * proof following is borrowed from the Postgresql implementation.
+ * https://github.com/postgres/postgres/blob/master/src/backend/storage/lmgr/README-SSI
+ *
+ *  1. If transaction T1 reads a row version (thus acquiring a predicate lock on it) and
+ *     a second transaction T2 updates that row verson(thus creating a rw-conflict graph
+ *     edge from T1 to T2), must a third transaction T3 which re-updates the new version
+ *     of the row also have rw-conflict from T1 to prevent anomalies? In other words, does
+ *     it matter whether we recognize the edge T1->T3?
+ *    
+ *     1.1 If T1 has a conflict in, it certainly doesn't. Add the edge T1->T3 would
+ *         create a dangerous structure, but we already had one from the edge T1->T2
+ *         , so we would have aborted something anyway.(T2 has already committed, else
+ *         T3 could not have update its output; but we would have aborted either T1 
+ *         or T1's predecessor(s). Hence no cycle involving T1 and T3 can survive.)
+ *     1.2 Now let's consider the case where T1 doesn't have a rw-conflict in. If that's
+ *         the case, for this edge T1->T3 to make difference, T3 must have a rw-conflict
+ *         out that induces a cycle in the dependency graph, i.e., a rw-conflict out to
+ *         some transaction preceding T1 in the graph.(A rw-conflict out to T1 itself would
+ *         be problematic too, but that would mean T1 has a conflict in, the case we 
+ *         already eliminated.). So we are trying to figure out if there can be an 
+ *         rw-conflict edge T3->T0, where T0 is some transaction that precedes T1.
+ *         For T0 to precedes T1, there has to be some edge, or sequence of edges,
+ *         from T0 to T1. At least the last edge has to be a wr-dependency or 
+ *         ww-dependency rather than a rw-conflict, because T1 doesn't have a
+ *         rw-conflict in. And that gives us enough information about the order
+ *         of transaction to see that T3 can't have rw-conflict to T0:
+ *         - T0 committed before T1 start (the wr/ww-dependency implies this)
+ *         - T1 started before T2 committed (the T1->T2 rw-conflict implies this)
+ *         - T2 committed before T3 started (otherwise T3 would get aborted)
+ *         That means T0 committed before T3 started, and therefore there can't be
+ *         a rw-conflict from T3 to T0. So in all case, we don't need the T1->T3 edge
+ *         to recognize cycles. Therefore it's not necessary for T1's SIREAD lock on
+ *         the original tuple version to cover later versions as well.
+ */
+
 RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     RC rc = RCOK;
     ts_t ts = txn->get_commit_timestamp();
     ts_t start_ts = txn->get_start_timestamp();
     uint64_t starttime = get_sys_clock();
     txnid_t txnid = txn->get_txn_id();
+    //v1-->v2(s, +)===>v3
     if (g_central_man) {
         glob_manager.lock_row(_row);
     } else {
@@ -240,88 +280,77 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     if (type == R_REQ) {
         // Add the si-read lock
         get_lock(LOCK_SH, txn);
-        // Traverse the whole write lock
-        SSILockEntry * write = write_lock;
-        while (write != NULL) {
-            if (write->txn == txnid) {
-                write = write->next;
-                continue;
-            }
-            inout_table.set_inConflict(txn->get_thd_id(), write->txn, txnid);
-            inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txn);
-            DEBUG("ssi read the write_lock in %ld out %ld\n",write->txn, txnid);
-            write = write->next;
-        }
+
         // Read the row
         rc = RCOK;
-        SSIHisEntry * whis = writehis;
-        while (whis != NULL && whis->ts > start_ts) {
-            whis = whis->next;
-        }
-        row_t * ret = (whis == NULL) ? _row : whis->row;
-        txn->cur_row = ret;
-        assert(strstr(_row->get_table_name(), ret->get_table_name()));
-        // Iterate over a version that is newer than the one you are currently reading.
-        whis = writehis;
-        while (whis != NULL && whis->ts > start_ts) {
-            whis = whis->next;
-        }
-        // Check to see if two RW dependencies exist.
-        // Add RW dependencies
-        whis = writehis;
-        while (whis != NULL && whis->ts > start_ts) {
-            bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txn);
-            if (out) { //! Abort
-                rc = Abort;
-                DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",txnid, whis->txn, inout_table.get_commit_ts(txn->get_thd_id(), whis->txn), start_ts);
-                goto end;             
-            }
-            inout_table.set_inConflict(txn->get_thd_id(), whis->txn, txnid);
-            inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txn);
-            DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txn, txnid);
-            whis = whis->next;
-        }
+        SSIHisEntry *ptr_entry, *latest_entry = writehis;
+        //written by myself, OK. return directly, now the ycsb and tpcc have no such case
+        if (lastest_entry != nullptr && 
+            txnid == latest_entry->txn) { 
+            txn->cur_row = latest_entry->row;
+        } else {
+           ptr_entry = latest_entry;
+           /**
+            * for each version(xNew) of x
+            * that is newer than what T read:
+            *    if xNew.creator is committed
+            *       and xNew.creator.out_rw is true then
+            *       abort(T)
+            *    set xNew.creator.rw_in = true;
+            *    set T.rw_out = true;
+            *
+            **/
+           while (ptr_entry != nullptr && 
+                  ptr_entry->commit_ts > start_ts) {
+              if (ptr_entry->txn->is_out_rw()) {
+                  rc = Abort;
+                  goto end;
+              }
+              ptr_entry->txn->set_in_rw(*(ptr_entry->txn), *txn);
+              ptr_entry = ptr_entry->next;
+              
+           }
+           
+           if (ptr_entry != NULL) {
+                 txn->cur_row = ptr_entry->cur_row;
+                 ptr_entry->visitors.emplace_back(txn);
+           } else 
+                 txn->cur_row = _row;
+           
+           assert(strstr(_row->get_table_name(), ret->get_table_name()));
+        } 
+        
     } else if (type == P_REQ) {
         // Add the write lock
         get_lock(LOCK_EX, txn);
-        // Traverse the whole read his
-        SSILockEntry * si_read = si_read_lock;
-        while (si_read != NULL) {
-            if (si_read->txn == txnid) {
-                si_read = si_read->next;
-                continue;
-            }
-            if (inout_table.get_state(txn->get_thd_id(), si_read->txn) == SSI_COMMITTED &&
-                inout_table.get_commit_ts(txn->get_thd_id(), si_read->txn) > start_ts) {
-                bool in = inout_table.get_inConflict(txn->get_thd_id(), si_read->txn);
-                if (in) { //! Abort
-                    rc = Abort;
-                    DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",txnid, si_read->txn, inout_table.get_commit_ts(txn->get_thd_id(), si_read->txn), start_ts);
-                    goto end;
+       
+        /**
+         * if there is a SIREAD lock(r1) on x with r1.owner is running
+         * or commit(r1.owner) > begin(T):
+         *    if r1.owner is committed and r1.owner.in_rw:
+         *       abort (T)
+         *    set r1.owner.out_rw = true;
+         *    set T.in_rw = true;
+         **/
+        
+        SSIHisEntry  *latest_entry = writehis;
+
+        for (const auto& r_txn : lastest_entry->visitors) {
+            assert(r_txn != nullptr);
+            if (r_txn->get_txn_id() == txn->get_txn_id()) 
+               continue;
+            const auto r_txn_state = r_txn->state();
+            if (r_txn_state == TxnManager::my_state::ACTIVE ||
+                r_txn->get_commit_timestamp() > ts) {
+               if (r_txn_state == TxnManager::my_state::COMMITTED &&
+                   r_txn->is_in_rw) {
+                       rc = Abort;
+                       goto end;
                 }
+                r_txn->set_out_rw(*r_txn, *txn);
+
             }
-            si_read = si_read->next;
-        }
-        // Traverse the whole read lock
-        si_read = si_read_lock;
-        while (si_read != NULL) {
-            if (si_read->txn == txnid) {
-                si_read = si_read->next;
-                continue;
-            }
-            if (inout_table.get_state(txn->get_thd_id(), si_read->txn) == SSI_ABORTED) {
-                si_read = si_read->next;
-                continue;
-            }
-            if (inout_table.get_state(txn->get_thd_id(), si_read->txn) == SSI_COMMITTED &&
-                inout_table.get_commit_ts(txn->get_thd_id(), si_read->txn) <= start_ts) {
-                si_read = si_read->next;
-                continue;
-            }
-            inout_table.set_outConflict(txn->get_thd_id(), si_read->txn, txnid);
-            inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txn);
-            DEBUG("ssi write the si_read_lock out %ld in %ld\n", si_read->txn, txnid);
-            si_read = si_read->next;
+           
         }
 
         if (preq_len < g_max_pre_req){

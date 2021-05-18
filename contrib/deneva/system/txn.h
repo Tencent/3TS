@@ -159,6 +159,12 @@ public:
     Thread * h_thd;
     Workload * h_wl;
 
+    enum class txn_state { ACTIVE, PREPARING, COMMITTED, ABORTED };
+    txn_state my_state;
+
+    const auto& state() const { return my_state};
+    auto state() { return my_state};
+
     virtual RC      run_txn() = 0;
     virtual RC      run_txn_post_wait() = 0;
     virtual RC      run_calvin_txn() = 0;
@@ -196,6 +202,29 @@ public:
     };
     bool recon;
 
+    //for detect the RW anti-dependency
+    bool in_rw, out_rw;
+
+    bool is_out_rw() const { return out_rw; }
+    void set_out_rw() { out_rw = true; }
+
+    bool is_in_rw() const { return in_rw; }
+    void set_in_rw() { in_rw = true; }
+
+    static bool set_in_rw(TxnManager& w_txn, TxnManager& r_txn)
+    {
+        w_txn.in_rw  = true;
+        r_txn.out_rw = true;
+        return true;
+    }
+
+    static bool set_out_rw(TxnManager& r_txn, TxnManager& w_txn)
+    {
+        r_txn.out_rw = true;
+        w_txn.in_rw  = true;
+        return true;
+    }
+
     row_t * volatile cur_row;
     // [DL_DETECT, NO_WAIT, WAIT_DIE]
     int volatile   lock_ready;
@@ -218,6 +247,7 @@ public:
 
     bool aborted;
     uint64_t return_id;
+
     RC        validate();
     void            cleanup(RC rc);
     void            cleanup_row(RC rc,uint64_t rid);
