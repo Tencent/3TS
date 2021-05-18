@@ -76,7 +76,7 @@ SSIReqEntry * Row_ssi::get_req_entry() {
     return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry));
 }
 
-void Row_ssi::，return_req_entry(SSIReqEntry * entry) {
+void Row_ssi::return_req_entry(SSIReqEntry * entry) {
     mem_allocator.free(entry, sizeof(SSIReqEntry));
 }
 
@@ -138,8 +138,8 @@ SSIReqEntry * Row_ssi::debuffer_req( TsType type, TxnManager * txn) {
 void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 {
     SSIHisEntry * new_entry = get_his_entry();
-    new_entry->commit_ts = ts;
-    new_entry->txn_id = txn->get_txn_id();
+    new_entry->ts = ts;
+    new_entry->txn = txn;
     new_entry->row = row;
     if (row != NULL) {
         whis_len ++;
@@ -285,8 +285,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         rc = RCOK;
         SSIHisEntry *ptr_entry, *latest_entry = writehis;
         //written by myself, OK. return directly, now the ycsb and tpcc have no such case
-        if (lastest_entry != nullptr && 
-            txnid == latest_entry->txn) { 
+        if (latest_entry != nullptr && 
+            txnid == latest_entry->txn->get_txn_id()) { 
             txn->cur_row = latest_entry->row;
         } else {
            ptr_entry = latest_entry;
@@ -301,23 +301,22 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             *
             **/
            while (ptr_entry != nullptr && 
-                  ptr_entry->commit_ts > start_ts) {
+                  ptr_entry->ts > start_ts) {
               if (ptr_entry->txn->is_out_rw()) {
                   rc = Abort;
                   goto end;
               }
               ptr_entry->txn->set_in_rw(*(ptr_entry->txn), *txn);
               ptr_entry = ptr_entry->next;
-              
            }
            
            if (ptr_entry != NULL) {
-                 txn->cur_row = ptr_entry->cur_row;
+                 txn->cur_row = ptr_entry->row;
                  ptr_entry->visitors.emplace_back(txn);
            } else 
                  txn->cur_row = _row;
            
-           assert(strstr(_row->get_table_name(), ret->get_table_name()));
+           assert(strstr(_row->get_table_name(), txn->cur_row->get_table_name()));
         } 
         
     } else if (type == P_REQ) {
@@ -335,15 +334,15 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         SSIHisEntry  *latest_entry = writehis;
 
-        for (const auto& r_txn : lastest_entry->visitors) {
+        for (const auto& r_txn : latest_entry->visitors) {
             assert(r_txn != nullptr);
             if (r_txn->get_txn_id() == txn->get_txn_id()) 
                continue;
             const auto r_txn_state = r_txn->state();
-            if (r_txn_state == TxnManager::my_state::ACTIVE ||
+            if (r_txn_state == TxnManager::txn_state::ACTIVE ||
                 r_txn->get_commit_timestamp() > ts) {
-               if (r_txn_state == TxnManager::my_state::COMMITTED &&
-                   r_txn->is_in_rw) {
+               if (r_txn_state == TxnManager::txn_state::COMMITTED &&
+                   r_txn->is_in_rw()) {
                        rc = Abort;
                        goto end;
                 }

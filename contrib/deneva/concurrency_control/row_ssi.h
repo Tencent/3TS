@@ -25,7 +25,7 @@ struct SSIReqEntry {
 struct SSIHisEntry {
     TxnManager *txn;
     //commit ts
-    ts_t commit_ts;
+    ts_t ts;
     // only for write history. The value needs to be stored.
     // char * data;
     row_t *row;

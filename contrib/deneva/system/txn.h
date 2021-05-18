@@ -162,8 +162,8 @@ public:
     enum class txn_state { ACTIVE, PREPARING, COMMITTED, ABORTED };
     txn_state my_state;
 
-    const auto& state() const { return my_state};
-    auto state() { return my_state};
+    const auto& state() const { return my_state;};
+    auto state() { return my_state;};
 
     virtual RC      run_txn() = 0;
     virtual RC      run_txn_post_wait() = 0;
