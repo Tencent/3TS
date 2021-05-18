@@ -33,10 +33,9 @@ RC ssi::validate(TxnManager * txn) {
     RC rc = RCOK;
 
     DEBUG("SSI Validate Start %ld\n",txn->get_txn_id());
-    std::set<uint64_t> after;
-    std::set<uint64_t> before;
-    if (inout_table.get_inConflict(txn->get_thd_id(), txn->get_txn_id()) &&
-        inout_table.get_outConflict(txn->get_thd_id(), txn->get_txn_id()))
+    //std::set<uint64_t> after;
+    //std::set<uint64_t> before;
+    if (txn->is_in_rw()) && txn->is_out_rw()) //two adjacent rw side 
     {
         DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
         rc = Abort;
@@ -174,7 +173,7 @@ bool InOutTable::get_outConflict(uint64_t thd_id, uint64_t key) {
     return value;
 }
 
-
+//---rw--->pivot---rw--->
 void InOutTable::set_inConflict(uint64_t thd_id, uint64_t key, uint64_t value) {
     uint64_t idx = hash(key);
     uint64_t mtx_wait_starttime = get_sys_clock();
