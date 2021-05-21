@@ -44,15 +44,15 @@ RC ssi::validate(TxnManager * txn) {
         rc = RCOK;
     }
     ssi_set_ent *rset, *wset;
-    get_rw_set(txn, rset, wset);
+    //get_rw_set(txn, rset, wset);
     // si validate
 
-    for (UInt32 i = 0; i < wset->set_size; i++) {
-        if (wset->rows[i]->manager->validate_last_commit(txn) == Abort) {
-            DEBUG("si Validate abort, %ld\n",txn->get_txn_id());
-            rc = Abort;
-        }
-    }
+   // for (UInt32 i = 0; i < wset->set_size; i++) {
+   //     if (wset->rows[i]->manager->validate_last_commit(txn) == Abort) {
+   //         DEBUG("si Validate abort, %ld\n",txn->get_txn_id());
+   //         rc = Abort;
+   //      }
+   // }
 
     if (rc != Abort) DEBUG("si Validate ok, %ld\n",txn->get_txn_id());
     txn->txn_stats.cc_time += timespan;
