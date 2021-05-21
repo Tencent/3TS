@@ -161,6 +161,7 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
         LIST_PUT_TAIL((*queue), (*tail), new_entry);
 }
 
+
 SSILockEntry * Row_ssi::get_entry() {
     SSILockEntry * entry = (SSILockEntry *)
         mem_allocator.alloc(sizeof(SSILockEntry));
@@ -284,45 +285,71 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // Read the row
         rc = RCOK;
         SSIHisEntry *ptr_entry, *latest_entry = writehis;
-        //written by myself, OK. return directly, now the ycsb and tpcc have no such case
+        // written by myself, OK. return directly
         if (latest_entry != nullptr && 
-            txnid == latest_entry->txn->get_txn_id()) { 
+            txnid == latest_entry->txn->get_txn_id()) {
             txn->cur_row = latest_entry->row;
-        } else {
-           ptr_entry = latest_entry;
-           /**
-            * for each version(xNew) of x
-            * that is newer than what T read:
-            *    if xNew.creator is committed
-            *       and xNew.creator.out_rw is true then
-            *       abort(T)
-            *    set xNew.creator.rw_in = true;
-            *    set T.rw_out = true;
-            *
-            **/
-           while (ptr_entry != nullptr && 
-                  ptr_entry->ts > start_ts) {
-              if (ptr_entry->txn->is_out_rw()) {
-                  rc = Abort;
-                  goto end;
-              }
-              ptr_entry->txn->set_in_rw(*(ptr_entry->txn), *txn);
-              ptr_entry = ptr_entry->next;
-           }
-           
-           if (ptr_entry != NULL) {
-                 txn->cur_row = ptr_entry->row;
-                 ptr_entry->visitors.push_back(txn);
-           } else 
-                 txn->cur_row = _row;
-           
-           assert(strstr(_row->get_table_name(), txn->cur_row->get_table_name()));
-        } 
-        
+        }
+        // if there is an active updater, it must have put
+        // the version on the head of history because our
+        // algorithm will make it put the version on hisotory
+        // as soon as possible.
+
+        /**
+         * for each version(xNew) of x
+         * that is newer than what T read:
+         *    if xNew.creator is committed
+         *       and xNew.creator.out_rw is true then
+         *       abort(T)
+         *    set xNew.creator.rw_in = true;
+         *    set T.rw_out = true;
+         *
+         **/
+        ptr_entry = latest_entry;
+        while (ptr_entry != nullptr && ptr_entry->ts > start_ts) {
+            if (ptr_entry->txn->get_thd_id() == txnid) continue;
+            if (ptr_entry->txn->is_out_rw()) {
+               rc = Abort;
+               goto end;
+            }
+            ptr_entry->txn->set_in_rw(*(ptr_entry->txn), *txn);
+            ptr_entry = ptr_entry->next;
+        }
+
+        if (ptr_entry != NULL) {
+            txn->cur_row = ptr_entry->row;
+            ptr_entry->visitors.emplace_back(txn);
+        } else
+            txn->cur_row = _row;
+
+         assert(strstr(_row->get_table_name(), txn->cur_row->get_table_name()));
+
     } else if (type == P_REQ) {
         // Add the write lock
         get_lock(LOCK_EX, txn);
-       
+
+        SSIHisEntry  *latest_entry = writehis;
+        // 1) avoid WW-conflict!!!
+        // we use the strategy of 'first-updater-win'
+        // if updater finds that there is a data version
+        // newer that its start time, which means some txn begins
+        // to update or already have finished the procedure.
+        // so, abort the later txn.
+        if (latest_entry->txn->get_thd_id() != txnid && 
+            latest_entry->ts > starttime) {
+            rc = Abort;
+            goto end;
+        } 
+
+        // it's me, and replace the data with newer
+        if (latest_entry->txn->get_thd_id() == txnid) {
+           free(latest_entry->row);
+           latest_entry->row = row;
+        } else {
+           // put the data on the hisotry
+           insert_history(UINT64_MAX, txn, row);
+        }
+
         /**
          * if there is a SIREAD lock(r1) on x with r1.owner is running
          * or commit(r1.owner) > begin(T):
@@ -340,11 +367,12 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             const auto r_txn_state = r_txn->state();
             if (r_txn_state == TxnManager::txn_state::ACTIVE ||
                 r_txn->get_commit_timestamp() > start_ts) {
-              if (r_txn_state == TxnManager::txn_state::COMMITTED && r_txn->is_in_rw()) {
-                rc = Abort;
-                goto end;
-              }
-              r_txn->set_out_rw(*r_txn, *txn);
+                if (r_txn_state == TxnManager::txn_state::COMMITTED 
+                   && r_txn->is_in_rw()) {
+                    rc = Abort;
+                    goto end;
+                }
+                r_txn->set_out_rw(*r_txn, *txn);
             }
           }
         }
@@ -362,8 +390,11 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //TODO: here need to consider whether need to release the si-read lock.
         // release_lock(LOCK_SH, txn);
 
-        // the corresponding prewrite request is debuffered.
-        insert_history(ts, txn, row);
+        //done. set commit timestamp
+        SSIHisEntry  *latest_entry = writehis;
+        latest_entry->ts = ts;
+
+         // the corresponding prewrite request is debuffered.
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         SSIReqEntry * req = debuffer_req(P_REQ, txn);
         assert(req != NULL);
