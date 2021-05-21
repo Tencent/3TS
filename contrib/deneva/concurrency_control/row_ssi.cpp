@@ -271,13 +271,15 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     ts_t start_ts = txn->get_start_timestamp();
     uint64_t starttime = get_sys_clock();
     txnid_t txnid = txn->get_txn_id();
-    //v1-->v2(s, +)===>v3
+    
     if (g_central_man) {
         glob_manager.lock_row(_row);
     } else {
         pthread_mutex_lock(latch);
     }
+
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+
     if (type == R_REQ) {
         // Add the si-read lock
         get_lock(LOCK_SH, txn);
@@ -285,7 +287,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // Read the row
         rc = RCOK;
         SSIHisEntry *ptr_entry, *latest_entry = writehis;
-        // written by myself, OK. return directly
+        // written by myself. OK, return directly
         if (latest_entry != nullptr && 
             txnid == latest_entry->txn->get_txn_id()) {
             txn->cur_row = latest_entry->row;
@@ -316,6 +318,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             ptr_entry = ptr_entry->next;
         }
 
+        //catch the txn read the version
         if (ptr_entry != NULL) {
             txn->cur_row = ptr_entry->row;
             ptr_entry->visitors.emplace_back(txn);
@@ -336,7 +339,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // to update or already have finished the procedure.
         // so, abort the later txn.
         if (latest_entry->txn->get_thd_id() != txnid && 
-            latest_entry->ts > starttime) {
+            latest_entry->ts > start_ts) {
             rc = Abort;
             goto end;
         } 
@@ -359,23 +362,23 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
          *    set T.in_rw = true;
          **/
         
-        SSIHisEntry  *latest_entry = writehis;
-        if (latest_entry != nullptr) {
-          for (const auto &r_txn : latest_entry->visitors) {
-            assert(r_txn != nullptr);
-            if (r_txn->get_txn_id() == txn->get_txn_id()) continue;
-            const auto r_txn_state = r_txn->state();
-            if (r_txn_state == TxnManager::txn_state::ACTIVE ||
-                r_txn->get_commit_timestamp() > start_ts) {
-                if (r_txn_state == TxnManager::txn_state::COMMITTED 
-                   && r_txn->is_in_rw()) {
-                    rc = Abort;
-                    goto end;
-                }
-                r_txn->set_out_rw(*r_txn, *txn);
-            }
-          }
-        }
+        SSIHisEntry *c_latest_entry = latest_entry->next;
+        if (c_latest_entry != nullptr) {
+               for (const auto &r_txn : c_latest_entry->visitors) {
+                   assert(r_txn != nullptr);
+                   if (r_txn->get_txn_id() == txn->get_txn_id()) continue;
+                   const auto r_txn_state = r_txn->state();
+                   if (r_txn_state == TxnManager::txn_state::ACTIVE ||
+                       r_txn->get_commit_timestamp() > start_ts) {
+                       if (r_txn_state == TxnManager::txn_state::COMMITTED 
+                           && r_txn->is_in_rw()) {
+                           rc = Abort;
+                           goto end;
+                        }
+                        r_txn->set_out_rw(*r_txn, *txn);
+                    }//end if
+                }//end for
+        }//end if
         if (preq_len < g_max_pre_req){
             DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
             buffer_req(P_REQ, txn);
@@ -394,7 +397,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         SSIHisEntry  *latest_entry = writehis;
         latest_entry->ts = ts;
 
-         // the corresponding prewrite request is debuffered.
+        // the corresponding prewrite request is debuffered.
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         SSIReqEntry * req = debuffer_req(P_REQ, txn);
         assert(req != NULL);
