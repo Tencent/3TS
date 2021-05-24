@@ -291,6 +291,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         if (latest_entry != nullptr && 
             txnid == latest_entry->txn->get_txn_id()) {
             txn->cur_row = latest_entry->row;
+            goto end;
         }
         // if there is an active updater, it must have put
         // the version on the head of history because our
@@ -338,11 +339,16 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // newer that its start time, which means some txn begins
         // to update or already have finished the procedure.
         // so, abort the later txn.
-        if (latest_entry->txn->get_thd_id() != txnid && 
-            latest_entry->ts > start_ts) {
-            rc = Abort;
+        if (latest_entry != nullptr) {
+            if (latest_entry->txn->get_thd_id() != txnid &&
+                latest_entry->ts > start_ts) {
+                rc = Abort;
+                goto end;
+            }
+        } else {
+            insert_history(UINT64_MAX, txn, row);
             goto end;
-        } 
+        }
 
         // it's me, and replace the data with newer
         if (latest_entry->txn->get_thd_id() == txnid) {
@@ -402,7 +408,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         SSIReqEntry * req = debuffer_req(P_REQ, txn);
         assert(req != NULL);
         return_req_entry(req);
-    } else if (type == XP_REQ) {
+    } else if (type == XP_REQ) { //rollback
         release_lock(LOCK_EX, txn);
         release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
@@ -412,6 +418,14 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         SSIReqEntry * req = debuffer_req(P_REQ, txn);
         assert (req != NULL);
         return_req_entry(req);
+
+        SSIHisEntry *latest_entry = writehis;
+        if (writehis != nullptr && latest_entry->txn->get_txn_id() == txnid) {
+            writehis = writehis->next;
+            writehis->prev = nullptr;
+            free(latest_entry);
+        }
+        
     } else {
         assert(false);
     }
