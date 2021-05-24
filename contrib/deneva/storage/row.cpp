@@ -277,7 +277,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
 #endif
 
     if (type == WR) {
-        rc = this->manager->access(txn, P_REQ, NULL);
+        rc = this->manager->access(txn, P_REQ, access->orig_row);
         if (rc != RCOK) goto end;
     }
     if ((type == WR && rc == RCOK) || type == RD || type == SCAN) {

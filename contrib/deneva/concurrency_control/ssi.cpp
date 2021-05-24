@@ -43,7 +43,7 @@ RC ssi::validate(TxnManager * txn) {
         DEBUG("ssi Validate ok %ld\n",txn->get_txn_id());
         rc = RCOK;
     }
-    ssi_set_ent *rset, *wset;
+    //ssi_set_ent *rset, *wset;
     //get_rw_set(txn, rset, wset);
     // si validate
 
