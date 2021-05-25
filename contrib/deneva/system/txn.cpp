@@ -470,7 +470,7 @@ RC TxnManager::commit() {
     //inout_table.set_commit_ts(get_thd_id(), get_txn_id(), get_commit_timestamp());
     //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_COMMITTED);
     my_state = txn_state::COMMITTED;
-    return Commit;
+    
 #endif
     commit_stats();
 #if LOGGING
