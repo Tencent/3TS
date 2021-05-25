@@ -276,10 +276,15 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     txn->cur_row->init(get_table(), this->get_part_id());
 #endif
 
-    if (type == WR) {
-        rc = this->manager->access(txn, P_REQ, access->orig_row);
-        if (rc != RCOK) goto end;
-    }
+   // if (type == WR && rc != Abort && 
+   //     (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI)) {
+        //row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
+        //newr->init(this->get_table(), get_part_id());
+        //newr->copy(access->data);
+        //access->data = newr;
+        //rc = this->manager->access(txn, P_REQ, NULL);
+        //if (rc != RCOK) goto end;
+    //}
     if ((type == WR && rc == RCOK) || type == RD || type == SCAN) {
         rc = this->manager->access(txn, R_REQ, NULL);
         if (rc == RCOK ) {
@@ -296,13 +301,25 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
             assert(access->data->get_table_name() != NULL);
         }
     }
-    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI) && type == WR) {
-        DEBUG_M("row_t::get_row MVCC alloc \n");
+
+    if (type == WR && rc != Abort && 
+        (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI)) {
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
         newr->init(this->get_table(), get_part_id());
         newr->copy(access->data);
         access->data = newr;
+        rc = this->manager->access(txn, P_REQ, access->data);
+        if (rc != RCOK) goto end;
     }
+
+
+    //if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI) && type == WR) {
+    //    DEBUG_M("row_t::get_row MVCC alloc \n");
+    //    row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
+    //    newr->init(this->get_table(), get_part_id());
+    //    newr->copy(access->data);
+    //   access->data = newr;
+    //}
     goto end;
 #elif IS_GENERIC_ALG
     if (type == WR) {

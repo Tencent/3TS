@@ -308,9 +308,13 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
          *    set T.rw_out = true;
          *
          **/
+
         ptr_entry = latest_entry;
         while (ptr_entry != nullptr && ptr_entry->ts > start_ts) {
-            if (ptr_entry->txn->get_thd_id() == txnid) continue;
+            if (ptr_entry->txn->get_thd_id() == txnid) {
+                 ptr_entry = ptr_entry->next;
+                 continue;
+            }
             if (ptr_entry->txn->is_out_rw()) {
                rc = Abort;
                goto end;
@@ -320,6 +324,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         }
 
         //catch the txn read the version
+        //v0====>writehis--->v1--->v2--->v3
+        //mvcc?
         if (ptr_entry != NULL) {
             txn->cur_row = ptr_entry->row;
             ptr_entry->visitors.emplace_back(txn);
@@ -345,7 +351,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 rc = Abort;
                 goto end;
             } else if (latest_entry->txn->get_txn_id() == txnid) {//replace it
-                //do nothing
+                //do nothing ???
+                
             } else{// create new version
                 insert_history(UINT64_MAX, txn, row);
             }
