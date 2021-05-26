@@ -32,6 +32,8 @@ void Row_ssi::init(row_t * row) {
     rhis_len = 0;
     commit_lock = 0;
     preq_len = 0;
+
+    visit_init_row.init(256);
 }
 
 row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
@@ -311,7 +313,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
         ptr_entry = latest_entry;
         while (ptr_entry != nullptr && ptr_entry->ts > start_ts) {
-            if (ptr_entry->txn->get_thd_id() == txnid) {
+            if (ptr_entry->txn->get_txn_id() == txnid) {
                  ptr_entry = ptr_entry->next;
                  continue;
             }
@@ -325,12 +327,17 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
         //catch the txn read the version
         //v0====>writehis--->v1--->v2--->v3
-        //mvcc?
+        
         if (ptr_entry != NULL) {
             txn->cur_row = ptr_entry->row;
-            ptr_entry->visitors.emplace_back(txn);
-        } else
+            if (ptr_entry->visitors.is_empty()) {
+                ptr_entry->visitors.init(256);
+            }
+            ptr_entry->visitors.add(txn);
+        } else {
             txn->cur_row = _row;
+            visit_init_row.add(txn);
+        }
 
          assert(strstr(_row->get_table_name(), txn->cur_row->get_table_name()));
 
@@ -350,9 +357,9 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 latest_entry->ts > start_ts) { //ww confict
                 rc = Abort;
                 goto end;
-            } else if (latest_entry->txn->get_txn_id() == txnid) {//replace it
-                //do nothing ???
-                
+            } else if (latest_entry->txn->get_txn_id() == txnid) {
+                //replace older version
+                latest_entry->row = row;
             } else{// create new version
                 insert_history(UINT64_MAX, txn, row);
             }
@@ -369,24 +376,25 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
          *    set r1.owner.out_rw = true;
          *    set T.in_rw = true;
          **/
-        
-        SSIHisEntry *c_latest_entry = latest_entry->next;
-        if (c_latest_entry != nullptr) {
-               for (const auto &r_txn : c_latest_entry->visitors) {
-                   assert(r_txn != nullptr);
-                   if (r_txn->get_txn_id() == txn->get_txn_id()) continue;
-                   const auto r_txn_state = r_txn->state();
-                   if (r_txn_state == TxnManager::txn_state::ACTIVE ||
-                       r_txn->get_commit_timestamp() > start_ts) {
-                       if (r_txn_state == TxnManager::txn_state::COMMITTED 
-                           && r_txn->is_in_rw()) {
-                           rc = Abort;
-                           goto end;
-                        }
-                        r_txn->set_out_rw(*r_txn, *txn);
-                    }//end if
-                }//end for
-        }//end if
+        Array<TxnManager*> *ptr;
+        ptr = latest_entry->next ? &(latest_entry->next->visitors)
+                                  : &(visit_init_row);
+        for (uint64_t i = 0; i < ptr->get_count(); i++) {
+            TxnManager* r_txn = ptr->get(i);
+            if (r_txn->get_txn_id() == txnid) continue;
+            const auto r_txn_state = r_txn->state();
+            if (r_txn_state == TxnManager::txn_state::ACTIVE ||
+               r_txn->get_commit_timestamp() > start_ts) {
+               if (r_txn_state == TxnManager::txn_state::COMMITTED 
+                   && r_txn->is_in_rw()) {
+                        rc = Abort;
+                        goto end;
+                }
+                r_txn->set_out_rw(*r_txn, *txn);
+            }//end if
+            
+        }//end for
+     
         rc = RCOK;
     } else if (type == W_REQ) {
         rc = RCOK;
