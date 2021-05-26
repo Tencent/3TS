@@ -22,6 +22,11 @@ struct SSIReqEntry {
     SSIReqEntry * next;
 };
 
+struct SSIVistorEntry {
+    TxnManager * txn;
+    SSIVistorEntry * next;
+};
+
 struct SSIHisEntry {
     TxnManager *txn;
     //commit ts
@@ -31,7 +36,21 @@ struct SSIHisEntry {
     row_t *row;
     SSIHisEntry *next;
     SSIHisEntry *prev;
-    Array<TxnManager*> visitors;
+    SSIVistorEntry *visitorhis;
+    //Array<TxnManager*> visitors;
+
+    
+    void add_visitor_to_ver(TxnManager * txn)
+    {
+        SSIVistorEntry* new_entry = 
+          (SSIVistorEntry *) mem_allocator.alloc(sizeof(SSIVistorEntry));
+         
+        new_entry->txn = txn;
+        new_entry->next = visitorhis;
+        visitorhis = new_entry;
+   }
+
+   
 
 };
 
@@ -64,6 +83,7 @@ private:
     void release_lock(lock_t type, TxnManager * txn);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
+    void add_visitor_to_ver(TxnManager* txn);
 
     SSIReqEntry * get_req_entry();
     void return_req_entry(SSIReqEntry * entry);
@@ -83,13 +103,13 @@ private:
     SSIHisEntry * writehis;
     SSIHisEntry * readhistail;
     SSIHisEntry * writehistail;
+    SSIVistorEntry *visitorhis;
 
     uint64_t whis_len;
     uint64_t rhis_len;
     uint64_t preq_len;
 
-    //std::vector<TxnManager*> visit_init_row;
-    Array<TxnManager*> visit_init_row;
+    
     
 };
 

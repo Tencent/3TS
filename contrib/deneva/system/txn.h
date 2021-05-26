@@ -50,7 +50,7 @@ enum TxnState {START,INIT,EXEC,PREP,FIN,DONE};
 
 class Access {
 public:
-    access_t     type;
+    access_t    type;
     row_t *     orig_row;
     row_t *     data;
     row_t *     orig_data;

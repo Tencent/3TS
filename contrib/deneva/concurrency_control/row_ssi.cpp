@@ -25,6 +25,7 @@ void Row_ssi::init(row_t * row) {
     writehis = NULL;
     readhistail = NULL;
     writehistail = NULL;
+    visitorhis = NULL;
     blatch = false;
     latch = (pthread_mutex_t *) mem_allocator.alloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(latch, NULL);
@@ -32,8 +33,6 @@ void Row_ssi::init(row_t * row) {
     rhis_len = 0;
     commit_lock = 0;
     preq_len = 0;
-
-    visit_init_row.init(256);
 }
 
 row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
@@ -143,6 +142,8 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txn = txn;
     new_entry->row = row;
+    new_entry->visitorhis = NULL;
+    
     if (row != NULL) {
         whis_len ++;
     } else {
@@ -161,6 +162,16 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
         LIST_INSERT_BEFORE(his, new_entry,(*queue));
     } else
         LIST_PUT_TAIL((*queue), (*tail), new_entry);
+}
+
+void Row_ssi::add_visitor_to_ver(TxnManager * txn)
+{
+    SSIVistorEntry* new_entry = 
+          (SSIVistorEntry *) mem_allocator.alloc(sizeof(SSIVistorEntry));
+    new_entry->txn = txn;
+  
+   new_entry->next = visitorhis;
+   visitorhis = new_entry;
 }
 
 
@@ -330,13 +341,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         if (ptr_entry != NULL) {
             txn->cur_row = ptr_entry->row;
-            if (ptr_entry->visitors.is_empty()) {
-                ptr_entry->visitors.init(256);
-            }
-            ptr_entry->visitors.add(txn);
+            ptr_entry->add_visitor_to_ver(txn);
         } else {
             txn->cur_row = _row;
-            visit_init_row.add(txn);
+            add_visitor_to_ver(txn);
         }
 
          assert(strstr(_row->get_table_name(), txn->cur_row->get_table_name()));
@@ -376,11 +384,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
          *    set r1.owner.out_rw = true;
          *    set T.in_rw = true;
          **/
-        Array<TxnManager*> *ptr;
-        ptr = latest_entry->next ? &(latest_entry->next->visitors)
-                                  : &(visit_init_row);
-        for (uint64_t i = 0; i < ptr->get_count(); i++) {
-            TxnManager* r_txn = ptr->get(i);
+      
+        SSIVistorEntry* ptr = latest_entry->next ? latest_entry->visitorhis : visitorhis;
+        while(ptr != NULL) {
+            TxnManager* r_txn = ptr->txn;
             if (r_txn->get_txn_id() == txnid) continue;
             const auto r_txn_state = r_txn->state();
             if (r_txn_state == TxnManager::txn_state::ACTIVE ||
@@ -392,8 +399,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 }
                 r_txn->set_out_rw(*r_txn, *txn);
             }//end if
-            
-        }//end for
+            ptr = ptr->next;
+        }//end while
      
         rc = RCOK;
     } else if (type == W_REQ) {
