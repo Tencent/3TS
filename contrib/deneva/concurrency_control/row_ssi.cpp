@@ -25,10 +25,6 @@ void Row_ssi::init(row_t * row) {
     writehis = NULL;
     readhistail = NULL;
     writehistail = NULL;
-<<<<<<< Updated upstream
-=======
-    //visitorhis = NULL;
->>>>>>> Stashed changes
     blatch = false;
     latch = (pthread_mutex_t *) mem_allocator.alloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(latch, NULL);
@@ -145,11 +141,6 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txn = txn->get_txn_id();
     new_entry->row = row;
-<<<<<<< Updated upstream
-=======
-    //new_entry->visitorhis = NULL;
-    
->>>>>>> Stashed changes
     if (row != NULL) {
         whis_len ++;
     } else {
@@ -170,20 +161,6 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
         LIST_PUT_TAIL((*queue), (*tail), new_entry);
 }
 
-<<<<<<< Updated upstream
-=======
-// void Row_ssi::add_visitor_to_ver(TxnManager * txn)
-// {
-//     SSIVistorEntry* new_entry = 
-//           (SSIVistorEntry *) mem_allocator.alloc(sizeof(SSIVistorEntry));
-//     new_entry->txn = txn;
-  
-//    new_entry->next = visitorhis;
-//    visitorhis = new_entry;
-// }
-
-
->>>>>>> Stashed changes
 SSILockEntry * Row_ssi::get_entry() {
     SSILockEntry * entry = (SSILockEntry *)
         mem_allocator.alloc(sizeof(SSILockEntry));
@@ -289,7 +266,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         while (whis != NULL && whis->ts > start_ts) {
             whis = whis->next;
         }
-<<<<<<< Updated upstream
         // Check to see if two RW dependencies exist.
         // Add RW dependencies
         whis = writehis;
@@ -304,18 +280,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txn);
             DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txn, txnid);
             whis = whis->next;
-=======
-
-        //catch the txn read the version
-        //v0====>writehis--->v1--->v2--->v3
-        
-        if (ptr_entry != NULL) {
-            txn->cur_row = ptr_entry->row;
-            ptr_entry->visitors.emplace_back(txn);
-        } else {
-            txn->cur_row = _row;
-            visitors.emplace_back(txn);
->>>>>>> Stashed changes
         }
     } else if (type == P_REQ) {
         // Add the write lock
@@ -360,7 +324,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             si_read = si_read->next;
         }
 
-<<<<<<< Updated upstream
         if (preq_len < g_max_pre_req){
             DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
             buffer_req(P_REQ, txn);
@@ -368,33 +331,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         } else  {
             rc = Abort;
         }
-=======
-        /**
-         * if there is a SIREAD lock(r1) on x with r1.owner is running
-         * or commit(r1.owner) > begin(T):
-         *    if r1.owner is committed and r1.owner.in_rw:
-         *       abort (T)
-         *    set r1.owner.out_rw = true;
-         *    set T.in_rw = true;
-         **/
-      
-        std::vector<std::shared_ptr<TxnManager>> &vec = latest_entry->next ? latest_entry->visitors : visitors;
-        for (const auto&r_txn : vec) {
-            if (r_txn->get_txn_id() == txnid) continue;
-            const auto r_txn_state = r_txn->state();
-            if (r_txn_state == TxnManager::txn_state::ACTIVE ||
-               r_txn->get_commit_timestamp() > start_ts) {
-               if (r_txn_state == TxnManager::txn_state::COMMITTED 
-                   && r_txn->is_in_rw()) {
-                        rc = Abort;
-                        goto end;
-                }
-                r_txn->set_out_rw(*r_txn, *txn);
-            }//end if
-        }//end while
-     
-        rc = RCOK;
->>>>>>> Stashed changes
     } else if (type == W_REQ) {
         rc = RCOK;
         release_lock(LOCK_EX, txn);
