@@ -22,6 +22,8 @@ struct SSIReqEntry {
     SSIReqEntry * next;
 };
 
+struct SSILockEntry;
+
 struct SSIHisEntry {
     // TxnManager * txn;
     txnid_t txnid;
@@ -31,7 +33,8 @@ struct SSIHisEntry {
     row_t * row;
     SSIHisEntry * next;
     SSIHisEntry * prev;
-    Array<txnid_t> visitors;
+    //SSILockEntry * si_read_lock;
+    std::vector<txnid_t> visitors;
 };
 
 struct SSILockEntry {
@@ -60,6 +63,7 @@ private:
 
     row_t * _row;
     void get_lock(lock_t type, TxnManager * txn);
+    void get_SIRdlock(SSILockEntry* & lhead, TxnManager * txn);
     void release_lock(lock_t type, TxnManager * txn);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
@@ -87,7 +91,7 @@ private:
     uint64_t rhis_len;
     uint64_t preq_len;
 
-    Array<txnid_t> visitors;
+    std::vector<txnid_t> visitors;
 };
 
 #endif

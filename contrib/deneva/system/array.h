@@ -53,8 +53,8 @@ public:
 
     void resize() {
         //double
-        T* base = (T*) mem_allocator.alloc(sizeof(T) * size() * 2);
-        capacity = size() * 2;
+        T* base = (T*) mem_allocator.alloc(sizeof(T) * capacity * 2);
+        capacity = capacity * 2;
         for (uint64_t i = 0; i < count; i++) {
            *(base + i) = items[i];
         }
@@ -79,9 +79,9 @@ public:
 
     void add(T item){
         assert(count < capacity);
-        if (count == capacity - 1) resize();
         items[count] = item;
         ++count;
+        //if (count == capacity) resize();
     }
 
     void add() {

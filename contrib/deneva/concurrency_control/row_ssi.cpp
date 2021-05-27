@@ -32,7 +32,6 @@ void Row_ssi::init(row_t * row) {
     rhis_len = 0;
     commit_lock = 0;
     preq_len = 0;
-    visitors.init(128);
 }
 
 row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
@@ -142,7 +141,7 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
-    new_entry->visitors.init(128);
+
     if (row != NULL) {
         whis_len ++;
     } else {
@@ -183,6 +182,15 @@ void Row_ssi::get_lock(lock_t type, TxnManager * txn) {
         STACK_PUSH(write_lock, entry);
     if (type == LOCK_COM)
         commit_lock = txn->get_txn_id();
+}
+
+void Row_ssi::get_SIRdlock(SSILockEntry* & lhead, TxnManager * txn) {
+    SSILockEntry * entry = get_entry();
+    entry->start_ts = get_sys_clock();
+    entry->txn = txn->get_txn_id();
+    
+    STACK_PUSH(lhead, entry);
+    
 }
 
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
@@ -241,7 +249,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
         // Add the si-read lock
-        get_lock(LOCK_SH, txn);
+        // get_lock(LOCK_SH, txn);
 
         // Read the row
         rc = RCOK;
@@ -294,17 +302,17 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //otherwise we should read the original row
         if (ptr_entry != NULL) {
             txn->cur_row = ptr_entry->row;
-            ptr_entry->visitors.add(txn->get_txn_id());
+            ptr_entry->visitors.push_back(txnid);
         } else {
             txn->cur_row = _row;
-            visitors.add(txn->get_txn_id());
+            visitors.push_back(txnid);
         }
 
          assert(strstr(_row->get_table_name(), txn->cur_row->get_table_name()));
 
     } else if (type == P_REQ) {
         // Add the write lock
-        get_lock(LOCK_EX, txn);
+        //get_lock(LOCK_EX, txn);
 
         SSIHisEntry  *latest_entry = writehis;
         // 1) avoid WW-conflict!!!
@@ -337,9 +345,9 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
          *    set T.in_rw = true;
          **/
       
-        Array<txnid_t> &arr = latest_entry->next ? latest_entry->next->visitors : visitors;
-        for (uint64_t i = 0; i < arr.size(); i++) {
-            txnid_t r_txn = arr.get(i);
+        std::vector<txnid_t> &vec = latest_entry->next ? 
+                          latest_entry->next->visitors : visitors;
+        for (const auto &r_txn : vec) {
             if (r_txn == txnid) continue;
             SSIState r_txn_state = inout_table.get_state(txn->get_thd_id(), r_txn);
             if (r_txn_state == SSI_RUNNING ||
@@ -352,13 +360,13 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 inout_table.set_inConflict(txn->get_thd_id(), txnid, r_txn);
                 inout_table.set_outConflict(txn->get_thd_id(), r_txn, txnid);
             }//end if
-        }//end for
+        }//end while
         rc = RCOK;
         
     } else if (type == W_REQ) {
         rc = RCOK;
-        release_lock(LOCK_EX, txn);
-        release_lock(LOCK_COM, txn);
+        //release_lock(LOCK_EX, txn);
+        //release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
         // release_lock(LOCK_SH, txn);
         //done. set commit timestamp
@@ -367,10 +375,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         latest_entry->row = row;
       
     } else if (type == XP_REQ) {
-        release_lock(LOCK_EX, txn);
-        release_lock(LOCK_COM, txn);
+        //release_lock(LOCK_EX, txn);
+        //release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
-        release_lock(LOCK_SH, txn);
+        //release_lock(LOCK_SH, txn);
         SSIHisEntry *latest_entry = writehis;
         if (writehis != nullptr && latest_entry->txnid == txnid) {
             writehis = writehis->next;
