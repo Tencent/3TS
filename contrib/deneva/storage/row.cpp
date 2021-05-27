@@ -297,7 +297,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         }
     }
     if (type == WR && rc != Abort 
-        && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI) && type == WR) {
+        && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI)) {
         DEBUG_M("row_t::get_row MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
         newr->init(this->get_table(), get_part_id());

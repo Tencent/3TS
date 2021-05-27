@@ -51,6 +51,16 @@ public:
         }
     }
 
+    void resize() {
+        //double
+        T* base = (T*) mem_allocator.alloc(sizeof(T) * size() * 2);
+        capacity = size() * 2;
+        for (uint64_t i = 0; i < count; i++) {
+           *(base + i) = items[i];
+        }
+        mem_allocator.free(items);
+        items = base;
+    }
 
     void release() {
         DEBUG_M("Array::release %ld*%ld\n",sizeof(T),capacity);
@@ -69,6 +79,7 @@ public:
 
     void add(T item){
         assert(count < capacity);
+        if (count == capacity - 1) resize();
         items[count] = item;
         ++count;
     }

@@ -31,7 +31,7 @@ struct SSIHisEntry {
     row_t * row;
     SSIHisEntry * next;
     SSIHisEntry * prev;
-    std::vector<txnid_t> visitors;
+    Array<txnid_t> visitors;
 };
 
 struct SSILockEntry {
@@ -87,7 +87,7 @@ private:
     uint64_t rhis_len;
     uint64_t preq_len;
 
-    std::vector<txnid_t> visitors;
+    Array<txnid_t> visitors;
 };
 
 #endif
