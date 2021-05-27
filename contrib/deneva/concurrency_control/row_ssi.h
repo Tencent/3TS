@@ -24,13 +24,14 @@ struct SSIReqEntry {
 
 struct SSIHisEntry {
     // TxnManager * txn;
-    txnid_t txn;
+    txnid_t txnid;
     ts_t ts;
     // only for write history. The value needs to be stored.
-//    char * data;
+    // char * data;
     row_t * row;
     SSIHisEntry * next;
     SSIHisEntry * prev;
+    std::vector<txnid_t> visitors;
 };
 
 struct SSILockEntry {
@@ -85,6 +86,8 @@ private:
     uint64_t whis_len;
     uint64_t rhis_len;
     uint64_t preq_len;
+
+    std::vector<txnid_t> visitors;
 };
 
 #endif
