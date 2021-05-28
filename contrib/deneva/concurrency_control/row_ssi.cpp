@@ -240,8 +240,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
         // Add the si-read lock
+        // the release time for si_read_lock is in the clear_history function
         get_lock(LOCK_SH, txn);
-        // Traverse the whole write lock, only one
+        // Traverse the whole write lock, only one active and waiting
+        // as it is more than one txn it is the WW conflict, violating serialization.
         SSILockEntry * write = write_lock;
         while (write != NULL) {
             if (write->txnid == txnid) {
@@ -261,14 +263,16 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         SSIHisEntry* whis = writehis;
         while (whis != NULL && whis->ts > start_ts) {
             //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
-            if (whis->txn->out_rw) { //! Abort
+            if (whis->txn.get()->out_rw) { //! Abort
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
-                  txnid, whis->txnid, inout_table.get_commit_ts(txn->get_thd_id(), whis->txnid), start_ts);
+                  txnid, whis->txnid, whis->ts, start_ts);
                 goto end;             
             }
             //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
             //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
+            whis->txn.get()->in_rw = true;
+            txn->out_rw = true;
             DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
             whis = whis->next;
         }
@@ -294,13 +298,13 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             bool is_active = inout_table.get_state(txn->get_thd_id(), si_read->txnid) == SSI_RUNNING;
             bool interleaved =  inout_table.get_state(txn->get_thd_id(), si_read->txnid) == SSI_COMMITTED &&
-                inout_table.get_commit_ts(txn->get_thd_id(), si_read->txnid) > start_ts;
+                si_read->txn.get()->get_commit_timestamp() > start_ts;
             if (is_active || interleaved) {
-                bool in = inout_table.get_inConflict(txn->get_thd_id(), si_read->txnid);
+                bool in = si_read->txn.get()->in_rw;
                 if (in && interleaved) { //! Abort
                     rc = Abort;
                     DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",
-                      txnid, si_read->txnid, inout_table.get_commit_ts(txn->get_thd_id(), si_read->txnid), start_ts);
+                      txnid, si_read->txnid, si_read->txn.get()->get_commit_timestamp(), start_ts);
                     goto end;
                 } 
                 if (is_active) {
