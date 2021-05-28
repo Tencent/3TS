@@ -204,6 +204,8 @@ public:
     // [HSTORE, HSTORE_SPEC]
     int volatile    ready_part;
     int volatile    ready_ulk;
+    bool in_rw, out_rw;
+    
 
 #if CC_ALG == SILO
     ts_t             last_tid;

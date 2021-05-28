@@ -378,6 +378,9 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     twopl_wait_start = 0;
 
     txn_stats.init();
+    //for ssi 
+    in_rw = false;
+    out_rw = false;
 }
 
 // reset after abort
@@ -416,6 +419,10 @@ void TxnManager::reset() {
 
     // Stats
     txn_stats.reset();
+  
+    //for ssi
+    in_rw = false; out_rw = false;
+
 }
 
 void TxnManager::release() {

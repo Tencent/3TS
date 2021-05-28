@@ -163,16 +163,17 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 
 SSILockEntry * Row_ssi::get_entry() {
     SSILockEntry * entry = (SSILockEntry *)
-        mem_allocator.alloc(sizeof(SSILockEntry));
+        new(SSILockEntry);
     entry->type = LOCK_NONE;
     entry->txnid = 0;
 
     return entry;
 }
 
-void Row_ssi::get_lock(lock_t type, TxnManager * txn) {
+void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
     SSILockEntry * entry = get_entry();
     entry->type = type;
+    entry->txn = std::shared_ptr<TxnManager>(txn);
     entry->start_ts = get_sys_clock();
     entry->txnid = txn->get_txn_id();
     if (type == LOCK_SH)
@@ -247,8 +248,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 write = write->next;
                 continue;
             }
-            inout_table.set_inConflict(txn->get_thd_id(), write->txnid, txnid);
-            inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txnid);
+            //inout_table.set_inConflict(txn->get_thd_id(), write->txnid, txnid);
+            //inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txnid);
+            (write->txn.get())->in_rw = true;
+            txn->out_rw = true;
             DEBUG("ssi read the write_lock in %ld out %ld\n",write->txnid, txnid);
             write = write->next;
         }
@@ -257,15 +260,15 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // Add RW dependencies
         SSIHisEntry* whis = writehis;
         while (whis != NULL && whis->ts > start_ts) {
-            bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
-            if (out) { //! Abort
+            //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
+            if (whis->txn->out_rw) { //! Abort
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, whis->txnid, inout_table.get_commit_ts(txn->get_thd_id(), whis->txnid), start_ts);
                 goto end;             
             }
-            inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
-            inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
+            //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
+            //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
             DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
             whis = whis->next;
         }
@@ -276,7 +279,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
     } else if (type == P_REQ) {
         //WW conflict
-        if (write_lock != NULL) {
+        if (write_lock != NULL && write_lock->txn.get() != txn) {
             rc = Abort;
             goto end;
         }
@@ -301,8 +304,11 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     goto end;
                 } 
                 if (is_active) {
-                    inout_table.set_outConflict(txn->get_thd_id(), si_read->txnid, txnid);
-                    inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txnid);
+                    //inout_table.set_outConflict(txn->get_thd_id(), si_read->txnid, txnid);
+                    //inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txnid);
+                    assert(si_read->txn != NULL);
+                    si_read->txn->out_rw = true;
+                    txn->in_rw = true;
                     DEBUG("ssi write the si_read_lock out %ld in %ld\n", si_read->txnid, txnid);
                 }
             }

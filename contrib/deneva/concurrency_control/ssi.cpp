@@ -35,8 +35,7 @@ RC ssi::validate(TxnManager * txn) {
     DEBUG("SSI Validate Start %ld\n",txn->get_txn_id());
     std::set<uint64_t> after;
     std::set<uint64_t> before;
-    if (inout_table.get_inConflict(txn->get_thd_id(), txn->get_txn_id()) &&
-        inout_table.get_outConflict(txn->get_thd_id(), txn->get_txn_id()))
+    if (txn->in_rw && txn->out_rw)
     {
         DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
         rc = Abort;

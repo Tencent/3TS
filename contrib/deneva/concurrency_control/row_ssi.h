@@ -23,7 +23,7 @@ struct SSIReqEntry {
 };
 
 struct SSIHisEntry {
-    // TxnManager * txn;
+    std::shared_ptr<TxnManager> txn;
     txnid_t txnid;
     ts_t ts;
     // only for write history. The value needs to be stored.
@@ -36,7 +36,7 @@ struct SSIHisEntry {
 struct SSILockEntry {
     lock_t type;
     ts_t   start_ts;
-    // TxnManager * txn;
+    std::shared_ptr<TxnManager> txn;
     txnid_t txnid;
     SSILockEntry * next;
     SSILockEntry * prev;
@@ -58,7 +58,7 @@ private:
     bool blatch;
 
     row_t * _row;
-    void get_lock(lock_t type, TxnManager * txn);
+    void get_lock(lock_t type, TxnManager *& txn);
     void release_lock(lock_t type, TxnManager * txn);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
