@@ -23,7 +23,7 @@ void ssi::init() {
 RC ssi::validate(TxnManager * txn) {
     uint64_t start_time = get_sys_clock();
     uint64_t timespan;
-    sem_wait(&_semaphore);
+    //sem_wait(&_semaphore);
 
     timespan = get_sys_clock() - start_time;
     txn->txn_stats.cc_block_time += timespan;
@@ -44,22 +44,22 @@ RC ssi::validate(TxnManager * txn) {
         DEBUG("ssi Validate ok %ld\n",txn->get_txn_id());
         rc = RCOK;
     }
-    ssi_set_ent *rset, *wset;
-    get_rw_set(txn, rset, wset);
-    // si validate
+    // ssi_set_ent *rset, *wset;
+    // get_rw_set(txn, rset, wset);
+    // // si validate
 
-    for (UInt32 i = 0; i < wset->set_size; i++) {
-        if (wset->rows[i]->manager->validate_last_commit(txn) == Abort) {
-            DEBUG("si Validate abort, %ld\n",txn->get_txn_id());
-            rc = Abort;
-        }
-    }
+    // for (UInt32 i = 0; i < wset->set_size; i++) {
+    //     if (wset->rows[i]->manager->validate_last_commit(txn) == Abort) {
+    //         DEBUG("si Validate abort, %ld\n",txn->get_txn_id());
+    //         rc = Abort;
+    //     }
+    // }
 
     if (rc != Abort) DEBUG("si Validate ok, %ld\n",txn->get_txn_id());
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
     DEBUG("SSI Validate End %ld: %d\n",txn->get_txn_id(),rc==RCOK);
-    sem_post(&_semaphore);
+    //sem_post(&_semaphore);
     return rc;
 }
 

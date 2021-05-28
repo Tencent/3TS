@@ -255,7 +255,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         // Check to see if two RW dependencies exist.
         // Add RW dependencies
-        SSIHisEntry *whis = writehis;
+        SSIHisEntry* whis = writehis;
         while (whis != NULL && whis->ts > start_ts) {
             bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
             if (out) { //! Abort
@@ -308,58 +308,30 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             si_read = si_read->next;
         }
-        // // Traverse the whole read lock
-        // si_read = si_read_lock;
-        // while (si_read != NULL) {
-        //     if (si_read->txn == txnid) {
-        //         si_read = si_read->next;
-        //         continue;
-        //     }
-        //     if (inout_table.get_state(txn->get_thd_id(), si_read->txn) == SSI_ABORTED) {
-        //         si_read = si_read->next;
-        //         continue;
-        //     }
-        //     if (inout_table.get_state(txn->get_thd_id(), si_read->txn) == SSI_COMMITTED &&
-        //         inout_table.get_commit_ts(txn->get_thd_id(), si_read->txn) <= start_ts) {
-        //         si_read = si_read->next;
-        //         continue;
-        //     }
-        //     inout_table.set_outConflict(txn->get_thd_id(), si_read->txn, txnid);
-        //     inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txn);
-        //     DEBUG("ssi write the si_read_lock out %ld in %ld\n", si_read->txn, txnid);
-        //     si_read = si_read->next;
-        // }
-
-        if (preq_len < g_max_pre_req){
-            DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-            buffer_req(P_REQ, txn);
-            rc = RCOK;
-        } else  {
-            rc = Abort;
-        }
+        
     } else if (type == W_REQ) {
         rc = RCOK;
         release_lock(LOCK_EX, txn);
-        release_lock(LOCK_COM, txn);
+        //release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
         // release_lock(LOCK_SH, txn);
 
         // the corresponding prewrite request is debuffered.
         insert_history(ts, txn, row);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-        SSIReqEntry * req = debuffer_req(P_REQ, txn);
-        assert(req != NULL);
-        return_req_entry(req);
+        //SSIReqEntry * req = debuffer_req(P_REQ, txn);
+        //assert(req != NULL);
+        //return_req_entry(req);
     } else if (type == XP_REQ) {
         release_lock(LOCK_EX, txn);
-        release_lock(LOCK_COM, txn);
+        //release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
         release_lock(LOCK_SH, txn);
 
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-        SSIReqEntry * req = debuffer_req(P_REQ, txn);
-        assert (req != NULL);
-        return_req_entry(req);
+        //SSIReqEntry * req = debuffer_req(P_REQ, txn);
+        //assert (req != NULL);
+        //return_req_entry(req);
     } else {
         assert(false);
     }
