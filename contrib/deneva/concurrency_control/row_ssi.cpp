@@ -32,6 +32,7 @@ void Row_ssi::init(row_t * row) {
     rhis_len = 0;
     commit_lock = 0;
     preq_len = 0;
+    visitors.init(64);
 }
 
 row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
@@ -141,6 +142,7 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
+    new_entry->visitors.init(64);
 
     if (row != NULL) {
         whis_len ++;
@@ -302,10 +304,13 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //otherwise we should read the original row
         if (ptr_entry != NULL) {
             txn->cur_row = ptr_entry->row;
-            ptr_entry->visitors.push_back(txnid);
+            ptr_entry->visitors.my_add(txnid);
+            //get_SIRdlock(ptr_entry->si_read_lock, txn);
+            //ptr_entry->visitors.push_back(txnid);
         } else {
             txn->cur_row = _row;
-            visitors.push_back(txnid);
+            visitors.my_add(txnid);
+            //get_SIRdlock(si_read_lock, txn);
         }
 
          assert(strstr(_row->get_table_name(), txn->cur_row->get_table_name()));
@@ -345,9 +350,9 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
          *    set T.in_rw = true;
          **/
       
-        std::vector<txnid_t> &vec = latest_entry->next ? 
-                          latest_entry->next->visitors : visitors;
-        for (const auto &r_txn : vec) {
+        Array<txnid_t>& vec = latest_entry->next ? latest_entry->next->visitors : visitors;
+        for (uint64_t i = 0; i < vec.size(); i++) {
+            txnid_t r_txn = vec.get(i);
             if (r_txn == txnid) continue;
             SSIState r_txn_state = inout_table.get_state(txn->get_thd_id(), r_txn);
             if (r_txn_state == SSI_RUNNING ||

@@ -52,14 +52,11 @@ public:
     }
 
     void resize() {
-        //double
-        T* base = (T*) mem_allocator.alloc(sizeof(T) * capacity * 2);
         capacity = capacity * 2;
-        for (uint64_t i = 0; i < count; i++) {
-           *(base + i) = items[i];
+        items = (T *)mem_allocator.realloc(items, sizeof(T) * capacity);
+        for(uint64_t i = capacity/2; i < capacity; i++) {
+            items[i] = 0;
         }
-        mem_allocator.free(items);
-        items = base;
     }
 
     void release() {
@@ -82,6 +79,13 @@ public:
         items[count] = item;
         ++count;
         //if (count == capacity) resize();
+    }
+
+    void my_add(T item) {
+        assert(count < capacity);
+        items[count] = item;
+        ++count;
+        if (count == capacity) resize();
     }
 
     void add() {
