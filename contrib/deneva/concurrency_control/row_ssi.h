@@ -24,10 +24,10 @@ struct SSIReqEntry {
 
 struct SSIHisEntry {
     // TxnManager * txn;
-    txnid_t txn;
+    txnid_t txnid;
     ts_t ts;
     // only for write history. The value needs to be stored.
-//    char * data;
+    // char * data;
     row_t * row;
     SSIHisEntry * next;
     SSIHisEntry * prev;
@@ -37,7 +37,7 @@ struct SSILockEntry {
     lock_t type;
     ts_t   start_ts;
     // TxnManager * txn;
-    txnid_t txn;
+    txnid_t txnid;
     SSILockEntry * next;
     SSILockEntry * prev;
 };
