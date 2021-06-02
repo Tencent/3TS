@@ -81,7 +81,7 @@ void Row_ssi::return_req_entry(SSIReqEntry * entry) {
 }
 
 SSIHisEntry * Row_ssi::get_his_entry() {
-    return (SSIHisEntry *) mem_allocator.alloc(sizeof(SSIHisEntry));
+    return new (SSIHisEntry);
 }
 
 void Row_ssi::return_his_entry(SSIHisEntry * entry) {
@@ -141,6 +141,7 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
+    new_entry->txn = std::shared_ptr<TxnManager>(txn);
     if (row != NULL) {
         whis_len ++;
     } else {
