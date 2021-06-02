@@ -297,8 +297,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 si_read = si_read->next;
                 continue;
             }
-            bool is_active = inout_table.get_state(txn->get_thd_id(), si_read->txnid) == SSI_RUNNING;
-            bool interleaved =  inout_table.get_state(txn->get_thd_id(), si_read->txnid) == SSI_COMMITTED &&
+            bool is_active = si_read_lock->txn.get()->txn_status == TxnStatus::ACTIVE;
+            bool interleaved =  si_read_lock->txn.get()->txn_status == TxnStatus::COMMITTED &&
                 si_read->txn.get()->get_commit_timestamp() > start_ts;
             if (is_active || interleaved) {
                 bool in = si_read->txn.get()->in_rw;
