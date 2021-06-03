@@ -47,6 +47,7 @@ class DliValidatedTxn;
 //class r_query;
 
 enum TxnState {START,INIT,EXEC,PREP,FIN,DONE};
+enum TxnStatus {ACTIVE = 0, COMMITTED, ABORTED};
 
 class Access {
 public:
@@ -204,6 +205,9 @@ public:
     // [HSTORE, HSTORE_SPEC]
     int volatile    ready_part;
     int volatile    ready_ulk;
+    bool in_rw, out_rw;
+    TxnStatus txn_status;
+    
 
 #if CC_ALG == SILO
     ts_t             last_tid;

@@ -92,7 +92,7 @@
 // # of transactions to run for warmup
 #define WARMUP            0
 // YCSB or TPCC or PPS or DA
-#define WORKLOAD DA
+#define WORKLOAD YCSB
 // print the transaction latency distribution
 #define PRT_LAT_DISTR false
 #define STATS_ENABLE        true
@@ -229,8 +229,8 @@
 #define INIT_PARALLELISM 8
 #define SYNTH_TABLE_SIZE 2097152
 #define ZIPF_THETA 0.3
-#define TXN_WRITE_PERC 0.3
-#define TUP_WRITE_PERC 0.3
+#define TXN_WRITE_PERC 0.5
+#define TUP_WRITE_PERC 0.5
 #define SCAN_PERC           0
 #define SCAN_LEN          20
 #define PART_PER_TXN 2
