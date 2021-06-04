@@ -349,7 +349,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             goto end;
         }
         // Check to see if lost update commited(RWCW) exist
-        if(start_ts < writehis->ts) {
+        if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
             goto end;
         }
