@@ -36,7 +36,8 @@ struct SSIHisEntry {
 struct SSILockEntry {
     lock_t type;
     ts_t   start_ts;
-    std::shared_ptr<TxnManager> txn;
+    //std::shared_ptr<TxnManager> txn;
+    TxnManager * txn;
     txnid_t txnid;
     SSILockEntry * next;
     SSILockEntry * prev;
@@ -60,6 +61,7 @@ private:
     row_t * _row;
     void get_lock(lock_t type, TxnManager *& txn);
     void release_lock(lock_t type, TxnManager * txn);
+    void release_lock(ts_t min_ts);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
