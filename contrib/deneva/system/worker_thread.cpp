@@ -730,7 +730,8 @@ uint64_t WorkerThread::get_next_txn_id() {
 
 RC WorkerThread::process_rtxn(Message * msg) {
     RC rc = RCOK;
-    uint64_t txn_id = UINT64_MAX;
+    // uint64_t txn_id = UINT64_MAX;  The default max value happen in future transcation.
+    uint64_t txn_id;
 
 #if WORKLOAD == DA && DA_PRINT_LOG == true
     printf("thd_id:%lu check: state:%lu nextstate:%lu \n",h_thd->_thd_id, da_query->state, _wl->nextstate);

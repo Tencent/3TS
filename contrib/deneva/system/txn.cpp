@@ -378,6 +378,9 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     twopl_wait_start = 0;
 
     txn_stats.init();
+    //for ssi 
+    in_rw = false;
+    out_rw = false;
 }
 
 // reset after abort
@@ -416,6 +419,10 @@ void TxnManager::reset() {
 
     // Stats
     txn_stats.reset();
+  
+    //for ssi
+    in_rw = false; out_rw = false;
+
 }
 
 void TxnManager::release() {
@@ -467,8 +474,9 @@ RC TxnManager::commit() {
     sundial_man.cleanup(RCOK, this);
 #endif
 #if CC_ALG == SSI
-    inout_table.set_commit_ts(get_thd_id(), get_txn_id(), get_commit_timestamp());
-    inout_table.set_state(get_thd_id(), get_txn_id(), SSI_COMMITTED);
+    //inout_table.set_commit_ts(get_thd_id(), get_txn_id(), get_commit_timestamp());
+    //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_COMMITTED);
+    txn_status = TxnStatus::COMMITTED;
 #endif
     commit_stats();
 #if LOGGING
@@ -486,8 +494,10 @@ RC TxnManager::commit() {
 RC TxnManager::abort() {
     if (aborted) return Abort;
 #if CC_ALG == SSI
-    inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
-    inout_table.clear_Conflict(get_thd_id(), get_txn_id());
+    //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
+    //inout_table.clear_Conflict(get_thd_id(), get_txn_id());
+    txn_status = TxnStatus::ABORTED;
+    in_rw = false, out_rw = false;
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
     txn->rc = Abort;
