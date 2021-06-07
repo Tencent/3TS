@@ -35,6 +35,7 @@ void Row_ssi::init(row_t * row) {
 }
 
 row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
+    //uint64_t clear_history_start  = get_sys_clock();
     SSIHisEntry ** queue;
     SSIHisEntry ** tail;
     switch (type) {
@@ -69,6 +70,10 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
     *tail = his;
     if (*tail) (*tail)->next = NULL;
     if (his == NULL) *queue = NULL;
+    
+    //uint64_t clear_history_end = get_sys_clock();
+    //INC_STATS(txn->get_thd_id(), trans_access_clear_history_time, clear_history_end - clear_history_start);
+    
     return row;
 }
 
@@ -298,6 +303,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
+        uint64_t read_start = get_sys_clock();
         // Add the si-read lock
         // the release time for si_read_lock is in the clear_history function
         get_lock(LOCK_SH, txn);
@@ -341,7 +347,11 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
 
+        uint64_t read_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+
     } else if (type == P_REQ) {
+        uint64_t pre_start  = get_sys_clock();
         //WW conflict
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
@@ -389,8 +399,12 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             si_read = si_read->next;
         }
+
+        uint64_t pre_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
         
     } else if (type == W_REQ) {
+        uint64_t write_start  = get_sys_clock();
         rc = RCOK;
         release_lock(LOCK_EX, txn);
         //release_lock(LOCK_COM, txn);
@@ -403,21 +417,34 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //SSIReqEntry * req = debuffer_req(P_REQ, txn);
         //assert(req != NULL);
         //return_req_entry(req);
+        
+        uint64_t write_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
+        
     } else if (type == XP_REQ) {
+        uint64_t xp_start  = get_sys_clock();
+        for(int i = 0; i < 100000000; i++);
+        //uint64_t xp_end = get_sys_clock();
+        //INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
         release_lock(LOCK_EX, txn);
         //release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
         release_lock(LOCK_SH, txn);
-
+        //for(int i = 0; i < 10000000; i++);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         //SSIReqEntry * req = debuffer_req(P_REQ, txn);
         //assert (req != NULL);
         //return_req_entry(req);
+        
+        uint64_t xp_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
+        
     } else {
         assert(false);
     }
 
     if (rc == RCOK) {
+        uint64_t clear_start  = get_sys_clock();
         if (whis_len > g_his_recycle_len || rhis_len > g_his_recycle_len) {
             ts_t t_th = glob_manager.get_min_ts(txn->get_thd_id());
             if (readhistail && readhistail->ts < t_th) {
@@ -437,11 +464,17 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             release_lock(t_th);
         }
+        
+        uint64_t clear_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_clear_time, clear_end - clear_start);
+        
     }
 end:
     uint64_t timespan = get_sys_clock() - starttime;
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
+
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
 
     if (g_central_man) {
         glob_manager.release_row(_row);

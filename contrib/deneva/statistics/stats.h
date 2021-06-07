@@ -103,6 +103,13 @@ public:
     double trans_abort_time=0;
 
     double trans_access_lock_wait_time=0;
+    double total_access_time=0;
+    double trans_access_read_time=0;
+    double trans_access_pre_time=0;
+    double trans_access_write_time=0;
+    double trans_access_xp_time=0;
+    double trans_access_clear_time=0;
+    double trans_access_clear_history_time=0;
     // trans mvcc
     double trans_mvcc_clear_history=0;
     double trans_mvcc_access=0;
