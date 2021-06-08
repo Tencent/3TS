@@ -369,7 +369,11 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             goto end;
         }
         // Add the write lock
+        uint64_t lock_start = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_pre_before_time, lock_start - pre_start);
         get_lock(LOCK_EX, txn);
+        uint64_t lock_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_pre_lock_time, lock_end - lock_start);
         // Traverse the whole read his
         SSILockEntry * si_read = si_read_lock;
         uint64_t start1 = get_sys_clock();
@@ -482,7 +486,7 @@ end:
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
 
-    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
+    
 
     if (g_central_man) {
         glob_manager.release_row(_row);
@@ -490,6 +494,7 @@ end:
         pthread_mutex_unlock(latch);
      }
 
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
     return rc;
 }
 
