@@ -423,7 +423,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
     } else if (type == XP_REQ) {
         uint64_t xp_start  = get_sys_clock();
-        for(int i = 0; i < 100000000; i++);
         //uint64_t xp_end = get_sys_clock();
         //INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
         release_lock(LOCK_EX, txn);
