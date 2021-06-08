@@ -261,6 +261,7 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     uint64_t acesstime = get_sys_clock();
     if (type == R_REQ) {
+        uint64_t read_start = get_sys_clock();
         // figure out if ts is in interval(prewrite(x))
         bool conf = conflict(type, ts);
         if ( conf && rreq_len < g_max_read_req) {
@@ -281,7 +282,12 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
             insert_history(ts, NULL);
             assert(strstr(_row->get_table_name(), ret->get_table_name()));
         }
+
+        uint64_t read_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+
     } else if (type == P_REQ) {
+        uint64_t pre_start  = get_sys_clock();
         if (conflict(type, ts)) {
             rc = Abort;
         } else if (preq_len < g_max_pre_req) {
@@ -291,21 +297,39 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
         } else {
             rc = Abort;
         }
+
+        uint64_t pre_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
+
     } else if (type == W_REQ) {
+        uint64_t write_start  = get_sys_clock();
         rc = RCOK;
         // the corresponding prewrite request is debuffered.
         insert_history(ts, row);
+        uint64_t insert_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - write_start);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         MVReqEntry * req = debuffer_req(P_REQ, txn);
         assert(req != NULL);
         return_req_entry(req);
+        uint64_t update_start = get_sys_clock();
         update_buffer(txn);
+        
+        uint64_t write_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_update_time, write_end - update_start);
+        INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
+        
     } else if (type == XP_REQ) {
+        uint64_t xp_start  = get_sys_clock();
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         MVReqEntry * req = debuffer_req(P_REQ, txn);
         assert (req != NULL);
         return_req_entry(req);
         update_buffer(txn);
+        
+        uint64_t xp_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
+        
     } else {
         assert(false);
     }
@@ -344,6 +368,7 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_unlock(latch);
     }
 
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
     return rc;
 }
 

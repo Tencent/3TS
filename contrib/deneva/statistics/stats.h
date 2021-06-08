@@ -117,6 +117,7 @@ public:
     // trans mvcc
     double trans_mvcc_clear_history=0;
     double trans_mvcc_access=0;
+    double trans_access_write_update_time=0;
     // Work queue
     double work_queue_wait_time;
     uint64_t work_queue_cnt;
