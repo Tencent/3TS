@@ -361,11 +361,13 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
             goto end;
         }
         // Check to see if lost update commited(RWCW) exist
         if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
             goto end;
         }
         // Add the write lock
