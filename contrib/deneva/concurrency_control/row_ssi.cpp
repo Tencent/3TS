@@ -4,7 +4,7 @@
  * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
  * Tencent Modifications are Copyright (C) THL A29 Limited.
  *
- * Author: hongyaozhao@tencent.com
+ * Author: anduinzhu@tencent.com hongyaozhao@tencent.com
  *
  */
 

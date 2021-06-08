@@ -5,7 +5,7 @@
     in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
     Tencent Modifications are Copyright (C) THL A29 Limited.
 
-    Author: hongyaozhao@ruc.edu.cn
+    Author: anduinzhu@tencent.com hongyaozhao@ruc.edu.cn
 
      Copyright 2016 Massachusetts Institute of Technology
 
