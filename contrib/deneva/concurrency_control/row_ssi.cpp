@@ -142,6 +142,7 @@ SSIReqEntry * Row_ssi::debuffer_req( TsType type, TxnManager * txn) {
 
 void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 {
+    uint64_t insert_start = get_sys_clock();
     SSIHisEntry * new_entry = get_his_entry();
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
@@ -165,6 +166,10 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
         LIST_INSERT_BEFORE(his, new_entry,(*queue));
     } else
         LIST_PUT_TAIL((*queue), (*tail), new_entry);
+
+    uint64_t insert_end = get_sys_clock();
+    INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - insert_start);
+
 }
 
 SSILockEntry * Row_ssi::get_entry() {
@@ -367,6 +372,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         get_lock(LOCK_EX, txn);
         // Traverse the whole read his
         SSILockEntry * si_read = si_read_lock;
+        uint64_t start1 = get_sys_clock();
         while (si_read != NULL) {
             if (si_read->txnid == txnid) {
                 si_read = si_read->next;
@@ -401,12 +407,15 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         }
 
         uint64_t pre_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_pre_check_time, pre_end - start1);
         INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
         
     } else if (type == W_REQ) {
         uint64_t write_start  = get_sys_clock();
         rc = RCOK;
         release_lock(LOCK_EX, txn);
+        uint64_t end1 = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_release_time, end1 - write_start);
         //release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
         // release_lock(LOCK_SH, txn);
