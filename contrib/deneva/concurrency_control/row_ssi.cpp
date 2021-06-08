@@ -14,6 +14,8 @@
 #include "ssi.h"
 #include "row_ssi.h"
 #include "mem_alloc.h"
+#include <stdlib.h>
+#include <jemalloc/jemalloc.h>
 
 void Row_ssi::init(row_t * row) {
     _row = row;
@@ -26,7 +28,8 @@ void Row_ssi::init(row_t * row) {
     readhistail = NULL;
     writehistail = NULL;
     blatch = false;
-    latch = (pthread_mutex_t *) mem_allocator.alloc(sizeof(pthread_mutex_t));
+    //latch = (pthread_mutex_t *) mem_allocator.alloc(sizeof(pthread_mutex_t));
+    latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
@@ -56,8 +59,9 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
         prev = his->prev;
         assert(prev->ts >= his->ts);
         if (row != NULL) {
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            // row->free_row();
+            // mem_allocator.free(row, sizeof(row_t));
+            free(row);
         }
         row = his->row;
         his->row = NULL;
@@ -73,23 +77,28 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
 }
 
 SSIReqEntry * Row_ssi::get_req_entry() {
-    return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry));
+    //return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry));
+    return (SSIReqEntry *) malloc(sizeof(SSIReqEntry));
 }
 
 void Row_ssi::return_req_entry(SSIReqEntry * entry) {
-    mem_allocator.free(entry, sizeof(SSIReqEntry));
+    // mem_allocator.free(entry, sizeof(SSIReqEntry));
+    free(entry);
 }
 
 SSIHisEntry * Row_ssi::get_his_entry() {
-    return new (SSIHisEntry);
+    //return new (SSIHisEntry);
+    return (SSIHisEntry *) malloc(sizeof(SSIHisEntry));
 }
 
 void Row_ssi::return_his_entry(SSIHisEntry * entry) {
-    if (entry->row != NULL) {
-        entry->row->free_row();
-        mem_allocator.free(entry->row, sizeof(row_t));
-    }
-    mem_allocator.free(entry, sizeof(SSIHisEntry));
+    // if (entry->row != NULL) {
+    //     entry->row->free_row();
+    //     mem_allocator.free(entry->row, sizeof(row_t));
+    // }
+    // mem_allocator.free(entry, sizeof(SSIHisEntry));
+    free(entry->row);
+    free(entry);
 }
 
 void Row_ssi::buffer_req(TsType type, TxnManager * txn)
@@ -141,7 +150,8 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
-    new_entry->txn = std::shared_ptr<TxnManager>(txn);
+    //new_entry->txn = std::shared_ptr<TxnManager>(txn);
+    new_entry->txn = txn;
     if (row != NULL) {
         whis_len ++;
     } else {
@@ -264,7 +274,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         SSIHisEntry* whis = writehis;
         while (whis != NULL && whis->ts > start_ts) {
             //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
-            if (whis->txn.get()->out_rw) { //! Abort
+            // if (whis->txn.get()->out_rw) { //! Abort
+            if (whis->txn->out_rw) { //! Abort
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, whis->txnid, whis->ts, start_ts);
@@ -272,7 +283,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
             //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
-            whis->txn.get()->in_rw = true;
+            // whis->txn.get()->in_rw = true;
+            whis->txn->in_rw = true;
             txn->out_rw = true;
             DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
             whis = whis->next;
