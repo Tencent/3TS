@@ -76,9 +76,26 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
     return row;
 }
 
+row_t * Row_ssi::clear_version(ts_t ts) {
+    // if second begin version start time < ts, then remove begin
+    // return the frist older version row to _row
+    // keep the last smaller tiemstamp version
+    while (versions_.size() > 1 && versions_[1].ts < ts) { // if next version exist and < ts, remove this version
+            return_version(&versions_[0]);
+            versions_.pop_front(); 
+    }
+
+    return versions_.begin()->row;
+
+}
+
 SSIReqEntry * Row_ssi::get_req_entry() {
     //return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry));
     return (SSIReqEntry *) malloc(sizeof(SSIReqEntry));
+}
+
+SSIVersion * Row_ssi::get_version() {
+   return (SSIVersion *) malloc(sizeof(SSIVersion));
 }
 
 void Row_ssi::return_req_entry(SSIReqEntry * entry) {
@@ -99,6 +116,11 @@ void Row_ssi::return_his_entry(SSIHisEntry * entry) {
     // mem_allocator.free(entry, sizeof(SSIHisEntry));
     free(entry->row);
     free(entry);
+}
+
+void Row_ssi::return_version(SSIVersion * version) {
+   free(version->row);
+   free(version);
 }
 
 void Row_ssi::buffer_req(TsType type, TxnManager * txn)
@@ -170,6 +192,18 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
         LIST_INSERT_BEFORE(his, new_entry,(*queue));
     } else
         LIST_PUT_TAIL((*queue), (*tail), new_entry);
+}
+
+void Row_ssi::insert_version(ts_t ts, TxnManager * txn, row_t * row)
+{
+    // new a version
+    SSIVersion * version = get_version();
+    version->ts = ts;
+    version->txnid = txn->get_txn_id();
+    version->row = row;
+    version->txn = txn;
+
+    versions_.push_back(* version);
 }
 
 SSILockEntry * Row_ssi::get_entry() {
@@ -269,28 +303,48 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             write = write->next;
         }
         
-        // Check to see if two RW dependencies exist.
-        // Add RW dependencies
-        SSIHisEntry* whis = writehis;
-        while (whis != NULL && whis->ts > start_ts) {
+        // // Check to see if two RW dependencies exist.
+        // // Add RW dependencies
+        // SSIHisEntry* whis = writehis;
+        // while (whis != NULL && whis->ts > start_ts) {
+        //     //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
+        //     // if (whis->txn.get()->out_rw) { //! Abort
+        //     if (whis->txn->out_rw) { //! Abort
+        //         rc = Abort;
+        //         DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
+        //           txnid, whis->txnid, whis->ts, start_ts);
+        //         goto end;             
+        //     }
+        //     //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
+        //     //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
+        //     // whis->txn.get()->in_rw = true;
+        //     whis->txn->in_rw = true;
+        //     txn->out_rw = true;
+        //     DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
+        //     whis = whis->next;
+        // }
+
+        // row_t * ret = (whis == NULL) ? _row : whis->row;
+        // txn->cur_row = ret;
+        // assert(strstr(_row->get_table_name(), ret->get_table_name()));
+
+        // iterate from back
+        auto it_version = versions_.crbegin();
+        for (; it_version != versions_.crend() && it_version->ts > start_ts; ++it_version) {
             //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
-            // if (whis->txn.get()->out_rw) { //! Abort
-            if (whis->txn->out_rw) { //! Abort
+            if (it_version->txn->out_rw) { //! Abort
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
-                  txnid, whis->txnid, whis->ts, start_ts);
+                  txnid, it_version->txnid, it_version->ts, start_ts);
                 goto end;             
             }
             //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
             //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
-            // whis->txn.get()->in_rw = true;
-            whis->txn->in_rw = true;
             txn->out_rw = true;
-            DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
-            whis = whis->next;
+            DEBUG("ssi read the write_commit in %ld out %ld\n",it_version->txnid, txnid);
         }
 
-        row_t * ret = (whis == NULL) ? _row : whis->row;
+        row_t * ret = (it_version == versions_.crend()) ? _row : it_version->row;
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
 
@@ -340,7 +394,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // release_lock(LOCK_SH, txn);
 
         // the corresponding prewrite request is debuffered.
-        insert_history(ts, txn, row);
+        // insert_history(ts, txn, row);
+        insert_version(ts, txn, row);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         //SSIReqEntry * req = debuffer_req(P_REQ, txn);
         //assert(req != NULL);
@@ -370,13 +425,21 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             // But we cannot recycle that version because it is still being used.
             // So the HACK here is to make sure that the first version older than
             // t_th not be recycled.
-            if (whis_len > 1 && writehistail->prev->ts < t_th) {
-                row_t * latest_row = clear_history(W_REQ, t_th);
+            // if (whis_len > 1 && writehistail->prev->ts < t_th) {
+            //     row_t * latest_row = clear_history(W_REQ, t_th);
+            //     if (latest_row != NULL) {
+            //         assert(_row != latest_row);
+            //         _row->copy(latest_row);
+            //     }
+            // }
+            if (versions_.size()>1 && versions_[0].ts < t_th){
+                row_t * latest_row = clear_version(t_th);
                 if (latest_row != NULL) {
                     assert(_row != latest_row);
                     _row->copy(latest_row);
                 }
             }
+
         }
     }
 end:
