@@ -114,6 +114,7 @@ public:
     double trans_access_pre_check_time=0;
     double trans_access_pre_before_time=0;
     double trans_access_pre_lock_time=0;
+    double real_abort_time=0;
     // trans mvcc
     double trans_mvcc_clear_history=0;
     double trans_mvcc_access=0;

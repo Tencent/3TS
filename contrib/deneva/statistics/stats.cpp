@@ -536,6 +536,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",trans_access_pre_before_time=%f"
     ",trans_access_pre_lock_time=%f"
     ",trans_access_write_update_time=%f"
+    ",real_abort_time=%f"
     ",trans_mvcc_clear_history=%f"
     ",trans_mvcc_access=%f",
         trans_total_run_time / BILLION, trans_process_time / BILLION, trans_2pc_time / BILLION,
@@ -547,6 +548,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
         trans_access_write_insert_time / BILLION, trans_access_write_release_time / BILLION,
         trans_access_pre_check_time / BILLION, trans_access_pre_before_time / BILLION,
         trans_access_pre_lock_time / BILLION, trans_access_write_update_time / BILLION,
+        real_abort_time / BILLION,
         trans_mvcc_clear_history / BILLION, trans_mvcc_access / BILLION);
 
 
@@ -1168,6 +1170,7 @@ void Stats_thd::combine(Stats_thd * stats) {
     trans_access_pre_check_time+=stats->trans_access_pre_check_time;
     trans_access_pre_before_time+=stats->trans_access_pre_before_time;
     trans_access_pre_lock_time+=stats->trans_access_pre_lock_time;
+    real_abort_time+=stats->real_abort_time;
     // trans mvcc
     trans_mvcc_clear_history+=stats->trans_mvcc_clear_history;
     trans_mvcc_access+=stats->trans_mvcc_access;
