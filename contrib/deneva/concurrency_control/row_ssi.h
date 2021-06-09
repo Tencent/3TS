@@ -22,13 +22,6 @@ struct SSIReqEntry {
     SSIReqEntry * next;
 };
 
-struct SSIVersion {   
-    TxnManager *txn;
-    txnid_t txnid;
-    ts_t ts;
-    row_t * row;
-};
-
 struct SSIHisEntry {
     //std::shared_ptr<TxnManager> txn;
     TxnManager *txn;
@@ -70,14 +63,11 @@ private:
     void release_lock(lock_t type, TxnManager * txn);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
-    void insert_version(ts_t ts, TxnManager * txn, row_t * row);
 
     SSIReqEntry * get_req_entry();
     void return_req_entry(SSIReqEntry * entry);
     SSIHisEntry * get_his_entry();
     void return_his_entry(SSIHisEntry * entry);
-    SSIVersion * get_version();
-    void return_version(SSIVersion * version);
 
     bool conflict(TsType type, ts_t ts);
     void buffer_req(TsType type, TxnManager * txn);
@@ -86,7 +76,6 @@ private:
 
     SSILockEntry * get_entry();
     row_t * clear_history(TsType type, ts_t ts);
-    row_t * clear_version(ts_t ts);
 
     SSIReqEntry * prereq_mvcc;
     SSIHisEntry * readhis;
@@ -97,9 +86,6 @@ private:
     uint64_t whis_len;
     uint64_t rhis_len;
     uint64_t preq_len;
-
-    std::deque<SSIVersion> versions_;
-
 };
 
 #endif
