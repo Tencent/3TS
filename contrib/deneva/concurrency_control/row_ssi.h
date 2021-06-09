@@ -23,7 +23,8 @@ struct SSIReqEntry {
 };
 
 struct SSIHisEntry {
-    std::shared_ptr<TxnManager> txn;
+    //std::shared_ptr<TxnManager> txn;
+    TxnManager * txn;
     txnid_t txnid;
     ts_t ts;
     // only for write history. The value needs to be stored.

@@ -147,7 +147,8 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
-    new_entry->txn = std::shared_ptr<TxnManager>(txn);
+    //new_entry->txn = std::shared_ptr<TxnManager>(txn);
+    new_entry->txn = txn;
     if (row != NULL) {
         whis_len ++;
     } else {
@@ -334,7 +335,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         SSIHisEntry* whis = writehis;
         while (whis != NULL && whis->ts > start_ts) {
             //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
-            if (whis->txn.get()->out_rw) { //! Abort
+            // if (whis->txn.get()->out_rw) { //! Abort
+            if (whis->txn->out_rw) { //! Abort
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, whis->txnid, whis->ts, start_ts);
@@ -342,7 +344,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
             //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
-            whis->txn.get()->in_rw = true;
+            // whis->txn.get()->in_rw = true;
+            whis->txn->in_rw = true;
             txn->out_rw = true;
             DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
             whis = whis->next;

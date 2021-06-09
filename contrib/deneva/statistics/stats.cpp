@@ -550,7 +550,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
         trans_mvcc_clear_history / BILLION, trans_mvcc_access / BILLION);
 
 
-  // Transaction  stats
+  // Transaction stats
     double txn_total_process_time_avg=0;
     double txn_process_time_avg=0;
     double txn_total_local_wait_time_avg=0;
