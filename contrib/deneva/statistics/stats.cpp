@@ -524,11 +524,29 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",trans_commit_time=%f"
     ",trans_abort_time=%f"
     ",trans_access_lock_wait_time=%f"
+    ",total_access_time=%f"
+    ",trans_access_read_time=%f"
+    ",trans_access_pre_time=%f"
+    ",trans_access_write_time=%f"
+    ",trans_access_xp_time=%f"
+    ",trans_access_clear_time=%f"
+    ",trans_access_write_insert_time=%f"
+    ",trans_access_write_release_time=%f"
+    ",trans_access_pre_check_time=%f"
+    ",trans_access_pre_before_time=%f"
+    ",trans_access_pre_lock_time=%f"
+    ",trans_access_write_update_time%f"
     ",trans_mvcc_clear_history=%f"
     ",trans_mvcc_access=%f",
         trans_total_run_time / BILLION, trans_process_time / BILLION, trans_2pc_time / BILLION,
         trans_prepare_time / BILLION, trans_validate_time / BILLION, trans_finish_time / BILLION,
         trans_commit_time / BILLION, trans_abort_time / BILLION, trans_access_lock_wait_time / BILLION,
+        total_access_time / BILLION, trans_access_read_time / BILLION,
+        trans_access_pre_time / BILLION, trans_access_write_time / BILLION,
+        trans_access_xp_time / BILLION, trans_access_clear_time / BILLION,
+        trans_access_write_insert_time / BILLION, trans_access_write_release_time / BILLION,
+        trans_access_pre_check_time / BILLION, trans_access_pre_before_time / BILLION,
+        trans_access_pre_lock_time / BILLION, trans_access_write_update_time / BILLION,
         trans_mvcc_clear_history / BILLION, trans_mvcc_access / BILLION);
 
 
@@ -1139,9 +1157,21 @@ void Stats_thd::combine(Stats_thd * stats) {
     trans_commit_time+=stats->trans_commit_time;
     trans_abort_time+=stats->trans_abort_time;
     trans_access_lock_wait_time+=stats->trans_access_lock_wait_time;
+    total_access_time+=stats->total_access_time;
+    trans_access_read_time+=stats->trans_access_read_time;
+    trans_access_pre_time+=stats->trans_access_pre_time;
+    trans_access_write_time+=stats->trans_access_write_time;
+    trans_access_xp_time+=stats->trans_access_xp_time;
+    trans_access_clear_time+=stats->trans_access_clear_time;
+    trans_access_write_insert_time+=stats->trans_access_write_insert_time;
+    trans_access_write_release_time+=stats->trans_access_write_release_time;
+    trans_access_pre_check_time+=stats->trans_access_pre_check_time;
+    trans_access_pre_before_time+=stats->trans_access_pre_before_time;
+    trans_access_pre_lock_time+=stats->trans_access_pre_lock_time;
     // trans mvcc
     trans_mvcc_clear_history+=stats->trans_mvcc_clear_history;
     trans_mvcc_access+=stats->trans_mvcc_access;
+    trans_access_write_update_time+=stats->trans_access_write_update_time;
     // Transaction stats
     txn_total_process_time+=stats->txn_total_process_time;
     txn_process_time+=stats->txn_process_time;

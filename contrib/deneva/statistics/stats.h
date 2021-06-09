@@ -103,9 +103,21 @@ public:
     double trans_abort_time=0;
 
     double trans_access_lock_wait_time=0;
+    double total_access_time=0;
+    double trans_access_read_time=0;
+    double trans_access_pre_time=0;
+    double trans_access_write_time=0;
+    double trans_access_xp_time=0;
+    double trans_access_clear_time=0;
+    double trans_access_write_insert_time=0;
+    double trans_access_write_release_time=0;
+    double trans_access_pre_check_time=0;
+    double trans_access_pre_before_time=0;
+    double trans_access_pre_lock_time=0;
     // trans mvcc
     double trans_mvcc_clear_history=0;
     double trans_mvcc_access=0;
+    double trans_access_write_update_time=0;
     // Work queue
     double work_queue_wait_time;
     uint64_t work_queue_cnt;

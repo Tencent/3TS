@@ -180,6 +180,7 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock( latch );
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
+        uint64_t read_start = get_sys_clock();
         if (ts < wts) { // read would occur before most recent write
             rc = Abort;
         } else if (ts > min_pts) { // read would occur after one of the prereqs already queued
@@ -193,7 +194,12 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             if (rts < ts) rts = ts;
             rc = RCOK;
         }
+        
+        uint64_t read_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+
     } else if (type == P_REQ) {
+        uint64_t pre_start  = get_sys_clock();
         if (ts < rts) { // pre-write would occur before most recent read
             rc = Abort;
         } else {
@@ -208,9 +214,12 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
                 buffer_req(P_REQ, txn, NULL);
                 rc = RCOK;
             }
+            uint64_t pre_end = get_sys_clock();
+            INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
 #endif
         }
     } else if (type == W_REQ) {
+        uint64_t write_start  = get_sys_clock();
         // write requests are always accepted.
         rc = RCOK;
 #if TS_TWR
@@ -247,11 +256,20 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             row->free_row();
             mem_allocator.free(row, sizeof(row_t));
         }
+        
+        uint64_t write_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
+        
     } else if (type == XP_REQ) {
+        uint64_t xp_start  = get_sys_clock();
         TsReqEntry * req = debuffer_req(P_REQ, txn);
         assert (req != NULL);
         update_buffer(txn->get_thd_id());
         return_req_entry(req);
+        
+        uint64_t xp_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
+        
     } else assert(false);
 
 final:
@@ -262,6 +280,8 @@ final:
         glob_manager.release_row(_row);
     else
         pthread_mutex_unlock( latch );
+
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
     return rc;
 }
 
