@@ -37,7 +37,8 @@ struct SSIHisEntry {
 struct SSILockEntry {
     lock_t type;
     ts_t   start_ts;
-    std::shared_ptr<TxnManager> txn;
+    //std::shared_ptr<TxnManager> txn;
+    TxnManager * txn;
     txnid_t txnid;
     SSILockEntry * next;
     SSILockEntry * prev;

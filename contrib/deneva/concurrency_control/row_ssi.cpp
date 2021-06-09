@@ -184,15 +184,19 @@ SSILockEntry * Row_ssi::get_entry() {
 void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
     SSILockEntry * entry = get_entry();
     entry->type = type;
-    entry->txn = std::shared_ptr<TxnManager>(txn);
+    // entry->txn = std::shared_ptr<TxnManager>(txn);
+    entry->txn = txn;
     entry->start_ts = get_sys_clock();
     entry->txnid = txn->get_txn_id();
     if (type == LOCK_SH)
-        STACK_PUSH(si_read_lock, entry);
-    if (type == LOCK_EX)
-        STACK_PUSH(write_lock, entry);
-    if (type == LOCK_COM)
-        commit_lock = txn->get_txn_id();
+    {    STACK_PUSH(si_read_lock, entry);}
+    else if (type == LOCK_EX)
+    {  STACK_PUSH(write_lock, entry);} 
+    else if (type == LOCK_COM)
+    {   commit_lock = txn->get_txn_id();} 
+    else{
+        assert(false);
+    }
 }
 
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
@@ -263,7 +267,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             //inout_table.set_inConflict(txn->get_thd_id(), write->txnid, txnid);
             //inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txnid);
-            (write->txn.get())->in_rw = true;
+            write->txn->in_rw = true;
             txn->out_rw = true;
             DEBUG("ssi read the write_lock in %ld out %ld\n",write->txnid, txnid);
             write = write->next;
@@ -295,11 +299,17 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
 
     } else if (type == P_REQ) {
-        //WW conflict
-        if (write_lock != NULL && write_lock->txn.get() != txn) {
+        //WW conflict in write lock
+        if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
             goto end;
         }
+        //WW conflict in whis
+        if(writehis != NULL && start_ts < writehis->ts) {
+            rc = Abort;
+            goto end;
+        }
+
         // Add the write lock
         get_lock(LOCK_EX, txn);
         // Traverse the whole read his
@@ -309,25 +319,25 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 si_read = si_read->next;
                 continue;
             }
-            bool is_active = si_read_lock->txn.get()->txn_status == TxnStatus::ACTIVE;
-            bool interleaved =  si_read_lock->txn.get()->txn_status == TxnStatus::COMMITTED &&
-                si_read->txn.get()->get_commit_timestamp() > start_ts;
+            bool is_active = si_read_lock->txn->txn_status == TxnStatus::ACTIVE;
+            bool interleaved =  si_read_lock->txn->txn_status == TxnStatus::COMMITTED &&
+                si_read->txn->get_commit_timestamp() > start_ts;
             if (is_active || interleaved) {
-                bool in = si_read->txn.get()->in_rw;
+                bool in = si_read->txn->in_rw;
                 if (in && interleaved) { //! Abort
                     rc = Abort;
                     DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",
-                      txnid, si_read->txnid, si_read->txn.get()->get_commit_timestamp(), start_ts);
+                      txnid, si_read->txnid, si_read->txn->get_commit_timestamp(), start_ts);
                     goto end;
                 } 
-                if (is_active) {
-                    //inout_table.set_outConflict(txn->get_thd_id(), si_read->txnid, txnid);
-                    //inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txnid);
-                    assert(si_read->txn != NULL);
-                    si_read->txn->out_rw = true;
-                    txn->in_rw = true;
-                    DEBUG("ssi write the si_read_lock out %ld in %ld\n", si_read->txnid, txnid);
-                }
+
+                //inout_table.set_outConflict(txn->get_thd_id(), si_read->txnid, txnid);
+                //inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txnid);
+                assert(si_read->txn != NULL);
+                si_read->txn->out_rw = true;
+                txn->in_rw = true;
+                DEBUG("ssi write the si_read_lock out %ld in %ld\n", si_read->txnid, txnid);
+                
             }
             si_read = si_read->next;
         }
