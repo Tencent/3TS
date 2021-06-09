@@ -535,7 +535,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",trans_access_pre_check_time=%f"
     ",trans_access_pre_before_time=%f"
     ",trans_access_pre_lock_time=%f"
-    ",trans_access_write_update_time%f"
+    ",trans_access_write_update_time=%f"
     ",trans_mvcc_clear_history=%f"
     ",trans_mvcc_access=%f",
         trans_total_run_time / BILLION, trans_process_time / BILLION, trans_2pc_time / BILLION,
