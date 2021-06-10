@@ -18,6 +18,7 @@
 #include <vector>
 #include <mutex>
 #include <optional>
+#include <jemalloc/jemalloc.h>
 
 namespace ttts {
 
