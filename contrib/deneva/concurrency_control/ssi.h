@@ -89,9 +89,18 @@ public:
 class ssi {
 public:
     void init();
-    RC validate(TxnManager * txn);
+    RC   validate(TxnManager * txn);
     void gene_finish_ts(TxnManager * txn);
-    RC get_rw_set(TxnManager * txn, ssi_set_ent * &rset, ssi_set_ent *& wset);
+    RC   get_rw_set(TxnManager * txn, ssi_set_ent * &rset, ssi_set_ent *& wset);
+private:
+    sem_t _semaphore;
+};
+
+class opt_ssi {
+public:
+    void init();
+    RC   validate(TxnManager * txn);
+    void gene_finish_ts(TxnManager * txn);
 private:
     sem_t _semaphore;
 };

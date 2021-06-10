@@ -391,7 +391,7 @@ uint64_t QueryMessage::get_size() {
 #if CC_ALG == WAIT_DIE || CC_ALG == TIMESTAMP || CC_ALG == MVCC
     size += sizeof(ts);
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI
     size += sizeof(start_ts);
 #endif
     return size;
@@ -403,7 +403,7 @@ void QueryMessage::copy_from_txn(TxnManager * txn) {
     ts = txn->get_timestamp();
     assert(ts != 0);
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI
     start_ts = txn->get_start_timestamp();
 #endif
 }
@@ -414,7 +414,7 @@ void QueryMessage::copy_to_txn(TxnManager * txn) {
     assert(ts != 0);
     txn->set_timestamp(ts);
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI
     txn->set_start_timestamp(start_ts);
 #endif
 }
@@ -427,7 +427,7 @@ void QueryMessage::copy_from_buf(char * buf) {
     COPY_VAL(ts,buf,ptr);
     assert(ts != 0);
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI
     COPY_VAL(start_ts,buf,ptr);
 #endif
 }
@@ -440,7 +440,7 @@ void QueryMessage::copy_to_buf(char * buf) {
     COPY_BUF(buf,ts,ptr);
     assert(ts != 0);
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI
     COPY_BUF(buf,start_ts,ptr);
 #endif
 }
@@ -1249,7 +1249,7 @@ uint64_t FinishMessage::get_size() {
     size += sizeof(uint64_t);
     size += sizeof(RC);
     size += sizeof(bool);
-#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == SILO
+#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
     size += sizeof(uint64_t);
 #endif
     return size;
@@ -1291,7 +1291,7 @@ void FinishMessage::copy_to_buf(char * buf) {
     COPY_BUF(buf,pid,ptr);
     COPY_BUF(buf,rc,ptr);
     COPY_BUF(buf,readonly,ptr);
-#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == SILO
+#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
     COPY_BUF(buf,commit_timestamp,ptr);
 #endif
 

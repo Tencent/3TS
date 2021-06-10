@@ -263,7 +263,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
     goto end;
-#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI
+#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     //uint64_t thd_id = txn->get_thd_id();
 // For TIMESTAMP RD, a new copy of the access->data will be returned.
 
@@ -296,7 +296,8 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
             assert(access->data->get_table_name() != NULL);
         }
     }
-    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI) && type == WR) {
+    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI) 
+        && type == WR) {
         DEBUG_M("row_t::get_row MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
         newr->init(this->get_table(), get_part_id());
@@ -386,7 +387,8 @@ RC row_t::get_row(access_t type, TxnManager * txn, row_t *& row, uint64_t &orig_
 // Return call for get_row if waiting
 RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
     RC rc = RCOK;
-    assert(CC_ALG == WAIT_DIE || CC_ALG == MVCC || CC_ALG == TIMESTAMP || CC_ALG == SUNDIAL || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == TIMESTAMP || CC_ALG == FOCC || CC_ALG == BOCC);
+    assert(CC_ALG == WAIT_DIE || CC_ALG == MVCC || CC_ALG == TIMESTAMP || CC_ALG == SUNDIAL || CC_ALG == SSI || \
+    CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == TIMESTAMP || CC_ALG == FOCC || CC_ALG == BOCC);
 #if CC_ALG == WAIT_DIE
     assert(txn->lock_ready);
     rc = RCOK;
@@ -402,7 +404,8 @@ RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
     assert(row->get_table() != NULL);
     assert(row->get_schema() == this->get_schema());
     assert(row->get_table_name() != NULL);
-    if (( CC_ALG == MVCC || CC_ALG == SUNDIAL || CC_ALG == SSI || CC_ALG == WSI) && type == WR) {
+    if (( CC_ALG == MVCC || CC_ALG == SUNDIAL || CC_ALG == SSI || 
+          CC_ALG == OPT_SSI || CC_ALG == WSI) && type == WR) {
         DEBUG_M("row_t::get_row_post_wait MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
         newr->init(this->get_table(), get_part_id());
@@ -437,7 +440,7 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     }
     this->manager->lock_release(txn);
     return 0;
-#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI
+#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     // for RD or SCAN or XP, the row should be deleted.
     // because all WR should be companied by a RD
     // for MVCC RD, the row is not copied, so no need to free.

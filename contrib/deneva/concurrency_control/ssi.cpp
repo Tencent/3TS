@@ -4,7 +4,8 @@
  * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
  * Tencent Modifications are Copyright (C) THL A29 Limited.
  *
- * Author: hongyaozhao@tencent.com
+ * Author: anduinzhu@tencent.com hongyaozhao@tencent.com
+ *         
  *
  */
 #include "global.h"
@@ -14,7 +15,7 @@
 #include "manager.h"
 #include "mem_alloc.h"
 #include "row_ssi.h"
-#if CC_ALG == SSI
+#if (CC_ALG == SSI || CC_ALG == OPT_SSI)
 
 void ssi::init() {
     sem_init(&_semaphore, 0, 1);
@@ -35,8 +36,7 @@ RC ssi::validate(TxnManager * txn) {
     DEBUG("SSI Validate Start %ld\n",txn->get_txn_id());
     std::set<uint64_t> after;
     std::set<uint64_t> before;
-    if (inout_table.get_inConflict(txn->get_thd_id(), txn->get_txn_id()) &&
-        inout_table.get_outConflict(txn->get_thd_id(), txn->get_txn_id()))
+    if (txn->in_rw && txn->out_rw)
     {
         DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
         rc = Abort;
@@ -90,6 +90,47 @@ RC ssi::get_rw_set(TxnManager * txn, ssi_set_ent * &rset, ssi_set_ent *& wset) {
     assert(m == rset->set_size);
     return RCOK;
 }
+//----------------------opt_ssi impl---------------------------
+
+void opt_ssi::init() {
+    sem_init(&_semaphore, 0, 1);
+}
+
+RC opt_ssi::validate(TxnManager * txn) {
+    uint64_t start_time = get_sys_clock();
+    uint64_t timespan;
+    
+    timespan = get_sys_clock() - start_time;
+    txn->txn_stats.cc_block_time += timespan;
+    txn->txn_stats.cc_block_time_short += timespan;
+
+    start_time = get_sys_clock();
+    RC rc = RCOK;
+
+    DEBUG("SSI Validate Start %ld\n",txn->get_txn_id());
+    std::set<uint64_t> after;
+    std::set<uint64_t> before;
+    if (txn->in_rw && txn->out_rw)
+    {
+        DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
+        rc = Abort;
+    } else {
+        DEBUG("ssi Validate ok %ld\n",txn->get_txn_id());
+        rc = RCOK;
+    }
+
+    if (rc != Abort) DEBUG("si Validate ok, %ld\n",txn->get_txn_id());
+    txn->txn_stats.cc_time += timespan;
+    txn->txn_stats.cc_time_short += timespan;
+    DEBUG("SSI Validate End %ld: %d\n",txn->get_txn_id(),rc==RCOK);
+    
+    return rc;
+}
+
+void opt_ssi::gene_finish_ts(TxnManager * txn) {
+    txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
+}
+
 #endif
 
 void InOutTable::init() {
@@ -301,3 +342,5 @@ void InOutTable::set_commit_ts(uint64_t thd_id, uint64_t key, uint64_t value) {
     }
     pthread_mutex_unlock(&table[idx].mtx);
 }
+
+

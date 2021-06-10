@@ -98,7 +98,8 @@ void WorkerThread::fakeprocess(Message * msg) {
         case RFIN:
             rc = RCOK;
             txn_man->set_rc(rc);
-            if(!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL || CC_ALG == BOCC || CC_ALG == SSI)
+            if(!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL 
+                  || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI)
 
             msg_queue.enqueue(get_thd_id(),Message::create_message(txn_man,RACK_FIN),GET_NODE_ID(msg->get_txn_id()));
             break;
@@ -505,11 +506,11 @@ RC WorkerThread::process_rfin(Message * msg) {
     txn_man->commit();
 
     if (!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL ||
-        CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == SILO)
+        CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == SILO)
         msg_queue.enqueue(get_thd_id(), Message::create_message(txn_man, RACK_FIN),
                         GET_NODE_ID(msg->get_txn_id()));
     release_txn_man();
-
+ 
     return RCOK;
 }
 
@@ -577,6 +578,9 @@ RC WorkerThread::process_rack_prep(Message * msg) {
     }
     if(CC_ALG == SSI) {
         ssi_man.gene_finish_ts(txn_man);
+    }
+    if(CC_ALG == OPT_SSI) {
+        opt_ssi_man.gene_finish_ts(txn_man);
     }
     if(CC_ALG == WSI) {
         wsi_man.gene_finish_ts(txn_man);
@@ -650,7 +654,7 @@ RC WorkerThread::process_rqry(Message * msg) {
 #if CC_ALG == MVCC
     txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
 #endif
-#if CC_ALG == WSI || CC_ALG == SSI
+#if CC_ALG == WSI || CC_ALG == SSI || CC_ALG == OPT_SSI
     txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
 #if CC_ALG == MAAT
@@ -825,7 +829,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,start_ts);
 #elif CC_ALG == MVCC
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
-#elif CC_ALG == WSI || CC_ALG == SSI
+#elif CC_ALG == WSI || CC_ALG == SSI || CC_ALG == OPT_SSI
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
 #if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI

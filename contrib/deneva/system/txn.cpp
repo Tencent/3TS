@@ -5,7 +5,7 @@
     in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
     Tencent Modifications are Copyright (C) THL A29 Limited.
 
-    Author: hongyaozhao@ruc.edu.cn
+    Author: anduinzhu@tencent.com hongyaozhao@ruc.edu.cn
 
     Copyright 2016 Massachusetts Institute of Technology
 
@@ -378,6 +378,10 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     twopl_wait_start = 0;
 
     txn_stats.init();
+    //for ssi 
+    in_rw = false;
+    out_rw = false;
+    txn_status = TxnStatus::ACTIVE;
 }
 
 // reset after abort
@@ -416,6 +420,10 @@ void TxnManager::reset() {
 
     // Stats
     txn_stats.reset();
+  
+    //for ssi
+    in_rw = false; out_rw = false;
+
 }
 
 void TxnManager::release() {
@@ -467,8 +475,9 @@ RC TxnManager::commit() {
     sundial_man.cleanup(RCOK, this);
 #endif
 #if CC_ALG == SSI
-    inout_table.set_commit_ts(get_thd_id(), get_txn_id(), get_commit_timestamp());
-    inout_table.set_state(get_thd_id(), get_txn_id(), SSI_COMMITTED);
+    //inout_table.set_commit_ts(get_thd_id(), get_txn_id(), get_commit_timestamp());
+    //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_COMMITTED);
+    txn_status = TxnStatus::COMMITTED;
 #endif
     commit_stats();
 #if LOGGING
@@ -486,8 +495,10 @@ RC TxnManager::commit() {
 RC TxnManager::abort() {
     if (aborted) return Abort;
 #if CC_ALG == SSI
-    inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
-    inout_table.clear_Conflict(get_thd_id(), get_txn_id());
+    //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
+    //inout_table.clear_Conflict(get_thd_id(), get_txn_id());
+    txn_status = TxnStatus::ABORTED;
+    in_rw = false, out_rw = false;
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
     txn->rc = Abort;
@@ -546,6 +557,9 @@ RC TxnManager::start_commit() {
     rc = validate();
     if(CC_ALG == SSI) {
         ssi_man.gene_finish_ts(this);
+    }
+    if(CC_ALG == OPT_SSI) {
+        opt_ssi_man.gene_finish_ts(this);
     }
     if(CC_ALG == WSI) {
         wsi_man.gene_finish_ts(this);
@@ -611,6 +625,9 @@ RC TxnManager::start_commit() {
         INC_STATS(get_thd_id(), trans_prepare_time, prepare_timespan);
         if(CC_ALG == SSI) {
             ssi_man.gene_finish_ts(this);
+        }
+        if(CC_ALG == OPT_SSI) {
+            opt_ssi_man.gene_finish_ts(this);
         }
         if(CC_ALG == WSI) {
             wsi_man.gene_finish_ts(this);
@@ -1125,6 +1142,8 @@ RC TxnManager::validate() {
         rc = focc_man.validate(this);
     } else if (CC_ALG == SSI) {
         rc = ssi_man.validate(this);
+    } else if (CC_ALG == OPT_SSI) {
+        rc = opt_ssi_man.validate(this);
     } else if (CC_ALG == WSI) {
         rc = wsi_man.validate(this);
     } else if (CC_ALG == MAAT) {
