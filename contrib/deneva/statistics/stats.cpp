@@ -1114,7 +1114,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
 
 }
 
-void print_new() {
+void Stats_thd::print_new() {
     FILE *fp = fopen("output.txt", "w");
     if(!fp) return;
     fprintf(fp, "123");
