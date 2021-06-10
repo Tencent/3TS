@@ -320,8 +320,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             // if (whis->txn.get()->out_rw) { //! Abort
             if (whis->txn->out_rw) { //! Abort
                 rc = Abort;
-                INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
-                INC_STATS(get_thd_id(),total_rw_abort_cnt,1);
+                INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
+                INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, whis->txnid, whis->ts, start_ts);
                 goto end;             
@@ -348,8 +348,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
-            INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
-            INC_STATS(get_thd_id(),total_ww_abort_cnt,1);
+            INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
+            INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
             goto end;
         }
@@ -378,8 +378,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 bool in = si_read->txn->in_rw;
                 if (in && interleaved) { //! Abort
                     rc = Abort;
-                    INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
-                    INC_STATS(get_thd_id(),total_rw_abort_cnt,1);
+                    INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
+                    INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
                     DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",
                       //txnid, si_read->txnid, si_read->txn.get()->get_commit_timestamp(), start_ts);
                       txnid, si_read->txnid, si_read->txn->get_commit_timestamp(), start_ts);
