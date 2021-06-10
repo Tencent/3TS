@@ -200,7 +200,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 //   pre_read->next = read->next;
                 if(pre_read != NULL) {
                     pre_read->next = read->next;
-                    read->next->prev = pre_read;
                 } 
                 else {
                     assert( read == si_read_lock );
@@ -208,7 +207,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 }
                 //read->next = NULL;
                 delete_p->next = NULL;
-                delete_p->prev = NULL;
                 delete delete_p;
             }
             else 
@@ -232,7 +230,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 //    pre_write->next = write->next;
                 if(pre_write != NULL) {
                     pre_write->next = write->next;
-                    write->next->prev = pre_write;
                 }
                 else {
                     assert( write == write_lock );
@@ -240,7 +237,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 }
                 //write->next = NULL;
                 delete_p->next = NULL;
-                delete_p->prev = NULL;
                 delete delete_p;
             }
             else
@@ -267,14 +263,12 @@ void Row_ssi::release_lock(ts_t min_ts) {
             SSILockEntry * delete_p = read;
             if(pre_read != NULL) {
                 pre_read->next = read->next;
-                read->next->prev = pre_read;
             } 
             else {
                 assert( read == si_read_lock );
                 si_read_lock = read->next;
             }
             delete_p->next = NULL;
-            delete_p->prev = NULL;
             delete delete_p;
         }
         else 
@@ -326,6 +320,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             // if (whis->txn.get()->out_rw) { //! Abort
             if (whis->txn->out_rw) { //! Abort
                 rc = Abort;
+                INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
+                INC_STATS(get_thd_id(),total_rw_abort_cnt,1);
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, whis->txnid, whis->ts, start_ts);
                 goto end;             
@@ -352,6 +348,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
+            INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
+            INC_STATS(get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
             goto end;
         }
@@ -380,6 +378,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 bool in = si_read->txn->in_rw;
                 if (in && interleaved) { //! Abort
                     rc = Abort;
+                    INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
+                    INC_STATS(get_thd_id(),total_rw_abort_cnt,1);
                     DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",
                       //txnid, si_read->txnid, si_read->txn.get()->get_commit_timestamp(), start_ts);
                       txnid, si_read->txnid, si_read->txn->get_commit_timestamp(), start_ts);

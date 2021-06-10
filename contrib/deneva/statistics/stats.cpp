@@ -78,7 +78,7 @@ void Stats_thd::clear() {
     total_txn_commit_cnt=0;
     local_txn_commit_cnt=0;
     remote_txn_commit_cnt=0;
-    total_txn_abort_cnt=0;
+    //total_txn_abort_cnt=0;
     unique_txn_abort_cnt=0;
     local_txn_abort_cnt=0;
     remote_txn_abort_cnt=0;
@@ -479,7 +479,9 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",local_txn_commit_cnt=%ld"
     ",remote_txn_commit_cnt=%ld"
     ",total_txn_abort_cnt=%ld"
-            ",positive_txn_abort_cnt=%ld"
+    ",total_rw_abort_cnt=%ld"
+    ",total_ww_abort_cnt=%ld"
+    ",positive_txn_abort_cnt=%ld"
     ",unique_txn_abort_cnt=%ld"
     ",local_txn_abort_cnt=%ld"
     ",remote_txn_abort_cnt=%ld"
@@ -496,7 +498,8 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",parts_touched=%ld"
           ",avg_parts_touched=%f",
           tput, txn_cnt, remote_txn_cnt, local_txn_cnt, local_txn_start_cnt, total_txn_commit_cnt,
-          local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt,positive_txn_abort_cnt, unique_txn_abort_cnt,
+          local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt, total_rw_abort_cnt,
+          total_ww_abort_cnt, positive_txn_abort_cnt, unique_txn_abort_cnt,
           local_txn_abort_cnt, remote_txn_abort_cnt, txn_run_time / BILLION,
           txn_run_avg_time / BILLION, multi_part_txn_cnt, multi_part_txn_run_time / BILLION,
           multi_part_txn_avg_time / BILLION, single_part_txn_cnt,
@@ -1115,9 +1118,60 @@ void Stats_thd::print(FILE * outf, bool prog) {
 }
 
 void Stats_thd::print_new() {
+    chdir("/data/deneva/3TS-Auto-Test/");
     FILE *fp = fopen("output.txt", "w");
     if(!fp) return;
-    fprintf(fp, "123");
+    time_t now = time(0);
+    char* datetime = ctime(&now);
+    fprintf(fp,"%s\n",datetime);
+    fprintf(fp,
+        "txn_run_time=%-9.6f                          %5.2f%%\n"
+        "trans_total_run_time=%-9.6f                  %5.2f%%\n"
+        "real_abort_time=%-9.6f                       %5.2f%%\n"
+        "trans_process_time=%-9.6f                    %5.2f%%\n"
+        "trans_2pc_time=%-9.6f                        %5.2f%%\n"
+        "total_access_time=%-9.6f                     %5.2f%%\n"
+        "trans_access_lock_wait_time=%-9.6f           %5.2f%%\n"
+        "trans_access_read_time=%-9.6f                %5.2f%%\n"
+        "trans_access_pre_time=%-9.6f                 %5.2f%%\n"
+        "trans_access_write_time=%-9.6f               %5.2f%%\n"
+        "trans_access_xp_time=%-9.6f                  %5.2f%%\n"
+        "trans_access_clear_time=%-9.6f               %5.2f%%\n"
+        "trans_access_write_insert_time=%-9.6f        %5.2f%%\n"
+        "trans_access_write_release_time=%-9.6f       %5.2f%%\n"
+        "trans_access_pre_check_time=%-9.6f           %5.2f%%\n"
+        "trans_access_pre_before_time=%-9.6f          %5.2f%%\n"
+        "trans_access_pre_lock_time=%-9.6f            %5.2f%%\n"
+        "trans_prepare_time=%-9.6f                    %5.2f%%\n"
+        "trans_validate_time=%-9.6f                   %5.2f%%\n"
+        "trans_finish_time=%-9.6f                     %5.2f%%\n"
+        "trans_commit_time=%-9.6f                     %5.2f%%\n"
+        "trans_abort_time=%-9.6f                      %5.2f%%\n"
+        "txn_cleanup_time=%-9.6f                      %5.2f%%\n",
+        txn_run_time / BILLION, 100.0 * txn_run_time / txn_run_time,
+        trans_total_run_time / BILLION, 100.0 * trans_total_run_time / txn_run_time,
+        real_abort_time / BILLION, 100.0 * real_abort_time / txn_run_time,
+        trans_process_time / BILLION, 100.0 * trans_process_time / txn_run_time,
+        trans_2pc_time / BILLION, 100.0 * trans_2pc_time / txn_run_time,
+        total_access_time / BILLION, 100.0 * total_access_time / txn_run_time,
+        trans_access_lock_wait_time / BILLION, 100.0 * trans_access_lock_wait_time / txn_run_time,
+        trans_access_read_time / BILLION, 100.0 * trans_access_read_time / txn_run_time,
+        trans_access_pre_time / BILLION, 100.0 * trans_access_pre_time / txn_run_time,
+        trans_access_write_time / BILLION, 100.0 * trans_access_write_time / txn_run_time,
+        trans_access_xp_time / BILLION, 100.0 * trans_access_xp_time / txn_run_time,
+        trans_access_clear_time / BILLION, 100.0 * trans_access_clear_time / txn_run_time,
+        trans_access_write_insert_time / BILLION, 100.0 * trans_access_write_insert_time / txn_run_time,
+        trans_access_write_release_time / BILLION, 100.0 * trans_access_write_release_time / txn_run_time,
+        trans_access_pre_check_time / BILLION, 100.0 * trans_access_pre_check_time / txn_run_time,
+        trans_access_pre_before_time / BILLION, 100.0 * trans_access_pre_before_time / txn_run_time,
+        trans_access_pre_lock_time / BILLION, 100.0 * trans_access_pre_lock_time / txn_run_time,
+        trans_prepare_time / BILLION, 100.0 * trans_prepare_time / txn_run_time,
+        trans_validate_time / BILLION, 100.0 * trans_validate_time / txn_run_time,
+        trans_finish_time / BILLION, 100.0 * trans_finish_time / txn_run_time,
+        trans_commit_time / BILLION, 100.0 * trans_commit_time / txn_run_time,
+        trans_abort_time / BILLION, 100.0 * trans_abort_time / txn_run_time,
+        txn_cleanup_time / BILLION, 100.0 * txn_cleanup_time / txn_run_time
+    );
     fclose(fp);
 }
 
@@ -1477,7 +1531,7 @@ void Stats::print(bool prog) {
     else
         fprintf(outf, "[summary] ");
     totals->print(outf,prog);
-    totals->print_new();
+    //totals->print_new();
     mem_util(outf);
     cpu_util(outf);
 
