@@ -77,18 +77,6 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
     return row;
 }
 
-SSIReqEntry * Row_ssi::get_req_entry() {
-    return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry));
-}
-
-void Row_ssi::return_req_entry(SSIReqEntry * entry) {
-    mem_allocator.free(entry, sizeof(SSIReqEntry));
-}
-
-SSIHisEntry * Row_ssi::get_his_entry() {
-    return new (SSIHisEntry);
-}
-
 void Row_ssi::return_his_entry(SSIHisEntry * entry) {
     if (entry->row != NULL) {
         entry->row->free_row();
@@ -363,12 +351,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //WW conflict
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
-            rc = Abort;
-            INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
-            goto end;
-        }
-        // Check to see if lost update commited(RWCW) exist
-        if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
             goto end;

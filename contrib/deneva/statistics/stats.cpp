@@ -1114,6 +1114,13 @@ void Stats_thd::print(FILE * outf, bool prog) {
 
 }
 
+void print_new() {
+    FILE *fp = fopen("output.txt", "w");
+    if(!fp) return;
+    fprintf(fp, "123");
+    fclose(fp);
+}
+
 void Stats_thd::combine(Stats_thd * stats) {
     if (stats->total_runtime > total_runtime) total_runtime = stats->total_runtime;
 
@@ -1470,6 +1477,7 @@ void Stats::print(bool prog) {
     else
         fprintf(outf, "[summary] ");
     totals->print(outf,prog);
+    totals->print_new();
     mem_util(outf);
     cpu_util(outf);
 

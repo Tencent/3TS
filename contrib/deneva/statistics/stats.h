@@ -38,6 +38,7 @@ public:
     void init(uint64_t thd_id);
     void combine(Stats_thd * stats);
     void print(FILE * outf, bool prog);
+    void print_new();
     void print_client(FILE * outf, bool prog);
     void clear();
 
