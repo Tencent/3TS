@@ -212,7 +212,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 //   pre_read->next = read->next;
                 if(pre_read != NULL) {
                     pre_read->next = read->next;
-                    read->next->prev = pre_read;
                 } 
                 else {
                     assert( read == si_read_lock );
@@ -220,7 +219,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 }
                 //read->next = NULL;
                 delete_p->next = NULL;
-                delete_p->prev = NULL;
                 delete delete_p;
             }
             else 
@@ -244,7 +242,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 //    pre_write->next = write->next;
                 if(pre_write != NULL) {
                     pre_write->next = write->next;
-                    write->next->prev = pre_write;
                 }
                 else {
                     assert( write == write_lock );
@@ -252,7 +249,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 }
                 //write->next = NULL;
                 delete_p->next = NULL;
-                delete_p->prev = NULL;
                 delete delete_p;
             }
             else
@@ -279,14 +275,12 @@ void Row_ssi::release_lock(ts_t min_ts) {
             SSILockEntry * delete_p = read;
             if(pre_read != NULL) {
                 pre_read->next = read->next;
-                read->next->prev = pre_read;
             } 
             else {
                 assert( read == si_read_lock );
                 si_read_lock = read->next;
             }
             delete_p->next = NULL;
-            delete_p->prev = NULL;
             delete delete_p;
         }
         else 
