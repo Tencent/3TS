@@ -9,7 +9,7 @@ SRC_DIRS = ./ ./benchmarks/ ./client/ ./concurrency_control/ ./unified_concurren
 DEPS = -I. -I./benchmarks -I./client/ -I./concurrency_control -I./unified_concurrency_control/ -I./storage -I./transport -I./system -I./statistics #-I./unit_tests
 
 CFLAGS += $(DEPS) -D NOGRAPHITE=1 -Wno-sizeof-pointer-memaccess
-LDFLAGS = -Wall -L. -L$(NNMSG) -Wl,-rpath -pthread -lrt -lnanomsg -lanl -lcurl -lprotobuf -lpthread
+LDFLAGS = -Wall -L. -L$(NNMSG) -L/usr/local/lib -Wl,-rpath -pthread -lrt -lnanomsg -lanl -lcurl -lprotobuf -lpthread -ljemalloc
 #LDFLAGS = -Wall -L. -L$(NNMSG) -L$(JEMALLOC)/lib -Wl,-rpath,$(JEMALLOC)/lib -pthread -gdwarf-3 -lrt -std=c++11
 LDFLAGS += $(CFLAGS)
 LIBS =

@@ -4,7 +4,7 @@
  * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
  * Tencent Modifications are Copyright (C) THL A29 Limited.
  *
- * Author: hongyaozhao@tencent.com
+ * Author: anduinzhu@tencent.com hongyaozhao@tencent.com
  *
  */
 
@@ -23,7 +23,7 @@ struct SSIReqEntry {
 };
 
 struct SSIHisEntry {
-    std::shared_ptr<TxnManager> txn;
+    TxnManager* txn;
     txnid_t txnid;
     ts_t ts;
     // only for write history. The value needs to be stored.
@@ -36,7 +36,8 @@ struct SSIHisEntry {
 struct SSILockEntry {
     lock_t type;
     ts_t   start_ts;
-    std::shared_ptr<TxnManager> txn;
+    //who is reading or writing
+    TxnManager* txn;
     txnid_t txnid;
     SSILockEntry * next;
     SSILockEntry * prev;
