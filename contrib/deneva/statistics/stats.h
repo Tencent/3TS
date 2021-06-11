@@ -38,7 +38,6 @@ public:
     void init(uint64_t thd_id);
     void combine(Stats_thd * stats);
     void print(FILE * outf, bool prog);
-    void print_new();
     void print_client(FILE * outf, bool prog);
     void clear();
 
@@ -59,9 +58,9 @@ public:
     uint64_t total_txn_commit_cnt;
     uint64_t local_txn_commit_cnt;
     uint64_t remote_txn_commit_cnt;
-    uint64_t total_txn_abort_cnt=0;
-    uint64_t total_rw_abort_cnt=0;
-    uint64_t total_ww_abort_cnt=0;
+    uint64_t total_txn_abort_cnt;
+    uint64_t total_rw_abort_cnt;
+    uint64_t total_ww_abort_cnt;
     uint64_t positive_txn_abort_cnt;
     uint64_t unique_txn_abort_cnt;
     uint64_t local_txn_abort_cnt;
@@ -96,33 +95,33 @@ public:
     double txn_validate_time;
     double txn_cleanup_time;
     // trans
-    double trans_total_run_time=0;
-    double trans_process_time=0;
-    double trans_2pc_time=0;
-    double trans_prepare_time=0;
-    double trans_validate_time=0;
-    double trans_finish_time=0;
-    double trans_commit_time=0;
-    double trans_abort_time=0;
+    double trans_total_run_time;
+    double trans_process_time;
+    double trans_2pc_time;
+    double trans_prepare_time;
+    double trans_validate_time;
+    double trans_finish_time;
+    double trans_commit_time;
+    double trans_abort_time;
 
-    double trans_access_lock_wait_time=0;
-    double total_access_time=0;
-    double trans_access_read_time=0;
-    double trans_access_pre_time=0;
-    double trans_access_write_time=0;
-    double trans_access_xp_time=0;
-    double trans_access_clear_time=0;
-    double trans_access_write_insert_time=0;
-    double trans_access_write_release_time=0;
-    double trans_access_pre_check_time=0;
-    double trans_access_pre_before_time=0;
-    double trans_access_pre_lock_time=0;
-    double real_abort_time=0;
-    double trans_abort_reset_time=0;
+    double trans_access_lock_wait_time;
+    double total_access_time;
+    double trans_access_read_time;
+    double trans_access_pre_time;
+    double trans_access_write_time;
+    double trans_access_xp_time;
+    double trans_access_clear_time;
+    double trans_access_write_insert_time;
+    double trans_access_write_release_time;
+    double trans_access_pre_check_time;
+    double trans_access_pre_before_time;
+    double trans_access_pre_lock_time;
+    double real_abort_time;
+    double trans_abort_reset_time;
     // trans mvcc
-    double trans_mvcc_clear_history=0;
-    double trans_mvcc_access=0;
-    double trans_access_write_update_time=0;
+    double trans_mvcc_clear_history;
+    double trans_mvcc_access;
+    double trans_access_write_update_time;
     // Work queue
     double work_queue_wait_time;
     uint64_t work_queue_cnt;
