@@ -61,6 +61,8 @@ public:
     uint64_t total_txn_abort_cnt;
     uint64_t total_rw_abort_cnt;
     uint64_t total_ww_abort_cnt;
+    uint64_t total_validate_abort_cnt;
+    uint64_t total_txn_prewrite_cnt;
     uint64_t positive_txn_abort_cnt;
     uint64_t unique_txn_abort_cnt;
     uint64_t local_txn_abort_cnt;

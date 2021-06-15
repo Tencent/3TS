@@ -82,6 +82,8 @@ void Stats_thd::clear() {
     total_txn_abort_cnt=0;
     total_rw_abort_cnt=0;
     total_ww_abort_cnt=0;
+    total_validate_abort_cnt=0;
+    total_txn_prewrite_cnt=0;
     unique_txn_abort_cnt=0;
     local_txn_abort_cnt=0;
     remote_txn_abort_cnt=0;
@@ -498,6 +500,8 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",total_txn_abort_cnt=%ld"
     ",total_rw_abort_cnt=%ld"
     ",total_ww_abort_cnt=%ld"
+    ",total_validate_abort_cnt=%ld"
+    ",total_txn_prewrite_cnt=%ld"
     ",positive_txn_abort_cnt=%ld"
     ",unique_txn_abort_cnt=%ld"
     ",local_txn_abort_cnt=%ld"
@@ -516,7 +520,8 @@ void Stats_thd::print(FILE * outf, bool prog) {
           ",avg_parts_touched=%f",
           tput, txn_cnt, remote_txn_cnt, local_txn_cnt, local_txn_start_cnt, total_txn_commit_cnt,
           local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt, total_rw_abort_cnt,
-          total_ww_abort_cnt, positive_txn_abort_cnt, unique_txn_abort_cnt,
+          total_ww_abort_cnt, total_validate_abort_cnt, total_txn_prewrite_cnt,
+          positive_txn_abort_cnt, unique_txn_abort_cnt,
           local_txn_abort_cnt, remote_txn_abort_cnt, txn_run_time / BILLION,
           txn_run_avg_time / BILLION, multi_part_txn_cnt, multi_part_txn_run_time / BILLION,
           multi_part_txn_avg_time / BILLION, single_part_txn_cnt,
@@ -1152,6 +1157,8 @@ void Stats_thd::combine(Stats_thd * stats) {
     total_txn_abort_cnt+=stats->total_txn_abort_cnt;
     total_rw_abort_cnt+=stats->total_rw_abort_cnt;
     total_ww_abort_cnt+=stats->total_ww_abort_cnt;
+    total_validate_abort_cnt+=stats->total_validate_abort_cnt;
+    total_txn_prewrite_cnt+=stats->total_txn_prewrite_cnt;
     positive_txn_abort_cnt += stats->positive_txn_abort_cnt;
     unique_txn_abort_cnt+=stats->unique_txn_abort_cnt;
     local_txn_abort_cnt+=stats->local_txn_abort_cnt;
@@ -1487,6 +1494,7 @@ void Stats::print(bool prog) {
             outf = fopen(output_file, "w");
     else
         outf = stdout;
+    for (uint64_t i = 0; i < thd_cnt; i++) fprintf(outf,",%ld",_stats[i]->total_rw_abort_cnt);
     if(prog)
         fprintf(outf, "[prog] ");
     else
