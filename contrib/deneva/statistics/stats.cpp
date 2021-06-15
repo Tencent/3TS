@@ -1494,7 +1494,6 @@ void Stats::print(bool prog) {
             outf = fopen(output_file, "w");
     else
         outf = stdout;
-    for (uint64_t i = 0; i < thd_cnt; i++) fprintf(outf,",%ld",_stats[i]->total_rw_abort_cnt);
     if(prog)
         fprintf(outf, "[prog] ");
     else
