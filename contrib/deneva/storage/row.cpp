@@ -38,6 +38,7 @@
 #include "row_ts.h"
 #include "row_sundial.h"
 #include "row_ssi.h"
+#include "row_opt_ssi.h"
 #include "row_wsi.h"
 #include "row_null.h"
 #include "row_silo.h"
@@ -88,6 +89,8 @@ void row_t::init_manager(row_t * row) {
     manager = new Row_sundial(this);
 #elif CC_ALG == SSI
     manager = (Row_ssi *) mem_allocator.align_alloc(sizeof(Row_ssi));
+#elif CC_ALG == OPT_SSI
+    manager = (Row_opt_ssi *) mem_allocator.align_alloc(sizeof(Row_opt_ssi));
 #elif CC_ALG == WSI
     manager = (Row_wsi *) mem_allocator.align_alloc(sizeof(Row_wsi));
 #elif CC_ALG == CNULL

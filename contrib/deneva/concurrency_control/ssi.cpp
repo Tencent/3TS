@@ -15,7 +15,9 @@
 #include "manager.h"
 #include "mem_alloc.h"
 #include "row_ssi.h"
-#if (CC_ALG == SSI || CC_ALG == OPT_SSI)
+#include "row_opt_ssi.h"
+
+#if CC_ALG == SSI
 
 void ssi::init() {
     sem_init(&_semaphore, 0, 1);
@@ -90,8 +92,7 @@ RC ssi::get_rw_set(TxnManager * txn, ssi_set_ent * &rset, ssi_set_ent *& wset) {
     assert(m == rset->set_size);
     return RCOK;
 }
-//----------------------opt_ssi impl---------------------------
-
+#elif CC_ALG == OPT_SSI
 void opt_ssi::init() {
     sem_init(&_semaphore, 0, 1);
 }
@@ -107,9 +108,7 @@ RC opt_ssi::validate(TxnManager * txn) {
     start_time = get_sys_clock();
     RC rc = RCOK;
 
-    DEBUG("SSI Validate Start %ld\n",txn->get_txn_id());
-    std::set<uint64_t> after;
-    std::set<uint64_t> before;
+    DEBUG("OPT_SSI Validate Start %ld\n",txn->get_txn_id());
     if (txn->in_rw && txn->out_rw)
     {
         DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
@@ -130,7 +129,6 @@ RC opt_ssi::validate(TxnManager * txn) {
 void opt_ssi::gene_finish_ts(TxnManager * txn) {
     txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
 }
-
 #endif
 
 void InOutTable::init() {

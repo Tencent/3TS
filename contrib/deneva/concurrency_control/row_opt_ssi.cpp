@@ -20,27 +20,26 @@ void Row_opt_ssi::init(row_t * row) {
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
-    commit_lock = 0;
     preq_len = 0;
 }
 
 row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
-    SSIHisEntry ** queue;
-    SSIHisEntry ** tail;
+    OPT_SSIHisEntry ** queue;
+    OPT_SSIHisEntry ** tail;
     switch (type) {
     case R_REQ:
         queue = &readhis;
-        tail = &readhistail;
+        tail  = &readhistail;
         break;
     case W_REQ:
         queue = &writehis;
-        tail = &writehistail;
+        tail  = &writehistail;
         break;
     default:
         assert(false);
     }
-    SSIHisEntry * his = *tail;
-    SSIHisEntry * prev = NULL;
+    OPT_SSIHisEntry * his = *tail;
+    OPT_SSIHisEntry * prev = NULL;
     row_t * row = NULL;
     while (his && his->prev && his->prev->ts < ts) {
         prev = his->prev;
@@ -62,29 +61,29 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
     return row;
 }
 
-SSIReqEntry * Row_opt_ssi::get_req_entry() {
-    return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry));
+OPT_SSIReqEntry * Row_opt_ssi::get_req_entry() {
+    return (OPT_SSIReqEntry *) mem_allocator.alloc(sizeof(OPT_SSIReqEntry));
 }
 
-void Row_opt_ssi::return_req_entry(SSIReqEntry * entry) {
-    mem_allocator.free(entry, sizeof(SSIReqEntry));
+void Row_opt_ssi::return_req_entry(OPT_SSIReqEntry * entry) {
+    mem_allocator.free(entry, sizeof(OPT_SSIReqEntry));
 }
 
-SSIHisEntry * Row_opt_ssi::get_his_entry() {
-    return (SSIHisEntry *) mem_allocator.alloc(sizeof(SSIHisEntry));
+OPT_SSIHisEntry * Row_opt_ssi::get_his_entry() {
+    return (OPT_SSIHisEntry *) mem_allocator.alloc(sizeof(OPT_SSIHisEntry));
 }
 
-void Row_opt_ssi::return_his_entry(SSIHisEntry * entry) {
+void Row_opt_ssi::return_his_entry(OPT_SSIHisEntry * entry) {
     if (entry->row != NULL) {
         entry->row->free_row();
         mem_allocator.free(entry->row, sizeof(row_t));
     }
-    mem_allocator.free(entry, sizeof(SSIHisEntry));
+    mem_allocator.free(entry, sizeof(OPT_SSIHisEntry));
 }
 
 void Row_opt_ssi::buffer_req(TsType type, TxnManager * txn)
 {
-    SSIReqEntry * req_entry = get_req_entry();
+    OPT_SSIReqEntry * req_entry = get_req_entry();
     assert(req_entry != NULL);
     req_entry->txn = txn;
     req_entry->ts = txn->get_start_timestamp();
@@ -99,12 +98,12 @@ void Row_opt_ssi::buffer_req(TsType type, TxnManager * txn)
 //     debuffer all non-conflicting requests
 // for type == P_REQ
 //   debuffer the request with matching txn.
-SSIReqEntry * Row_opt_ssi::debuffer_req( TsType type, TxnManager * txn) {
-    SSIReqEntry ** queue = &prereq_mvcc;
-    SSIReqEntry * return_queue = NULL;
+OPT_SSIReqEntry * Row_opt_ssi::debuffer_req(TsType type, TxnManager * txn) {
+    OPT_SSIReqEntry ** queue = &prereq_mvcc;
+    OPT_SSIReqEntry * return_queue = NULL;
 
-    SSIReqEntry * req = *queue;
-    SSIReqEntry * prev_req = NULL;
+    OPT_SSIReqEntry * req = *queue;
+    OPT_SSIReqEntry * prev_req = NULL;
     if (txn != NULL) {
         assert(type == P_REQ);
         while (req != NULL && req->txn != txn) {
@@ -127,7 +126,7 @@ SSIReqEntry * Row_opt_ssi::debuffer_req( TsType type, TxnManager * txn) {
 
 void Row_opt_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 {
-    SSIHisEntry * new_entry = get_his_entry();
+    OPT_SSIHisEntry * new_entry = get_his_entry();
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
@@ -137,11 +136,11 @@ void Row_opt_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     } else {
         rhis_len ++;
     }
-    SSIHisEntry ** queue = (row == NULL)?
+    OPT_SSIHisEntry ** queue = (row == NULL)?
         &(readhis) : &(writehis);
-    SSIHisEntry ** tail = (row == NULL)?
+    OPT_SSIHisEntry ** tail = (row == NULL)?
         &(readhistail) : &(writehistail);
-    SSIHisEntry * his = *queue;
+    OPT_SSIHisEntry * his = *queue;
     while (his != NULL && ts < his->ts) {
         his = his->next;
     }
@@ -152,9 +151,9 @@ void Row_opt_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
         LIST_PUT_TAIL((*queue), (*tail), new_entry);
 }
 
-SSILockEntry * Row_opt_ssi::get_entry() {
-    SSILockEntry * entry = (SSILockEntry *)
-        mem_allocator.alloc(sizeof(SSILockEntry));
+OPT_SSILockEntry * Row_opt_ssi::get_entry() {
+    OPT_SSILockEntry * entry = (OPT_SSILockEntry *)
+        mem_allocator.alloc(sizeof(OPT_SSILockEntry));
     entry->type = LOCK_NONE;
     entry->txnid = 0;
 
@@ -162,7 +161,7 @@ SSILockEntry * Row_opt_ssi::get_entry() {
 }
 
 void Row_opt_ssi::get_lock(lock_t type, TxnManager * txn) {
-    SSILockEntry * entry = get_entry();
+    OPT_SSILockEntry * entry = get_entry();
     entry->type = type;
     entry->txn = (txn);
     entry->start_ts = get_sys_clock();
@@ -171,14 +170,12 @@ void Row_opt_ssi::get_lock(lock_t type, TxnManager * txn) {
         STACK_PUSH(si_read_lock, entry);
     if (type == LOCK_EX)
         STACK_PUSH(write_lock, entry);
-    if (type == LOCK_COM)
-        commit_lock = txn->get_txn_id();
 }
 
 void Row_opt_ssi::release_lock(lock_t type, TxnManager * txn) {
     if (type == LOCK_SH) {
-        SSILockEntry * read = si_read_lock;
-        SSILockEntry * pre_read = NULL;
+        OPT_SSILockEntry * read = si_read_lock;
+        OPT_SSILockEntry * pre_read = NULL;
         while (read != NULL) {
             if (read->txnid == txn->get_txn_id()) {
                 assert(read != NULL);
@@ -195,8 +192,8 @@ void Row_opt_ssi::release_lock(lock_t type, TxnManager * txn) {
         }
     }
     if (type == LOCK_EX) {
-        SSILockEntry * write = write_lock;
-        SSILockEntry * pre_write = NULL;
+        OPT_SSILockEntry * write = write_lock;
+        OPT_SSILockEntry * pre_write = NULL;
         while (write != NULL) {
             if (write->txnid == txn->get_txn_id()) {
                 assert(write != NULL);
@@ -211,9 +208,6 @@ void Row_opt_ssi::release_lock(lock_t type, TxnManager * txn) {
             pre_write = write;
             write = write->next;
         }
-    }
-    if (type == LOCK_COM) {
-        if (commit_lock == txn->get_txn_id()) commit_lock = 0;
     }
 }
 
@@ -235,43 +229,35 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         get_lock(LOCK_SH, txn);
         // Traverse the whole write lock, only one active and waiting
         // as it is more than one txn it is the WW conflict, violating serialization.
-        SSILockEntry * write = write_lock;
+        OPT_SSILockEntry * write = write_lock;
         while (write != NULL) {
             if (write->txnid == txnid) {
                 write = write->next;
                 continue;
             }
-            //inout_table.set_inConflict(txn->get_thd_id(), write->txnid, txnid);
-            //inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txnid);
             (write->txn)->in_rw = true;
             txn->out_rw = true;
             DEBUG("ssi read the write_lock in %ld out %ld\n",write->txnid, txnid);
             write = write->next;
         }
-        
         // Check to see if two RW dependencies exist.
         // Add RW dependencies
-        SSIHisEntry* whis = writehis;
+        OPT_SSIHisEntry* whis = writehis;
         while (whis != NULL && whis->ts > start_ts) {
-            //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
             if (whis->txn->out_rw) { //! Abort
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, whis->txnid, whis->ts, start_ts);
                 goto end;             
             }
-            //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
-            //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
             whis->txn->in_rw = true;
             txn->out_rw = true;
             DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
             whis = whis->next;
         }
-
         row_t * ret = (whis == NULL) ? _row : whis->row;
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
-
     } else if (type == P_REQ) {
         //WW conflict
         if (write_lock != NULL && write_lock->txn != txn) {
@@ -281,7 +267,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // Add the write lock
         get_lock(LOCK_EX, txn);
         // Traverse the whole read his
-        SSILockEntry * si_read = si_read_lock;
+        OPT_SSILockEntry * si_read = si_read_lock;
         
         while (si_read != NULL) {
             if (si_read->txnid == txnid) {
@@ -299,8 +285,6 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                       txnid, si_read->txnid, si_read->txn->get_commit_timestamp(), start_ts);
                     goto end;
                 } 
-                //inout_table.set_outConflict(txn->get_thd_id(), si_read->txnid, txnid);
-                //inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txnid);
                 assert(si_read->txn != NULL);
                 si_read->txn->out_rw = true;
                 txn->in_rw = true;
@@ -312,7 +296,6 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     } else if (type == W_REQ) {
         rc = RCOK;
         release_lock(LOCK_EX, txn);
-        //release_lock(LOCK_COM, txn);
         //TODO: here need to consider whether need to release the si-read lock.
         // release_lock(LOCK_SH, txn);
 
@@ -367,40 +350,5 @@ end:
         pthread_mutex_unlock(latch);
      }
 
-    return rc;
-}
-
-RC Row_opt_ssi::validate_last_commit(TxnManager * txn) {
-    RC rc = RCOK;
-    SSIHisEntry *  whis = writehis;
-    ts_t start_ts = txn->get_start_timestamp();
-    if (g_central_man) {
-        glob_manager.lock_row(_row);
-    } else {
-        pthread_mutex_lock(latch);
-    }
-    // INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
-
-    if (commit_lock != 0 && commit_lock != txn->get_txn_id()) {
-        DEBUG("si last commit lock %ld, %ld\n",commit_lock, txn->get_txn_id());
-        rc = Abort;
-        goto last_commit_end;
-    }
-    get_lock(LOCK_COM, txn);
-    // Iterate over a version that is newer than the one you are currently reading.
-    while (whis != NULL && whis->ts < start_ts) {
-        whis = whis->next;
-    }
-    if (whis != NULL) {
-        DEBUG("si last commit whis %ld, %ld, %ld\n",whis->ts, start_ts, txn->get_txn_id());
-        release_lock(LOCK_COM, txn);
-        rc = Abort;
-    }    
-last_commit_end:
-    if (g_central_man) {
-        glob_manager.release_row(_row);
-    } else {
-        pthread_mutex_unlock(latch);
-    }
     return rc;
 }

@@ -17,45 +17,40 @@ class table_t;
 class Catalog;
 class TxnManager;
 
-struct SSIReqEntry {
+struct OPT_SSIReqEntry {
     TxnManager * txn;
     ts_t ts;
     ts_t starttime;
-    SSIReqEntry * next;
+    OPT_SSIReqEntry * next;
 };
 
-struct SSIHisEntry {
-    TxnManager * txn;
+struct OPT_SSIHisEntry {
+    TxnManager *txn;
     txnid_t txnid;
     ts_t ts;
-    // only for write history. The value needs to be stored.
-    // char * data;
-    row_t * row;
-    SSIHisEntry * next;
-    SSIHisEntry * prev;
+    row_t *row;
+    OPT_SSIHisEntry *next;
+    OPT_SSIHisEntry *prev;
 };
 
-struct SSILockEntry {
+struct OPT_SSILockEntry {
     lock_t type;
     ts_t   start_ts;
     TxnManager * txn;
     txnid_t txnid;
-    SSILockEntry * next;
-    SSILockEntry * prev;
+    OPT_SSILockEntry * next;
+    OPT_SSILockEntry * prev;
 };
 
 class Row_opt_ssi {
 public:
     void init(row_t * row);
-    RC access(TxnManager * txn, TsType type, row_t * row);
-    RC validate_last_commit(TxnManager * txn);
+    RC   access(TxnManager * txn, TsType type, row_t * row);
 private:
     pthread_mutex_t * latch;
 
-    SSILockEntry * si_read_lock;
-    SSILockEntry * write_lock;
-
-    txnid_t commit_lock;
+    OPT_SSILockEntry * si_read_lock;
+    OPT_SSILockEntry * write_lock;
 
     bool blatch;
 
@@ -65,24 +60,23 @@ private:
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
-    SSIReqEntry * get_req_entry();
-    void return_req_entry(SSIReqEntry * entry);
-    SSIHisEntry * get_his_entry();
-    void return_his_entry(SSIHisEntry * entry);
+    OPT_SSIReqEntry * get_req_entry();
+    void return_req_entry(OPT_SSIReqEntry * entry);
+    OPT_SSIHisEntry * get_his_entry();
+    void return_his_entry(OPT_SSIHisEntry * entry);
 
-    bool conflict(TsType type, ts_t ts);
     void buffer_req(TsType type, TxnManager * txn);
-    SSIReqEntry * debuffer_req( TsType type, TxnManager * txn = NULL);
+    OPT_SSIReqEntry * debuffer_req( TsType type, TxnManager * txn = NULL);
 
 
-    SSILockEntry * get_entry();
+    OPT_SSILockEntry * get_entry();
     row_t * clear_history(TsType type, ts_t ts);
 
-    SSIReqEntry * prereq_mvcc;
-    SSIHisEntry * readhis;
-    SSIHisEntry * writehis;
-    SSIHisEntry * readhistail;
-    SSIHisEntry * writehistail;
+    OPT_SSIReqEntry * prereq_mvcc;
+    OPT_SSIHisEntry * readhis;
+    OPT_SSIHisEntry * writehis;
+    OPT_SSIHisEntry * readhistail;
+    OPT_SSIHisEntry * writehistail;
 
     uint64_t whis_len;
     uint64_t rhis_len;

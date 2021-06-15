@@ -53,6 +53,7 @@ class Row_mvcc;
 class Row_ts;
 class Row_occ;
 class Row_ssi;
+class Row_opt_ssi;
 class Row_wsi;
 class Row_maat;
 class Row_specex;
@@ -133,6 +134,8 @@ public:
     Row_avoid * manager;
     #elif CC_ALG == SSI
     Row_ssi * manager;
+    #elif CC_ALG == OPT_SSI
+    Row_opt_ssi * manager;
     #elif CC_ALG == WSI
     Row_wsi * manager;
     #elif CC_ALG == CNULL
@@ -147,10 +150,10 @@ public:
     table_t * table;
 private:
     // primary key should be calculated from the data stored in the row.
-    uint64_t         _primary_key;
+    uint64_t        _primary_key;
     uint64_t        _part_id;
-    bool part_info;
-    uint64_t _row_id;
+    bool            part_info;
+    uint64_t        _row_id;
 };
 
 #endif
