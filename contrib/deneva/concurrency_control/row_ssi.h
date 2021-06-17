@@ -52,15 +52,17 @@ public:
 private:
     pthread_mutex_t * latch;
 
-    SSILockEntry * si_read_lock;
-    SSILockEntry * write_lock;
+     SSILockEntry * si_read_lock;
+     SSILockEntry * write_lock;
+
+    //std::vector<TxnManager*> *si_read, *wrt_list;
 
     txnid_t commit_lock;
 
     bool blatch;
 
     row_t * _row;
-    void get_lock(lock_t type, TxnManager *& txn);
+    void get_lock(lock_t type, TxnManager * txn);
     void release_lock(lock_t type, TxnManager * txn);
     void release_lock(ts_t min_ts);
 
