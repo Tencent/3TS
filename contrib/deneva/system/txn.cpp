@@ -396,6 +396,7 @@ void TxnManager::reset() {
     return_id = UINT64_MAX;
     twopl_wait_start = 0;
 
+    txn_status = TxnStatus::ACTIVE;
     //ready = true;
 
     // MaaT
@@ -497,8 +498,10 @@ RC TxnManager::commit() {
 RC TxnManager::abort() {
     if (aborted) return Abort;
 #if CC_ALG == SSI
-    //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
-    //inout_table.clear_Conflict(get_thd_id(), get_txn_id());
+    inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
+    inout_table.clear_Conflict(get_thd_id(), get_txn_id());
+#endif
+#if CC_ALG == OPT_SSI
     txn_status = TxnStatus::ABORTED;
     in_rw = false, out_rw = false;
 #endif
