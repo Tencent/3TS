@@ -1260,7 +1260,7 @@ void FinishMessage::copy_from_txn(TxnManager * txn) {
     rc = txn->get_rc();
     readonly = txn->query->readonly();
 
-#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == SILO
+#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
     commit_timestamp = txn->get_commit_timestamp();
 #endif
 }
@@ -1268,7 +1268,7 @@ void FinishMessage::copy_from_txn(TxnManager * txn) {
 void FinishMessage::copy_to_txn(TxnManager * txn) {
     Message::mcopy_to_txn(txn);
 
-#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == SILO
+#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
     txn->commit_timestamp = commit_timestamp;
 #endif
 }
@@ -1279,7 +1279,7 @@ void FinishMessage::copy_from_buf(char * buf) {
     COPY_VAL(pid,buf,ptr);
     COPY_VAL(rc,buf,ptr);
     COPY_VAL(readonly,buf,ptr);
-#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == SILO
+#if CC_ALG == MAAT || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
     COPY_VAL(commit_timestamp,buf,ptr);
 #endif
     assert(ptr == get_size());
