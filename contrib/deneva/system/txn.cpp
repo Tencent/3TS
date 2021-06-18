@@ -592,7 +592,8 @@ RC TxnManager::start_commit() {
                 send_prepare_messages();
                 rc = WAIT_REM;
             }
-        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI) {
+        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI ||
+            CC_ALG == OPT_SSI) {
             // send prepare messages
 #if CC_ALG == FOCC
             rc = focc_man.start_critical_section(this);

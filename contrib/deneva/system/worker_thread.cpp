@@ -832,7 +832,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
 #elif CC_ALG == WSI || CC_ALG == SSI || CC_ALG == OPT_SSI
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI 
 #if WORKLOAD==DA
         if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
         {
