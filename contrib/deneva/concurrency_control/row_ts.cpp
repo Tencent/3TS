@@ -21,6 +21,7 @@
 #include "mem_alloc.h"
 #include "manager.h"
 #include "stdint.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_ts::init(row_t * row) {
     _row = row;
@@ -33,21 +34,20 @@ void Row_ts::init(row_t * row) {
     writereq = NULL;
     prereq = NULL;
     preq_len = 0;
-    latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    latch = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init( latch, NULL );
     blatch = false;
 }
 
 TsReqEntry * Row_ts::get_req_entry() {
-    return (TsReqEntry *) mem_allocator.alloc(sizeof(TsReqEntry));
+    return (TsReqEntry *) malloc(sizeof(TsReqEntry));
 }
 
 void Row_ts::return_req_entry(TsReqEntry * entry) {
     if (entry->row != NULL) {
-        entry->row->free_row();
-        mem_allocator.free(entry->row, sizeof(row_t));
+        free(entry->row);
     }
-    mem_allocator.free(entry, sizeof(TsReqEntry));
+    free(entry);
 }
 
 void Row_ts::return_req_list(TsReqEntry * list) {
@@ -220,8 +220,7 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             assert(req != NULL);
             update_buffer(txn->get_thd_id());
             return_req_entry(req);
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            free(row);
             goto final;
         }
 #else
@@ -244,8 +243,7 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             update_buffer(txn->get_thd_id());
             return_req_entry(req);
             // the "row" is freed after hard copy to "_row"
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            free(row);
         }
     } else if (type == XP_REQ) {
         TsReqEntry * req = debuffer_req(P_REQ, txn);

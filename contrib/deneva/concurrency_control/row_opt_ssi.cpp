@@ -4,6 +4,7 @@
 #include "ssi.h"
 #include "row_opt_ssi.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_opt_ssi::init(row_t * row) {
     _row = row;
@@ -16,7 +17,7 @@ void Row_opt_ssi::init(row_t * row) {
     readhistail = NULL;
     writehistail = NULL;
     blatch = false;
-    latch = (pthread_mutex_t *) mem_allocator.alloc(sizeof(pthread_mutex_t));
+    latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
@@ -45,8 +46,7 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
         prev = his->prev;
         assert(prev->ts >= his->ts);
         if (row != NULL) {
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            free(row);
         }
         row = his->row;
         his->row = NULL;
@@ -62,23 +62,22 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
 }
 
 OPT_SSIReqEntry * Row_opt_ssi::get_req_entry() {
-    return (OPT_SSIReqEntry *) mem_allocator.alloc(sizeof(OPT_SSIReqEntry));
+    return (OPT_SSIReqEntry *) malloc(sizeof(OPT_SSIReqEntry));
 }
 
 void Row_opt_ssi::return_req_entry(OPT_SSIReqEntry * entry) {
-    mem_allocator.free(entry, sizeof(OPT_SSIReqEntry));
+    free(entry);
 }
 
 OPT_SSIHisEntry * Row_opt_ssi::get_his_entry() {
-    return (OPT_SSIHisEntry *) mem_allocator.alloc(sizeof(OPT_SSIHisEntry));
+    return (OPT_SSIHisEntry *) malloc(sizeof(OPT_SSIHisEntry));
 }
 
 void Row_opt_ssi::return_his_entry(OPT_SSIHisEntry * entry) {
     if (entry->row != NULL) {
-        entry->row->free_row();
-        mem_allocator.free(entry->row, sizeof(row_t));
+        free(entry->row);
     }
-    mem_allocator.free(entry, sizeof(OPT_SSIHisEntry));
+    free(entry);
 }
 
 void Row_opt_ssi::buffer_req(TsType type, TxnManager * txn)
@@ -153,7 +152,7 @@ void Row_opt_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 
 OPT_SSILockEntry * Row_opt_ssi::get_entry() {
     OPT_SSILockEntry * entry = (OPT_SSILockEntry *)
-        mem_allocator.alloc(sizeof(OPT_SSILockEntry));
+        malloc(sizeof(OPT_SSILockEntry));
     entry->type = LOCK_NONE;
     entry->txnid = 0;
 

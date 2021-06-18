@@ -18,10 +18,11 @@
 #include "row.h"
 #include "row_occ.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_occ::init(row_t *row) {
     _row = row;
-    _latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    _latch = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(_latch, NULL);
     sem_init(&_semaphore, 0, 1);
     wts = 0;
