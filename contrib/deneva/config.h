@@ -229,8 +229,8 @@
 #define INIT_PARALLELISM 8
 #define SYNTH_TABLE_SIZE 2097152
 #define ZIPF_THETA 0.3
-#define TXN_WRITE_PERC 0.5
-#define TUP_WRITE_PERC 0.5
+#define TXN_WRITE_PERC 0.9
+#define TUP_WRITE_PERC 0.9
 #define SCAN_PERC           0
 #define SCAN_LEN          20
 #define PART_PER_TXN 2
@@ -395,6 +395,7 @@ enum PPSTxnType {
 #define DLI_IDENTIFY_CYCLE 29
 #define DLI_IDENTIFY_CHAIN 30
 #define DLI_IDENTIFY_SSI 31
+#define OPT_SSI          32
 
 #define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY_CYCLE || CC_ALG == DLI_IDENTIFY_CHAIN || CC_ALG == DLI_IDENTIFY_SSI)
 

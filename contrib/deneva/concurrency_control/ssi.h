@@ -96,4 +96,13 @@ private:
     sem_t _semaphore;
 };
 
+class opt_ssi {
+public:
+    void init();
+    RC   validate(TxnManager * txn);
+    void gene_finish_ts(TxnManager * txn);
+private:
+    sem_t _semaphore;
+};
+
 #endif

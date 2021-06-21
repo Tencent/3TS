@@ -14,6 +14,7 @@
 #include "manager.h"
 #include "mem_alloc.h"
 #include "row_ssi.h"
+#include "row_opt_ssi.h"
 #if CC_ALG == SSI
 
 void ssi::init() {
@@ -89,6 +90,45 @@ RC ssi::get_rw_set(TxnManager * txn, ssi_set_ent * &rset, ssi_set_ent *& wset) {
     assert(m == rset->set_size);
     return RCOK;
 }
+
+#elif CC_ALG == OPT_SSI
+void opt_ssi::init() {
+    sem_init(&_semaphore, 0, 1);
+}
+
+RC opt_ssi::validate(TxnManager * txn) {
+    uint64_t start_time = get_sys_clock();
+    uint64_t timespan;
+    
+    timespan = get_sys_clock() - start_time;
+    txn->txn_stats.cc_block_time += timespan;
+    txn->txn_stats.cc_block_time_short += timespan;
+
+    start_time = get_sys_clock();
+    RC rc = RCOK;
+
+    DEBUG("OPT_SSI Validate Start %ld\n",txn->get_txn_id());
+    if (txn->in_rw && txn->out_rw)
+    {
+        DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
+        rc = Abort;
+    } else {
+        DEBUG("ssi Validate ok %ld\n",txn->get_txn_id());
+        rc = RCOK;
+    }
+
+    if (rc != Abort) DEBUG("si Validate ok, %ld\n",txn->get_txn_id());
+    txn->txn_stats.cc_time += timespan;
+    txn->txn_stats.cc_time_short += timespan;
+    DEBUG("SSI Validate End %ld: %d\n",txn->get_txn_id(),rc==RCOK);
+    
+    return rc;
+}
+
+void opt_ssi::gene_finish_ts(TxnManager * txn) {
+    txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
+}
+
 #endif
 
 void InOutTable::init() {
