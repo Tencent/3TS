@@ -57,6 +57,7 @@ private:
     row_t * _row;
     void get_lock(lock_t type, TxnManager * txn);
     void release_lock(lock_t type, TxnManager * txn);
+    void release_lock(ts_t min_ts);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
