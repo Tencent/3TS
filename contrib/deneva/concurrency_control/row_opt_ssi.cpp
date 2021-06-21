@@ -175,38 +175,81 @@ void Row_opt_ssi::release_lock(lock_t type, TxnManager * txn) {
     if (type == LOCK_SH) {
         OPT_SSILockEntry * read = si_read_lock;
         OPT_SSILockEntry * pre_read = NULL;
+        bool is_delete = false;
         while (read != NULL) {
+            OPT_SSILockEntry * nex = read->next;
             if (read->txnid == txn->get_txn_id()) {
                 assert(read != NULL);
-                if (pre_read != NULL)
+                is_delete = true;
+                OPT_SSILockEntry * delete_p = read;
+                if(pre_read != NULL) {
                     pre_read->next = read->next;
+                } 
                 else {
                     assert( read == si_read_lock );
                     si_read_lock = read->next;
                 }
-                read->next = NULL;
+                delete_p->next = NULL;
+                delete delete_p;
             }
-            pre_read = read;
-            read = read->next;
+            else 
+                is_delete = false;
+            if(!is_delete) pre_read = read;
+            read = nex;
         }
     }
     if (type == LOCK_EX) {
         OPT_SSILockEntry * write = write_lock;
         OPT_SSILockEntry * pre_write = NULL;
-        while (write != NULL) {
+        bool is_delete = false;
+	    while (write != NULL) {
+            OPT_SSILockEntry * nex = write->next;
             if (write->txnid == txn->get_txn_id()) {
                 assert(write != NULL);
-                if (pre_write != NULL)
+                is_delete = true;
+                OPT_SSILockEntry * delete_p = write;
+                if(pre_write != NULL) {
                     pre_write->next = write->next;
+                }
                 else {
                     assert( write == write_lock );
                     write_lock = write->next;
                 }
-                write->next = NULL;
+                delete_p->next = NULL;
+                delete delete_p;
             }
-            pre_write = write;
-            write = write->next;
+            else
+                is_delete = false;
+            if(!is_delete) pre_write = write;
+            write = nex;
         }
+    }
+}
+
+void Row_opt_ssi::release_lock(ts_t min_ts) {
+    OPT_SSILockEntry * read = si_read_lock;
+    OPT_SSILockEntry * pre_read = NULL;
+    bool is_delete = false;
+    while (read != NULL) {
+        OPT_SSILockEntry * nex = read->next;
+        if (read->start_ts < min_ts) {
+            assert(read != NULL);
+            is_delete = true;
+            OPT_SSILockEntry * delete_p = read;
+            if(pre_read != NULL) {
+                pre_read->next = read->next;
+            } 
+            else {
+                assert( read == si_read_lock );
+                si_read_lock = read->next;
+            }
+            delete_p->next = NULL;
+            delete delete_p;
+        }
+        else 
+            is_delete = false;
+        if(!is_delete) pre_read = read;
+        read = nex;
     }
 }
 
@@ -273,8 +316,8 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 si_read = si_read->next;
                 continue;
             }
-            bool is_active = si_read_lock->txn->txn_status == TxnStatus::ACTIVE;
-            bool interleaved =  si_read_lock->txn->txn_status == TxnStatus::COMMITTED &&
+            bool is_active = si_read->txn->txn_status == TxnStatus::ACTIVE;
+            bool interleaved =  si_read->txn->txn_status == TxnStatus::COMMITTED &&
                 si_read->txn->get_commit_timestamp() > start_ts;
             if (is_active || interleaved) {
                 bool in = si_read->txn->in_rw;
@@ -296,7 +339,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         rc = RCOK;
         release_lock(LOCK_EX, txn);
         //TODO: here need to consider whether need to release the si-read lock.
-        // release_lock(LOCK_SH, txn);
+        release_lock(LOCK_SH, txn);
 
         // the corresponding prewrite request is debuffered.
         insert_history(ts, txn, row);
@@ -336,6 +379,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     _row->copy(latest_row);
                 }
             }
+            release_lock(t_th);
         }
     }
 end:
