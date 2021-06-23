@@ -60,22 +60,22 @@ private:
     uint64_t read_cnt;
     uint64_t write_cnt;
 
-    enum{SIZE = 10};
+    enum{SIZE = 16};
 
     //std::vector<TxnManager*> *si_read, *wrt_list;
 
     bool blatch;
 
     row_t * _row;
-    void get_lock(lock_t type, TxnManager * txn);
+    void get_lock(lock_t type, TxnManager *& txn);
     void release_lock(lock_t type, TxnManager * txn);
     void release_lock(ts_t min_ts);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
-    SSIReqEntry * get_req_entry() { return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry)); }
-    void return_req_entry(SSIReqEntry * entry) { mem_allocator.free(entry, sizeof(SSIReqEntry)); }
-    SSIHisEntry * get_his_entry() { return new (SSIHisEntry); }
+    SSIReqEntry * get_req_entry();// { return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry)); }
+    void return_req_entry(SSIReqEntry * entry);// { mem_allocator.free(entry, sizeof(SSIReqEntry)); }
+    SSIHisEntry * get_his_entry();// { return new (SSIHisEntry); }
     void return_his_entry(SSIHisEntry * entry);
 
     bool conflict(TsType type, ts_t ts);

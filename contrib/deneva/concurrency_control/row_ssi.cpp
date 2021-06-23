@@ -163,10 +163,6 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
     //     STACK_PUSH(si_read_lock, entry);
     // if (type == LOCK_EX)
     //     STACK_PUSH(write_lock, entry);
-    if (type == LOCK_COM) {
-        commit_lock = txn->get_txn_id();
-        return;
-    }
     if(type == LOCK_SH) {
         if(read_cnt == SIZE-1) {
             SSILockEntry * entry = new SSILockEntry[SIZE];
@@ -219,6 +215,7 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
     // it ==it1;
     // if(type == LOCK_COM)
     //     commit_lock = txn->get_txn_id();
+}
 
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
     if (type == LOCK_SH) {
