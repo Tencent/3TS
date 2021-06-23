@@ -31,7 +31,6 @@ void Row_ssi::init(row_t * row) {
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
-    commit_lock = 0;
     preq_len = 0;
 }
 
@@ -70,10 +69,6 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
     *tail = his;
     if (*tail) (*tail)->next = NULL;
     if (his == NULL) *queue = NULL;
-    
-    //uint64_t clear_history_end = get_sys_clock();
-    //INC_STATS(txn->get_thd_id(), trans_access_clear_history_time, clear_history_end - clear_history_start);
-    
     return row;
 }
 
@@ -86,7 +81,6 @@ void Row_ssi::return_req_entry(SSIReqEntry * entry) {
 }
 
 SSIHisEntry * Row_ssi::get_his_entry() {
-    // return new (SSIHisEntry);
     return (SSIHisEntry *) malloc(sizeof(SSIHisEntry));
 }
 
@@ -97,48 +91,6 @@ void Row_ssi::return_his_entry(SSIHisEntry * entry) {
     free(entry);
 }
 
-void Row_ssi::buffer_req(TsType type, TxnManager * txn)
-{
-    SSIReqEntry * req_entry = get_req_entry();
-    assert(req_entry != NULL);
-    req_entry->txn = txn;
-    req_entry->ts = txn->get_start_timestamp();
-    req_entry->starttime = get_sys_clock();
-    if (type == P_REQ) {
-        preq_len ++;
-        STACK_PUSH(prereq_mvcc, req_entry);
-    }
-}
-
-// for type == R_REQ
-//     debuffer all non-conflicting requests
-// for type == P_REQ
-//   debuffer the request with matching txn.
-SSIReqEntry * Row_ssi::debuffer_req( TsType type, TxnManager * txn) {
-    SSIReqEntry ** queue = &prereq_mvcc;
-    SSIReqEntry * return_queue = NULL;
-
-    SSIReqEntry * req = *queue;
-    SSIReqEntry * prev_req = NULL;
-    if (txn != NULL) {
-        assert(type == P_REQ);
-        while (req != NULL && req->txn != txn) {
-            prev_req = req;
-            req = req->next;
-        }
-        assert(req != NULL);
-        if (prev_req != NULL)
-            prev_req->next = req->next;
-        else {
-            assert( req == *queue );
-            *queue = req->next;
-        }
-        preq_len --;
-        req->next = return_queue;
-        return_queue = req;
-    }
-    return return_queue;
-}
 
 void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 {
@@ -182,7 +134,7 @@ SSILockEntry * Row_ssi::get_entry() {
     return entry;
 }
 
-void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
+void Row_ssi::get_lock(lock_t type, TxnManager * txn) {
     SSILockEntry * entry = get_entry();
     entry->type = type;
     //entry->txn = std::shared_ptr<TxnManager>(txn);
@@ -193,8 +145,6 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
         STACK_PUSH(si_read_lock, entry);
     if (type == LOCK_EX)
         STACK_PUSH(write_lock, entry);
-    if (type == LOCK_COM)
-        commit_lock = txn->get_txn_id();
 }
 
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
@@ -257,9 +207,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
             //write = write->next;
             write = nex;
         }
-    }
-    if (type == LOCK_COM) {
-        if (commit_lock == txn->get_txn_id()) commit_lock = 0;
     }
 }
 
@@ -357,12 +304,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //WW conflict
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
-            rc = Abort;
-            INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
-            goto end;
-        }
-        // WW clifict in write history
-        if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
             goto end;
@@ -497,37 +438,3 @@ end:
     return rc;
 }
 
-RC Row_ssi::validate_last_commit(TxnManager * txn) {
-    RC rc = RCOK;
-    SSIHisEntry *  whis = writehis;
-    ts_t start_ts = txn->get_start_timestamp();
-    if (g_central_man) {
-        glob_manager.lock_row(_row);
-    } else {
-        pthread_mutex_lock(latch);
-    }
-    // INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
-
-    if (commit_lock != 0 && commit_lock != txn->get_txn_id()) {
-        DEBUG("si last commit lock %ld, %ld\n",commit_lock, txn->get_txn_id());
-        rc = Abort;
-        goto last_commit_end;
-    }
-    get_lock(LOCK_COM, txn);
-    // Iterate over a version that is newer than the one you are currently reading.
-    while (whis != NULL && whis->ts < start_ts) {
-        whis = whis->next;
-    }
-    if (whis != NULL) {
-        DEBUG("si last commit whis %ld, %ld, %ld\n",whis->ts, start_ts, txn->get_txn_id());
-        release_lock(LOCK_COM, txn);
-        rc = Abort;
-    }    
-last_commit_end:
-    if (g_central_man) {
-        glob_manager.release_row(_row);
-    } else {
-        pthread_mutex_unlock(latch);
-    }
-    return rc;
-}
