@@ -332,8 +332,8 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             //bool is_active = si_read_lock->txn.get()->txn_status == TxnStatus::ACTIVE;
 	        //bool interleaved =  si_read_lock->txn.get()->txn_status == TxnStatus::COMMITTED &&
             //	si_read->txn.get()->get_commit_timestamp() > start_ts;
-            bool is_active = si_read_lock->txn->txn_status == TxnStatus::ACTIVE;
-            bool interleaved =  si_read_lock->txn->txn_status == TxnStatus::COMMITTED &&
+            bool is_active = si_read->txn->txn_status == TxnStatus::ACTIVE;
+            bool interleaved =  si_read->txn->txn_status == TxnStatus::COMMITTED &&
                 si_read->txn->get_commit_timestamp() > start_ts;
             if (is_active || interleaved) {
                 //bool in = si_read->txn.get()->in_rw;
