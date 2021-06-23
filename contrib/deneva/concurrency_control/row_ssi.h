@@ -64,12 +64,10 @@ private:
 
     //std::vector<TxnManager*> *si_read, *wrt_list;
 
-    txnid_t commit_lock;
-
     bool blatch;
 
     row_t * _row;
-    void get_lock(lock_t type, TxnManager *& txn);
+    void get_lock(lock_t type, TxnManager * txn);
     void release_lock(lock_t type, TxnManager * txn);
     void release_lock(ts_t min_ts);
 
@@ -81,8 +79,6 @@ private:
     void return_his_entry(SSIHisEntry * entry);
 
     bool conflict(TsType type, ts_t ts);
-    void buffer_req(TsType type, TxnManager * txn);
-    SSIReqEntry * debuffer_req( TsType type, TxnManager * txn = NULL);
 
 
     SSILockEntry * get_entry();
