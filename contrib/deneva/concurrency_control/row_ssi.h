@@ -40,6 +40,7 @@ struct SSILockEntry {
     //std::shared_ptr<TxnManager> txn;
     TxnManager * txn;
     txnid_t txnid;
+    bool active;
     SSILockEntry * next;
     SSILockEntry * prev;
 };
@@ -52,8 +53,14 @@ public:
 private:
     pthread_mutex_t * latch;
 
-     SSILockEntry * si_read_lock;
-     SSILockEntry * write_lock;
+    SSILockEntry * si_read_lock;
+    SSILockEntry * write_lock;
+    SSILockEntry * read_now;
+    SSILockEntry * write_now;
+    uint64_t read_cnt;
+    uint64_t write_cnt;
+
+    enum{SIZE = 10};
 
     //std::vector<TxnManager*> *si_read, *wrt_list;
 
@@ -62,7 +69,7 @@ private:
     bool blatch;
 
     row_t * _row;
-    void get_lock(lock_t type, TxnManager * txn);
+    void get_lock(lock_t type, TxnManager *& txn);
     void release_lock(lock_t type, TxnManager * txn);
     void release_lock(ts_t min_ts);
 
