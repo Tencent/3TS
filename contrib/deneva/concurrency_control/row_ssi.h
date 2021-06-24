@@ -64,9 +64,9 @@ private:
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
-    SSIReqEntry * get_req_entry() { return (SSIReqEntry *) mem_allocator.alloc(sizeof(SSIReqEntry)); }
-    void return_req_entry(SSIReqEntry * entry) { mem_allocator.free(entry, sizeof(SSIReqEntry)); }
-    SSIHisEntry * get_his_entry() { return new (SSIHisEntry); }
+    SSIReqEntry * get_req_entry();
+    void return_req_entry(SSIReqEntry * entry) ;
+    SSIHisEntry * get_his_entry() ;
     void return_his_entry(SSIHisEntry * entry);
 
     bool conflict(TsType type, ts_t ts);
