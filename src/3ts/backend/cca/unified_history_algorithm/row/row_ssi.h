@@ -70,6 +70,11 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     std::optional<Data> Read(Txn& txn)
     {
+        // // directly pass the logic and return the data of last version
+        // const auto& latest_version = versions_.back();
+        // return latest_version.data();
+        // // following is ignored
+
         std::lock_guard<std::mutex> l(m_);
         auto it = versions_.rbegin();
 
@@ -78,10 +83,15 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
             return latest_version.data();
         }
 
+        // // read version written by another transaction with snapshot timestamp
+        // for (; it != versions_.rend() && it->w_ts() > txn.start_ts(); ++it) {
+        //     continue;
+        // }
         // read version written by another transaction with snapshot timestamp
-        for (; it != versions_.rend() && it->w_ts() > txn.start_ts(); ++it) {
+        for (; it->w_ts() > txn.start_ts(); ++it) {
             continue;
         }
+
         assert(it != versions_.rend());
         it->r_txns_.emplace_back(txn.shared_from_this());
 
@@ -96,6 +106,10 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     bool Prewrite(Data data, Txn& txn)
     {
+        // // directly pass the logic
+        // return true;
+        // // below is doing nothing 
+
         std::lock_guard<std::mutex> l(m_);
         assert(!versions_.empty());
         auto& latest_version = versions_.back();
@@ -116,6 +130,12 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
                                         r_txn_state == Txn::State::PREPARING ||
                                         (r_txn_state == Txn::State::COMMITTED &&
                                             r_txn->commit_ts() > txn.start_ts());
+                // newly add rw+wcw
+                if (is_concurrent && r_txn_state == Txn::State::COMMITTED && r_txn->RConf()){
+                    return false;
+                }
+                // can combine into one phrase
+                
                 if (is_concurrent && !Txn::BuildRWConf(*r_txn, txn)) {
                     return false;
                 }
@@ -129,6 +149,10 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     void Write(Data /*data*/, Txn& txn)
     {
+        // // directly pass the logic
+        // return;
+        // // below is doing nothing
+
         std::lock_guard<std::mutex> l(m_);
         auto& latest_version = versions_.back();
         if (latest_version.IsWrittenBy(txn.txn_id())) {
@@ -138,6 +162,10 @@ class RowManager<ALG, Data, typename std::enable_if_t<ALG == UniAlgs::UNI_DLI_ID
 
     void Revoke(Data /*data*/, Txn& txn)
     {
+        // // directly pass the logic
+        // return;
+        // // below is doing nothing
+
         std::lock_guard<std::mutex> l(m_);
         auto& latest_version = versions_.back();
         if (latest_version.IsWrittenBy(txn.txn_id())) {

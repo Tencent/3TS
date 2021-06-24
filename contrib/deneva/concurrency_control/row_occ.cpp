@@ -18,10 +18,12 @@
 #include "row.h"
 #include "row_occ.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_occ::init(row_t *row) {
     _row = row;
-    _latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    //_latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    _latch = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(_latch, NULL);
     sem_init(&_semaphore, 0, 1);
     wts = 0;
@@ -30,6 +32,7 @@ void Row_occ::init(row_t *row) {
 }
 
 RC Row_occ::access(TxnManager *txn, TsType type) {
+    return RCOK;
     RC rc = RCOK;
     //pthread_mutex_lock( _latch );
     uint64_t starttime = get_sys_clock();
