@@ -22,7 +22,7 @@ void Row_ssi::init(row_t * row) {
     // wrt_list = new vector<TxnManager*>;
     si_read_lock = NULL;
     write_lock = NULL;
-    _size = 4;
+    _size = 16;
     prereq_mvcc = NULL;
     readhis = NULL;
     writehis = NULL;
@@ -149,22 +149,16 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
     if(type == LOCK_SH) {
         if(si_read_lock == NULL) {
             si_read_lock = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
-            for(uint64_t i = 0; i < _size; ++i) {
-                SSILockEntry * now = si_read_lock+i;
-                now->txn = NULL;
-            }
+            memset(si_read_lock, 0, sizeof(si_read_lock));
             si_read_lock->size = _size;
             (si_read_lock+_size-1)->next = NULL;
             read_now = si_read_lock;
             read_cnt = 0;
         }
         else if(read_cnt == _size){
-            if(_size < 128) _size *= 2;
+            _size <<= 1;
             SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
-            for(uint64_t i = 0; i < _size; ++i) {
-                SSILockEntry * now = entry+i;
-                now->txn = NULL;
-            }
+            memset(entry, 0, sizeof(entry));
             entry->size = _size;
             (read_now+read_now->size-1)->next = entry;
             (entry+_size-1)->next = NULL;
@@ -180,22 +174,16 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
     if(type == LOCK_EX) {
         if(write_lock == NULL) {
             write_lock = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
-            for(uint64_t i = 0; i < _size; ++i) {
-                SSILockEntry * now = write_lock+i;
-                now->txn = NULL;
-            }
+            memset(write_lock, 0, sizeof(write_lock));
             write_lock->size = _size;
             (write_lock+_size-1)->next = NULL;
             write_now = write_lock;
             write_cnt = 0;
         }
         else if(write_cnt == _size){
-            if(_size < 128) _size *= 2;
+            _size <<= 1;
             SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
-            for(uint64_t i = 0; i < _size; ++i) {
-                SSILockEntry * now = entry+i;
-                now->txn = NULL;
-            }
+            memset(entry, 0, sizeof(entry));
             entry->size = _size;
             (write_now+write_now->size-1)->next = entry;
             (entry+_size-1)->next = NULL;
