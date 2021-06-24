@@ -43,6 +43,7 @@ struct SSILockEntry {
     bool active;
     SSILockEntry * next;
     SSILockEntry * prev;
+    char pading[8];
 };
 
 class Row_ssi {
@@ -55,12 +56,12 @@ private:
 
     SSILockEntry * si_read_lock;
     SSILockEntry * write_lock;
-    SSILockEntry * read_now;
-    SSILockEntry * write_now;
+    volatile SSILockEntry * read_now;
+    volatile SSILockEntry * write_now;
     uint64_t read_cnt;
     uint64_t write_cnt;
 
-    enum{SIZE = 16};
+    enum{SIZE = 32};
 
     //std::vector<TxnManager*> *si_read, *wrt_list;
 
