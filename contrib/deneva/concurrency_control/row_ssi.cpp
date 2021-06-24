@@ -159,14 +159,14 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
             read_cnt = 0;
         }
         else if(read_cnt == _size){
-            _size *= 2;
+            if(_size < 128) _size *= 2;
             SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
             for(uint64_t i = 0; i < _size; ++i) {
                 SSILockEntry * now = entry+i;
                 now->txn = NULL;
             }
             entry->size = _size;
-            (read_now+_size-1)->next = entry;
+            (read_now+read_now->size-1)->next = entry;
             (entry+_size-1)->next = NULL;
             read_now = entry;
             read_cnt = 0;
@@ -184,18 +184,20 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
                 SSILockEntry * now = write_lock+i;
                 now->txn = NULL;
             }
+            write_lock->size = _size;
             (write_lock+_size-1)->next = NULL;
             write_now = write_lock;
             write_cnt = 0;
         }
         else if(write_cnt == _size){
-            _size *= 2;
+            if(_size < 128) _size *= 2;
             SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
             for(uint64_t i = 0; i < _size; ++i) {
                 SSILockEntry * now = entry+i;
                 now->txn = NULL;
             }
-            (write_now+_size-1)->next = entry;
+            entry->size = _size;
+            (write_now+write_now->size-1)->next = entry;
             (entry+_size-1)->next = NULL;
             write_now = entry;
             write_cnt = 0;
