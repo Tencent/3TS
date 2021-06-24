@@ -35,15 +35,14 @@ struct SSIHisEntry {
 };
 
 struct SSILockEntry {
-    lock_t type;
     ts_t   start_ts;
     //std::shared_ptr<TxnManager> txn;
     TxnManager * txn;
     txnid_t txnid;
     bool active;
+    uint64_t size;
     SSILockEntry * next;
-    SSILockEntry * prev;
-    char pading[8];
+    char pading[16];
 };
 
 class Row_ssi {
@@ -61,6 +60,7 @@ private:
     uint64_t read_cnt;
     uint64_t write_cnt;
 
+    uint64_t _size;
     enum{SIZE = 32};
 
     //std::vector<TxnManager*> *si_read, *wrt_list;

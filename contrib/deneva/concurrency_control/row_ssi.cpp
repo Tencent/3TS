@@ -18,27 +18,11 @@
 
 void Row_ssi::init(row_t * row) {
     _row = row;
-    si_read_lock = new SSILockEntry[SIZE];
-    for(uint64_t i = 0; i < SIZE; ++i) {
-        SSILockEntry * now = si_read_lock+i;
-        now->type = LOCK_NONE;
-        now->active = false;
-    }
-    (si_read_lock+SIZE-1)->next = NULL;
-    write_lock = new SSILockEntry[SIZE];
-    for(uint64_t i = 0; i < SIZE; ++i) {
-        SSILockEntry * now = write_lock+i;
-        now->type = LOCK_NONE;
-        now->active = false;
-    }
-    (write_lock+SIZE-1)->next = NULL;
-    read_now = si_read_lock;
-    write_now = write_lock;
-    read_cnt = 0;
-    write_cnt = 0;
     // si_read = new vector<TxnManager*>;
     // wrt_list = new vector<TxnManager*>;
-
+    si_read_lock = NULL;
+    write_lock = NULL;
+    _size = 4;
     prereq_mvcc = NULL;
     readhis = NULL;
     writehis = NULL;
@@ -146,7 +130,6 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 SSILockEntry * Row_ssi::get_entry() {
     SSILockEntry * entry = (SSILockEntry *)
         new(SSILockEntry);
-    entry->type = LOCK_NONE;
     entry->txnid = 0;
 
     return entry;
@@ -164,42 +147,64 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
     // if (type == LOCK_EX)
     //     STACK_PUSH(write_lock, entry);
     if(type == LOCK_SH) {
-        (read_now+read_cnt)->type = type;
+        if(si_read_lock == NULL) {
+            si_read_lock = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
+            for(uint64_t i = 0; i < _size; ++i) {
+                SSILockEntry * now = si_read_lock+i;
+                now->txn = NULL;
+            }
+            si_read_lock->size = _size;
+            (si_read_lock+_size-1)->next = NULL;
+            read_now = si_read_lock;
+            read_cnt = 0;
+        }
+        else if(read_cnt == _size){
+            _size *= 2;
+            SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
+            for(uint64_t i = 0; i < _size; ++i) {
+                SSILockEntry * now = entry+i;
+                now->txn = NULL;
+            }
+            entry->size = _size;
+            (read_now+_size-1)->next = entry;
+            (entry+_size-1)->next = NULL;
+            read_now = entry;
+            read_cnt = 0;
+        }
         (read_now+read_cnt)->txn = txn;
         (read_now+read_cnt)->start_ts = get_sys_clock();
         (read_now+read_cnt)->txnid = txn->get_txn_id();
         (read_now+read_cnt)->active = true;
-        if(read_cnt == SIZE-1) {
-            SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry[SIZE]));
-            for(uint64_t i = 0; i < SIZE; ++i) {
-                SSILockEntry * now = entry+i;
-                now->type = LOCK_NONE;
-            }
-            (read_now+SIZE-1)->next = entry;
-            (entry+SIZE-1)->next = NULL;
-            read_now = (read_now+read_cnt)->next;
-            read_cnt = 0;
-        }
-        else ++read_cnt;
+        ++read_cnt;
     }
     if(type == LOCK_EX) {
-        (write_now+write_cnt)->type = type;
+        if(write_lock == NULL) {
+            write_lock = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
+            for(uint64_t i = 0; i < _size; ++i) {
+                SSILockEntry * now = write_lock+i;
+                now->txn = NULL;
+            }
+            (write_lock+_size-1)->next = NULL;
+            write_now = write_lock;
+            write_cnt = 0;
+        }
+        else if(write_cnt == _size){
+            _size *= 2;
+            SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry)*_size);
+            for(uint64_t i = 0; i < _size; ++i) {
+                SSILockEntry * now = entry+i;
+                now->txn = NULL;
+            }
+            (write_now+_size-1)->next = entry;
+            (entry+_size-1)->next = NULL;
+            write_now = entry;
+            write_cnt = 0;
+        }
         (write_now+write_cnt)->txn = txn;
         (write_now+write_cnt)->start_ts = get_sys_clock();
         (write_now+write_cnt)->txnid = txn->get_txn_id();
         (write_now+write_cnt)->active = true;
-        if(write_cnt == SIZE-1) {
-            SSILockEntry * entry = (SSILockEntry *) malloc(sizeof(SSILockEntry[SIZE]));
-            for(uint64_t i = 0; i < SIZE; ++i) {
-                SSILockEntry * now = entry+i;
-                now->type = LOCK_NONE;
-            }
-            (write_now+SIZE-1)->next = entry;
-            (entry+SIZE-1)->next = NULL;
-            write_now = (write_now+write_cnt)->next;
-            write_cnt = 0;
-        }
-        else ++write_cnt;
+        ++write_cnt;
     }
 
     // if(type == LOCK_SH)
@@ -245,21 +250,24 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
         // }
         while(read != NULL) {
             bool is_delete = true;
-            SSILockEntry * nex = (read+SIZE-1)->next;
-            for(uint64_t i = 0; i < SIZE; ++i) {
+            uint64_t block_size = read->size;
+            SSILockEntry * nex = (read+block_size-1)->next;
+            for(uint64_t i = 0; i < block_size; ++i) {
                 SSILockEntry * now = read+i;
-                if(now->type == LOCK_NONE) break;
+                if(now->txn == NULL) {
+                    is_delete = false;
+                    break;
+                }
                 if(now->txnid == txn->get_txn_id()) {
                     assert(now != NULL);
                     now->active = false;
                 }
                 if(now->active == true) is_delete = false;
             }
-            if((read+SIZE-1)->type == LOCK_NONE) is_delete = false;
             if(is_delete) {
                 SSILockEntry * delete_p = read;
                 if(pre_read != NULL) 
-                    (pre_read+SIZE-1)->next = nex;
+                    (pre_read+block_size-1)->next = nex;
                 else
                     si_read_lock = nex;
                 free(delete_p);
@@ -308,21 +316,24 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
         // }
         while(write != NULL) {
             bool is_delete = true;
-            SSILockEntry * nex = (write+SIZE-1)->next;
-            for(uint64_t i = 0; i < SIZE; ++i) {
+            uint64_t block_size = write->size;
+            SSILockEntry * nex = (write+block_size-1)->next;
+            for(uint64_t i = 0; i < block_size; ++i) {
                 SSILockEntry * now = write+i;
-                if(now->type == LOCK_NONE) break;
+                if(now->txn == NULL) {
+                    is_delete = false;
+                    break;
+                }
                 if(now->txnid == txn->get_txn_id()) {
                     assert(now != NULL);
                     now->active = false;
                 }
                 if(now->active == true) is_delete = false;
             }
-            if((write+SIZE-1)->type == LOCK_NONE) is_delete = false;
             if(is_delete) {
                 SSILockEntry * delete_p = write;
                 if(pre_write != NULL) 
-                    (pre_write+SIZE-1)->next = nex;
+                    (pre_write+block_size-1)->next = nex;
                 else
                     write_lock = nex;
                 free(delete_p);
@@ -369,21 +380,24 @@ void Row_ssi::release_lock(ts_t min_ts) {
     // }
     while(read != NULL) {
         bool is_delete = true;
-        SSILockEntry * nex = (read+SIZE-1)->next;
-        for(uint64_t i = 0; i < SIZE; ++i) {
+        uint64_t block_size = read->size;
+        SSILockEntry * nex = (read+block_size-1)->next;
+        for(uint64_t i = 0; i < block_size; ++i) {
             SSILockEntry * now = read+i;
-            if(now->type == LOCK_NONE) break;
+            if(now->txn == NULL) {
+                    is_delete = false;
+                    break;
+                }
             if(now->start_ts < min_ts) {
                 assert(now != NULL);
                 now->active = false;
             }
             if(now->active == true) is_delete = false;
         }
-        if((read+SIZE-1)->type == LOCK_NONE) is_delete = false;
         if(is_delete) {
             SSILockEntry * delete_p = read;
             if(pre_read != NULL) 
-                (pre_read+SIZE-1)->next = nex;
+                (pre_read+block_size-1)->next = nex;
             else
                 si_read_lock = nex;
             free(delete_p);
@@ -423,9 +437,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // as it is more than one txn it is the WW conflict, violating serialization.
         SSILockEntry * write = write_lock;
         while (write != NULL) {
-            for(uint64_t i = 0; i < SIZE; ++i) {
+            uint64_t block_size = write->size;
+            for(uint64_t i = 0; i < block_size; ++i) {
                 SSILockEntry * now = write+i;
-                if(now->type == LOCK_NONE) break;
+                if(now->txn == NULL) break;
                 if(now->active == false) continue;
                 if (now->txnid == txnid) continue;
                 now->txn->in_rw = true;
@@ -436,7 +451,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             //inout_table.set_inConflict(txn->get_thd_id(), write->txnid, txnid);
             //inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txnid);
             //(write->txn.get())->in_rw = true;
-            write = (write+SIZE-1)->next;
+            write = (write+block_size-1)->next;
         }
         // for(vector<TxnManager*>::iterator it = wrt_list->begin(); it != wrt_list->end(); ++it) {
         //     assert(*it != NULL);
@@ -488,9 +503,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // }
         SSILockEntry * write = write_lock;
         while (write != NULL) {
-            for(uint64_t i = 0; i < SIZE; ++i) {
+            uint64_t block_size = write->size;
+            for(uint64_t i = 0; i < block_size; ++i) {
                 SSILockEntry * now = write+i;
-                if(now->type == LOCK_NONE) break;
+                if(now->txn == NULL) break;
                 if(now->active == false) continue;
                 if (now->txnid == txnid) continue;
                 rc = Abort;
@@ -501,7 +517,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             //inout_table.set_inConflict(txn->get_thd_id(), write->txnid, txnid);
             //inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txnid);
             //(write->txn.get())->in_rw = true;
-            write = (write+SIZE-1)->next;
+            write = (write+block_size-1)->next;
         }
         // Add the write lock
         uint64_t lock_start = get_sys_clock();
@@ -549,9 +565,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // }
 
         while(si_read != NULL) {
-            for(uint64_t i = 0; i < SIZE; ++i) {
+            uint64_t block_size = si_read->size;
+            for(uint64_t i = 0; i < block_size; ++i) {
                 SSILockEntry * now = si_read+i;
-                if(now->type == LOCK_NONE) break;
+                if(now->txn == NULL) break;
                 if(now->active == false) continue;
                 if (now->txnid == txnid) continue;
                 bool is_active = now->txn->txn_status == TxnStatus::ACTIVE;
@@ -577,7 +594,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     }
                 }
             }
-            si_read = (si_read+SIZE-1)->next;
+            si_read = (si_read+block_size-1)->next;
         }
 
         // for(vector<TxnManager*>::iterator it = si_read->begin(); it != si_read->end(); ++it) {
