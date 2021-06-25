@@ -223,7 +223,7 @@ void Row_ssi::get_lock(lock_t type, TxnManager *& txn) {
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
     if (type == LOCK_SH) {
         SSILockEntry * read = si_read_lock;
-        SSILockEntry * pre_read = NULL;
+        //SSILockEntry * pre_read = NULL;
         // bool is_delete = false;
         // while (read != NULL) {
         //     SSILockEntry * nex = read->next;
@@ -251,13 +251,13 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
         //     read = nex;
         // }
         while(read != NULL) {
-            bool is_delete = true;
+            //bool is_delete = true;
             uint64_t block_size = read->size;
-            //SSILockEntry * nex = (read+block_size-1)->next;
+            SSILockEntry * nex = (read+block_size-1)->next;
             for(uint64_t i = 0; i < block_size; ++i) {
                 SSILockEntry * now = read+i;
                 if(now->txn == NULL) {
-                    is_delete = false;
+                    //is_delete = false;
                     break;
                 }
                 if(now->txnid == txn->get_txn_id()) {
@@ -289,7 +289,7 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
     }
     if (type == LOCK_EX) {
         SSILockEntry * write = write_lock;
-        SSILockEntry * pre_write = NULL;
+        //SSILockEntry * pre_write = NULL;
         // bool is_delete = false;
 	    // while (write != NULL) {
         //     SSILockEntry * nex = write->next;
@@ -317,13 +317,13 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
         //     write = nex;
         // }
         while(write != NULL) {
-            bool is_delete = true;
+            //bool is_delete = true;
             uint64_t block_size = write->size;
             SSILockEntry * nex = (write+block_size-1)->next;
             for(uint64_t i = 0; i < block_size; ++i) {
                 SSILockEntry * now = write+i;
                 if(now->txn == NULL) {
-                    is_delete = false;
+                    //is_delete = false;
                     break;
                 }
                 if(now->txnid == txn->get_txn_id()) {
@@ -357,7 +357,7 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
 
 void Row_ssi::release_lock(ts_t min_ts) {
     SSILockEntry * read = si_read_lock;
-    SSILockEntry * pre_read = NULL;
+    //SSILockEntry * pre_read = NULL;
     // bool is_delete = false;
     // while (read != NULL) {
     //     SSILockEntry * nex = read->next;
@@ -381,13 +381,13 @@ void Row_ssi::release_lock(ts_t min_ts) {
     //     read = nex;
     // }
     while(read != NULL) {
-        bool is_delete = true;
+        //bool is_delete = true;
         uint64_t block_size = read->size;
         SSILockEntry * nex = (read+block_size-1)->next;
         for(uint64_t i = 0; i < block_size; ++i) {
             SSILockEntry * now = read+i;
             if(now->txn == NULL) {
-                    is_delete = false;
+                    //is_delete = false;
                     break;
                 }
             if(now->start_ts < min_ts) {
