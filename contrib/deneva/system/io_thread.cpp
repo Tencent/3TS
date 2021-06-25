@@ -119,7 +119,7 @@ RC InputThread::client_recv_loop() {
             rsp_cnts[return_node_offset]++;
             INC_STATS(get_thd_id(),txn_cnt,1);
             uint64_t timespan = get_sys_clock() - ((ClientResponseMessage*)msg)->client_startts;
-            //INC_STATS(get_thd_id(),txn_run_time, timespan);
+            INC_STATS(get_thd_id(),txn_run_time, timespan);
             if (warmup_done) {
                 INC_STATS_ARR(get_thd_id(),client_client_latency, timespan);
             }

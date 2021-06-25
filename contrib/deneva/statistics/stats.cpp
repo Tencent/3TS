@@ -78,7 +78,12 @@ void Stats_thd::clear() {
     total_txn_commit_cnt=0;
     local_txn_commit_cnt=0;
     remote_txn_commit_cnt=0;
+    //total_txn_abort_cnt=0;
     total_txn_abort_cnt=0;
+    total_rw_abort_cnt=0;
+    total_ww_abort_cnt=0;
+    total_validate_abort_cnt=0;
+    total_txn_prewrite_cnt=0;
     unique_txn_abort_cnt=0;
     local_txn_abort_cnt=0;
     remote_txn_abort_cnt=0;
@@ -109,9 +114,23 @@ void Stats_thd::clear() {
     trans_abort_time=0;
 
     trans_access_lock_wait_time=0;
+    total_access_time=0;
+    trans_access_read_time=0;
+    trans_access_pre_time=0;
+    trans_access_write_time=0;
+    trans_access_xp_time=0;
+    trans_access_clear_time=0;
+    trans_access_write_insert_time=0;
+    trans_access_write_release_time=0;
+    trans_access_pre_check_time=0;
+    trans_access_pre_before_time=0;
+    trans_access_pre_lock_time=0;
+    real_abort_time=0;
+    trans_abort_reset_time=0;
     // trans mvcc
     trans_mvcc_clear_history=0;
     trans_mvcc_access=0;
+    trans_access_write_update_time=0;
 
     // Transaction stats
     txn_total_process_time=0;
@@ -482,7 +501,11 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",local_txn_commit_cnt=%ld"
     ",remote_txn_commit_cnt=%ld"
     ",total_txn_abort_cnt=%ld"
-            ",positive_txn_abort_cnt=%ld"
+    ",total_rw_abort_cnt=%ld"
+    ",total_ww_abort_cnt=%ld"
+    ",total_validate_abort_cnt=%ld"
+    ",total_txn_prewrite_cnt=%ld"
+    ",positive_txn_abort_cnt=%ld"
     ",unique_txn_abort_cnt=%ld"
     ",local_txn_abort_cnt=%ld"
     ",remote_txn_abort_cnt=%ld"
@@ -499,7 +522,9 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",parts_touched=%ld"
           ",avg_parts_touched=%f",
           tput, txn_cnt, remote_txn_cnt, local_txn_cnt, local_txn_start_cnt, total_txn_commit_cnt,
-          local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt,positive_txn_abort_cnt, unique_txn_abort_cnt,
+          local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt, total_rw_abort_cnt,
+          total_ww_abort_cnt, total_validate_abort_cnt, total_txn_prewrite_cnt,
+          positive_txn_abort_cnt, unique_txn_abort_cnt,
           local_txn_abort_cnt, remote_txn_abort_cnt, txn_run_time / BILLION,
           txn_run_avg_time / BILLION, multi_part_txn_cnt, multi_part_txn_run_time / BILLION,
           multi_part_txn_avg_time / BILLION, single_part_txn_cnt,
@@ -539,6 +564,8 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",trans_access_pre_before_time=%f"
     ",trans_access_pre_lock_time=%f"
     ",trans_access_write_update_time=%f"
+    ",real_abort_time=%f"
+    ",trans_abort_reset_time=%f"
     ",trans_mvcc_clear_history=%f"
     ",trans_mvcc_access=%f",
         trans_total_run_time / BILLION, trans_process_time / BILLION, trans_2pc_time / BILLION,
@@ -550,6 +577,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
         trans_access_write_insert_time / BILLION, trans_access_write_release_time / BILLION,
         trans_access_pre_check_time / BILLION, trans_access_pre_before_time / BILLION,
         trans_access_pre_lock_time / BILLION, trans_access_write_update_time / BILLION,
+        real_abort_time / BILLION, trans_abort_reset_time / BILLION,
         trans_mvcc_clear_history / BILLION, trans_mvcc_access / BILLION);
 
 
@@ -1130,6 +1158,10 @@ void Stats_thd::combine(Stats_thd * stats) {
     local_txn_commit_cnt+=stats->local_txn_commit_cnt;
     remote_txn_commit_cnt+=stats->remote_txn_commit_cnt;
     total_txn_abort_cnt+=stats->total_txn_abort_cnt;
+    total_rw_abort_cnt+=stats->total_rw_abort_cnt;
+    total_ww_abort_cnt+=stats->total_ww_abort_cnt;
+    total_validate_abort_cnt+=stats->total_validate_abort_cnt;
+    total_txn_prewrite_cnt+=stats->total_txn_prewrite_cnt;
     positive_txn_abort_cnt += stats->positive_txn_abort_cnt;
     unique_txn_abort_cnt+=stats->unique_txn_abort_cnt;
     local_txn_abort_cnt+=stats->local_txn_abort_cnt;
@@ -1171,6 +1203,7 @@ void Stats_thd::combine(Stats_thd * stats) {
     trans_access_pre_check_time+=stats->trans_access_pre_check_time;
     trans_access_pre_before_time+=stats->trans_access_pre_before_time;
     trans_access_pre_lock_time+=stats->trans_access_pre_lock_time;
+    real_abort_time+=stats->real_abort_time;
     // trans mvcc
     trans_mvcc_clear_history+=stats->trans_mvcc_clear_history;
     trans_mvcc_access+=stats->trans_mvcc_access;

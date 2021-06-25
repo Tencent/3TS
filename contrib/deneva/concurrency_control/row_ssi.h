@@ -65,8 +65,8 @@ private:
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
     SSIReqEntry * get_req_entry();
-    void return_req_entry(SSIReqEntry * entry);
-    SSIHisEntry * get_his_entry();
+    void return_req_entry(SSIReqEntry * entry) ;
+    SSIHisEntry * get_his_entry() ;
     void return_his_entry(SSIHisEntry * entry);
 
     bool conflict(TsType type, ts_t ts);
