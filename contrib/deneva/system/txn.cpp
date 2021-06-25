@@ -465,7 +465,9 @@ void TxnManager::reset_query() {
 
 RC TxnManager::commit() {
     DEBUG("Commit %ld\n",get_txn_id());
+    uint64_t starttime = get_sys_clock();
     release_locks(RCOK);
+    INC_STATS(get_thd_id(), txn_clean_time, get_sys_clock() - starttime);
 #if CC_ALG == MAAT
     time_table.release(get_thd_id(),get_txn_id());
 #endif

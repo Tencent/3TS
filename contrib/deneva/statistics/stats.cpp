@@ -122,6 +122,9 @@ void Stats_thd::clear() {
     txn_remote_wait_time=0;
     txn_total_twopc_time=0;
     txn_twopc_time=0;
+    txn_init_time=0;
+    txn_validate_time=0;
+    txn_clean_time=0;
 
     // Client
     txn_sent_cnt=0;
@@ -1181,6 +1184,9 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_remote_wait_time+=stats->txn_remote_wait_time;
     txn_total_twopc_time+=stats->txn_total_twopc_time;
     txn_twopc_time+=stats->txn_twopc_time;
+    txn_init_time+=stats->txn_init_time;
+    txn_validate_time+=stats->txn_validate_time;
+    txn_clean_time+=stats->txn_clean_time;
 
     // Client
     txn_sent_cnt+=stats->txn_sent_cnt;

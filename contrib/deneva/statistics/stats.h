@@ -80,6 +80,9 @@ public:
     double txn_remote_wait_time;
     double txn_total_twopc_time;
     double txn_twopc_time;
+    double txn_init_time;
+    double txn_validate_time;
+    double txn_clean_time;
 
     // Client
     uint64_t txn_sent_cnt;

@@ -59,6 +59,7 @@ RC ssi::validate(TxnManager * txn) {
     txn->txn_stats.cc_time_short += timespan;
     DEBUG("SSI Validate End %ld: %d\n",txn->get_txn_id(),rc==RCOK);
     //sem_post(&_semaphore);
+    INC_STATS(txn->get_thd_id(), txn_validate_time, get_sys_clock() - start_time);
     return rc;
 }
 

@@ -783,6 +783,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
             msg->copy_to_txn(txn_man);
             DEBUG("START %ld %f %lu\n", txn_man->get_txn_id(),
                 simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
+            INC_STATS(get_thd_id(),txn_init_time,get_sys_clock() - ready_starttime);
 #if WORKLOAD==DA
             if(da_start_trans_tab.count(txn_man->get_txn_id())==0)
             {
