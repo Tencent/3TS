@@ -38,6 +38,7 @@ public:
     void init(uint64_t thd_id);
     void combine(Stats_thd * stats);
     void print(FILE * outf, bool prog);
+    void print_message(FILE * outf, bool prog);
     void print_client(FILE * outf, bool prog);
     void clear();
 
@@ -85,7 +86,6 @@ public:
     double txn_total_twopc_time;
     double txn_twopc_time;
     double txn_init_time;
-    double txn_validate_time;
     double txn_clean_time;
 
     // Client
