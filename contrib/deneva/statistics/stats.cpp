@@ -1145,27 +1145,29 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     fprintf(outf,
     "[detail time cost]:"
     "txn_init_time=%f"
-    ",txn_run_time=%f"
-    ",trans_total_run_time=%f"
-    ",trans_process_time=%f"
-    ",total_access_time=%f"
-    ",trans_access_lock_wait_time=%f"
-    ",trans_access_read_time=%f"
-    ",trans_access_pre_time=%f"
-    ",trans_access_write_time=%f"
-    ",trans_access_clear_time=%f"
-    ",trans_access_pre_getlock_time=%f"
-    ",trans_access_pre_RWcheck_time=%f"
-    ",trans_access_write_insert_time=%f"
-    ",trans_access_write_release_time=%f"
-    ",txn_validate_time=%f"
-    ",txn_clean_time=%f",
-          txn_init_time / BILLION, txn_run_time / BILLION, trans_total_run_time / BILLION,
-          trans_process_time / BILLION, total_access_time / BILLION, trans_access_lock_wait_time / BILLION,
-          trans_access_read_time / BILLION, trans_access_pre_time / BILLION, trans_access_write_time / BILLION,
-          trans_access_clear_time / BILLION, trans_access_pre_lock_time / BILLION, trans_access_pre_check_time / BILLION,
-          trans_access_write_insert_time / BILLION, trans_access_write_release_time / BILLION, txn_validate_time / BILLION,
-          txn_clean_time / BILLION);
+    ",txn_run_time=%f,%f%%"
+    ",trans_total_run_time=%f,%f%%"
+    ",trans_process_time=%f,%f%%"
+    ",total_access_time=%f,%f%%"
+    ",trans_access_lock_wait_time=%f,%f%%"
+    ",trans_access_read_time=%f,%f%%"
+    ",trans_access_pre_time=%f,%f%%"
+    ",trans_access_write_time=%f,%f%%"
+    ",trans_mvcc_clear_history=%f,%f%%"
+    ",trans_access_pre_getlock_time=%f,%f%%"
+    ",trans_access_pre_RWcheck_time=%f,%f%%"
+    ",trans_access_write_insert_time=%f,%f%%"
+    ",trans_access_write_release_time=%f,%f%%"
+    ",txn_validate_time=%f,%f%%"
+    ",txn_clean_time=%f,%f%%"
+    ",total_read_abort_cnt=%ld"
+    ",total_write_abort_cnt=%ld",
+          txn_init_time / BILLION, txn_run_time / BILLION, 100.0*txn_run_time/txn_run_time, trans_total_run_time / BILLION, 100.0*trans_total_run_time/txn_run_time,
+          trans_process_time / BILLION, 100.0*trans_process_time/txn_run_time, total_access_time / BILLION, 100.0*total_access_time/txn_run_time, trans_access_lock_wait_time / BILLION, 100.0*trans_access_lock_wait_time/txn_run_time,
+          trans_access_read_time / BILLION, 100.0*trans_access_read_time/txn_run_time, trans_access_pre_time / BILLION, 100.0*trans_access_pre_time/txn_run_time, trans_access_write_time / BILLION, 100.0*trans_access_write_time/txn_run_time,
+          trans_mvcc_clear_history / BILLION, 100.0*trans_mvcc_clear_history/txn_run_time, trans_access_pre_lock_time / BILLION, 100.0*trans_access_pre_lock_time/txn_run_time, trans_access_pre_check_time / BILLION, 100.0*trans_access_pre_check_time/txn_run_time,
+          trans_access_write_insert_time / BILLION, 100.0*trans_access_write_insert_time/txn_run_time, trans_access_write_release_time / BILLION, 100.0*trans_access_write_release_time/txn_run_time, txn_validate_time / BILLION, 100.0*txn_validate_time/txn_run_time,
+          txn_clean_time / BILLION, 100.0*txn_clean_time/txn_run_time, total_rw_abort_cnt, total_ww_abort_cnt);
 
     if (!prog) {
         last_start_commit_latency.quicksort(0,last_start_commit_latency.cnt-1);

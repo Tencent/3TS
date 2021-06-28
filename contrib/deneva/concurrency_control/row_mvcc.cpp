@@ -285,6 +285,8 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
             txn->ts_ready = false;
         } else if (conf) {
             rc = Abort;
+            //not RW abort, just for convenience
+            INC_STATS(txn->get_thd_id(), total_rw_abort_cnt, 1);
             printf("\nshould never happen. rreq_len=%ld", rreq_len);
         } else {
             // return results immediately.
@@ -304,12 +306,14 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t pre_start  = get_sys_clock();
         if (conflict(type, ts)) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), total_ww_abort_cnt, 1);
         } else if (preq_len < g_max_pre_req) {
             DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
             buffer_req(P_REQ, txn);
             rc = RCOK;
         } else {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), total_ww_abort_cnt, 1);
         }
 
         uint64_t pre_end = get_sys_clock();
