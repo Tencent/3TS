@@ -14,6 +14,7 @@
 #include "manager.h"
 #include "row_wsi.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_wsi::init(row_t * row) {
     _row = row;
@@ -24,7 +25,7 @@ void Row_wsi::init(row_t * row) {
     readhistail = NULL;
     writehistail = NULL;
     blatch = false;
-    latch = (pthread_mutex_t *) mem_allocator.alloc(sizeof(pthread_mutex_t));
+    latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
@@ -59,8 +60,7 @@ row_t * Row_wsi::clear_history(TsType type, ts_t ts) {
         prev = his->prev;
         assert(prev->ts >= his->ts);
         if (row != NULL) {
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            free(row);
         }
         row = his->row;
         his->row = NULL;
@@ -83,23 +83,22 @@ row_t * Row_wsi::clear_history(TsType type, ts_t ts) {
 }
 
 WSIReqEntry * Row_wsi::get_req_entry() {
-    return (WSIReqEntry *) mem_allocator.alloc(sizeof(WSIReqEntry));
+    return (WSIReqEntry *) malloc(sizeof(WSIReqEntry));
 }
 
 void Row_wsi::return_req_entry(WSIReqEntry * entry) {
-    mem_allocator.free(entry, sizeof(WSIReqEntry));
+    free(entry);
 }
 
 WSIHisEntry * Row_wsi::get_his_entry() {
-    return (WSIHisEntry *) mem_allocator.alloc(sizeof(WSIHisEntry));
+    return (WSIHisEntry *) malloc(sizeof(WSIHisEntry));
 }
 
 void Row_wsi::return_his_entry(WSIHisEntry * entry) {
     if (entry->row != NULL) {
-        entry->row->free_row();
-        mem_allocator.free(entry->row, sizeof(row_t));
+        free(entry->row);
     }
-    mem_allocator.free(entry, sizeof(WSIHisEntry));
+    free(entry);
 }
 
 void Row_wsi::buffer_req(TsType type, TxnManager * txn)
