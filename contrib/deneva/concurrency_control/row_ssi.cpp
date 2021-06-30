@@ -65,6 +65,20 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
         his = prev;
         if (type == R_REQ) rhis_len --;
         else whis_len --;
+
+        //clear si_read
+        SSILockEntry * read = his->si_read_lock;
+        while (read != NULL) {
+            assert(read != NULL);
+            SSILockEntry * delete_p = read;
+            assert( read == his->si_read_lock );
+            read = read->next;
+            delete_p->next = NULL;
+            free(delete_p);
+        }
+        //clear si_read
+
+
     }
     *tail = his;
     if (*tail) (*tail)->next = NULL;
@@ -99,6 +113,7 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
+    new_entry->si_read_lock = NULL;
     //new_entry->txn = std::shared_ptr<TxnManager>(txn);
     new_entry->txn = txn;
     if (row != NULL) {
@@ -147,9 +162,23 @@ void Row_ssi::get_lock(lock_t type, TxnManager * txn) {
         STACK_PUSH(write_lock, entry);
 }
 
+void Row_ssi::get_lock(lock_t type, TxnManager * txn, SSIHisEntry * whis) {
+    SSILockEntry * entry = get_entry();
+    entry->type = type;
+    //entry->txn = std::shared_ptr<TxnManager>(txn);
+    entry->txn = txn;
+    entry->start_ts = get_sys_clock();
+    entry->txnid = txn->get_txn_id();
+    if (type == LOCK_SH)
+        STACK_PUSH(whis->si_read_lock, entry);
+    if (type == LOCK_EX)
+        STACK_PUSH(write_lock, entry);
+}
+
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
     if (type == LOCK_SH) {
-        SSILockEntry * read = si_read_lock;
+        // SSILockEntry * read = si_read_lock;
+        SSILockEntry * read = writehis != NULL? writehis->si_read_lock : NULL;
         SSILockEntry * pre_read = NULL;
         bool is_delete = false;
         while (read != NULL) {
@@ -253,7 +282,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t read_start = get_sys_clock();
         // Add the si-read lock
         // the release time for si_read_lock is in the clear_history function
-        get_lock(LOCK_SH, txn);
+        //get_lock(LOCK_SH, txn);
 
         // check write his to the read version
         SSIHisEntry* c_his = writehis;
@@ -303,7 +332,11 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
         }
 
-        // TODO What if write by myself ?
+        // add si_read lock to write history
+        if (p_his != NULL){
+            get_lock(LOCK_SH, txn, p_his); 
+        }
+        
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
@@ -322,7 +355,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             goto end;
         }
         uint64_t pre_start1  = get_sys_clock();
-        // WW clifict in write history
+        // WCW clifict in write history
         if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
             INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
@@ -337,7 +370,9 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t lock_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_pre_lock_time, lock_end - lock_start);
         // Traverse the whole read his
-        SSILockEntry * si_read = si_read_lock;
+        // SSILockEntry * si_read = si_read_lock;
+        // get si_read from last committed history
+        SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : NULL;
         uint64_t start1 = get_sys_clock();
         while (si_read != NULL) {
             if (si_read->txnid == txnid) {
@@ -423,24 +458,25 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
     if (rc == RCOK) {
         uint64_t clear_start  = get_sys_clock();
-        if (whis_len > g_his_recycle_len || rhis_len > g_his_recycle_len) {
+        //if (whis_len > g_his_recycle_len || rhis_len > g_his_recycle_len) {
+        if (whis_len > 1) {
             ts_t t_th = glob_manager.get_min_ts(txn->get_thd_id());
-            if (readhistail && readhistail->ts < t_th) {
-                clear_history(R_REQ, t_th);
-            }
+            // if (readhistail && readhistail->ts < t_th) {
+            //     clear_history(R_REQ, t_th);
+            // }
             // Here is a tricky bug. The oldest transaction might be
             // reading an even older version whose timestamp < t_th.
             // But we cannot recycle that version because it is still being used.
             // So the HACK here is to make sure that the first version older than
             // t_th not be recycled.
-            if (whis_len > 1 && writehistail->prev->ts < t_th) {
+            if (writehistail->prev->ts < t_th) {
                 row_t * latest_row = clear_history(W_REQ, t_th);
                 if (latest_row != NULL) {
                     assert(_row != latest_row);
                     _row->copy(latest_row);
                 }
             }
-            release_lock(t_th);
+            //release_lock(t_th);
         }
         
         uint64_t clear_end = get_sys_clock();
