@@ -177,8 +177,15 @@ void Row_ssi::get_lock(lock_t type, TxnManager * txn, SSIHisEntry * whis) {
 
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
     if (type == LOCK_SH) {
-        // SSILockEntry * read = si_read_lock;
-        SSILockEntry * read = writehis != NULL? writehis->si_read_lock : NULL;
+        
+        ts_t start_ts = txn->get_start_timestamp();
+            // find the read version
+        SSIHisEntry* c_his = writehis;
+            while (c_his != NULL && c_his->ts > start_ts){
+                    c_his = c_his->next;
+        }
+	    // SSILockEntry * read = si_read_lock;
+        SSILockEntry * read = c_his != NULL? c_his->si_read_lock : NULL;
         SSILockEntry * pre_read = NULL;
         bool is_delete = false;
         while (read != NULL) {
@@ -193,8 +200,8 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                     pre_read->next = read->next;
                 } 
                 else {
-                    assert( read == si_read_lock );
-                    si_read_lock = read->next;
+                    assert( read == writehis->si_read_lock );
+                    writehis->si_read_lock = read->next;
                 }
                 //read->next = NULL;
                 delete_p->next = NULL;
@@ -240,7 +247,7 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
 }
 
 void Row_ssi::release_lock(ts_t min_ts) {
-    SSILockEntry * read = si_read_lock;
+    SSILockEntry * read = writehis->si_read_lock;
     SSILockEntry * pre_read = NULL;
     bool is_delete = false;
     while (read != NULL) {
@@ -253,8 +260,8 @@ void Row_ssi::release_lock(ts_t min_ts) {
                 pre_read->next = read->next;
             } 
             else {
-                assert( read == si_read_lock );
-                si_read_lock = read->next;
+                assert( read == writehis->si_read_lock );
+                writehis->si_read_lock = read->next;
             }
             delete_p->next = NULL;
             delete delete_p;
@@ -476,7 +483,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     _row->copy(latest_row);
                 }
             }
-            //release_lock(t_th);
+            release_lock(t_th);
         }
         
         uint64_t clear_end = get_sys_clock();
