@@ -22,6 +22,16 @@ struct SSIReqEntry {
     SSIReqEntry * next;
 };
 
+struct SSILockEntry {
+    lock_t type;
+    ts_t   start_ts;
+    //std::shared_ptr<TxnManager> txn;
+    TxnManager * txn;
+    txnid_t txnid;
+    SSILockEntry * next;
+    SSILockEntry * prev;
+};
+
 struct SSIHisEntry {
     //std::shared_ptr<TxnManager> txn;
     TxnManager * txn;
@@ -32,16 +42,7 @@ struct SSIHisEntry {
     row_t * row;
     SSIHisEntry * next;
     SSIHisEntry * prev;
-};
-
-struct SSILockEntry {
-    lock_t type;
-    ts_t   start_ts;
-    //std::shared_ptr<TxnManager> txn;
-    TxnManager * txn;
-    txnid_t txnid;
-    SSILockEntry * next;
-    SSILockEntry * prev;
+    SSILockEntry * si_read_lock;
 };
 
 class Row_ssi {
@@ -59,6 +60,7 @@ private:
 
     row_t * _row;
     void get_lock(lock_t type, TxnManager * txn);
+    void get_lock(lock_t type, TxnManager * txn, SSIHisEntry * whis);
     void release_lock(lock_t type, TxnManager * txn);
     void release_lock(ts_t min_ts);
 

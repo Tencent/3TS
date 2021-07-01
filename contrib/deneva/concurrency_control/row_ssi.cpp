@@ -65,6 +65,20 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
         his = prev;
         if (type == R_REQ) rhis_len --;
         else whis_len --;
+
+        //clear si_read
+        SSILockEntry * read = his->si_read_lock;
+        while (read != NULL) {
+            assert(read != NULL);
+            SSILockEntry * delete_p = read;
+            assert( read == his->si_read_lock );
+            read = read->next;
+            delete_p->next = NULL;
+            free(delete_p);
+        }
+        //clear si_read
+
+
     }
     *tail = his;
     if (*tail) (*tail)->next = NULL;
@@ -99,6 +113,7 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
     new_entry->row = row;
+    new_entry->si_read_lock = NULL;
     //new_entry->txn = std::shared_ptr<TxnManager>(txn);
     new_entry->txn = txn;
     if (row != NULL) {
@@ -127,7 +142,7 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 
 SSILockEntry * Row_ssi::get_entry() {
     SSILockEntry * entry = (SSILockEntry *)
-        new(SSILockEntry);
+        malloc(sizeof(SSILockEntry));
     entry->type = LOCK_NONE;
     entry->txnid = 0;
 
@@ -147,29 +162,49 @@ void Row_ssi::get_lock(lock_t type, TxnManager * txn) {
         STACK_PUSH(write_lock, entry);
 }
 
+void Row_ssi::get_lock(lock_t type, TxnManager * txn, SSIHisEntry * whis) {
+    SSILockEntry * entry = get_entry();
+    entry->type = type;
+    //entry->txn = std::shared_ptr<TxnManager>(txn);
+    entry->txn = txn;
+    entry->start_ts = get_sys_clock();
+    entry->txnid = txn->get_txn_id();
+    if (type == LOCK_SH)
+        STACK_PUSH(whis->si_read_lock, entry);
+    if (type == LOCK_EX)
+        STACK_PUSH(write_lock, entry);
+}
+
 void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
-    if (type == LOCK_SH) {
-        SSILockEntry * read = si_read_lock;
+    if (type == LOCK_SH) {  
+        ts_t start_ts = txn->get_start_timestamp();
+        // find the read version
+        SSIHisEntry* c_his = writehis;
+            while (c_his != NULL && c_his->ts > start_ts){
+                    c_his = c_his->next;
+        }
+	    // get the si_read locks in the read version;
+        SSILockEntry * read = c_his != NULL? c_his->si_read_lock : NULL;
         SSILockEntry * pre_read = NULL;
         bool is_delete = false;
+        // delete the si_read lock of this txn
         while (read != NULL) {
             SSILockEntry * nex = read->next;
             if (read->txnid == txn->get_txn_id()) {
                 assert(read != NULL);
                 is_delete = true;
                 SSILockEntry * delete_p = read;
-                //if (pre_read != NULL)
-                //   pre_read->next = read->next;
                 if(pre_read != NULL) {
                     pre_read->next = read->next;
                 } 
                 else {
-                    assert( read == si_read_lock );
-                    si_read_lock = read->next;
+                    assert( read == writehis->si_read_lock );
+                    writehis->si_read_lock = read->next;
                 }
                 //read->next = NULL;
                 delete_p->next = NULL;
-                delete delete_p;
+                free(delete_p);
+                //break; // read more than once
             }
             else 
                 is_delete = false;
@@ -188,8 +223,6 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                 assert(write != NULL);
                 is_delete = true;
                 SSILockEntry * delete_p = write;
-                //if (pre_write != NULL)
-                //    pre_write->next = write->next;
                 if(pre_write != NULL) {
                     pre_write->next = write->next;
                 }
@@ -197,21 +230,20 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                     assert( write == write_lock );
                     write_lock = write->next;
                 }
-                //write->next = NULL;
                 delete_p->next = NULL;
-                delete delete_p;
+                free(delete_p); 
             }
             else
                 is_delete = false;
             if(!is_delete) pre_write = write;
-            //write = write->next;
             write = nex;
         }
     }
 }
 
 void Row_ssi::release_lock(ts_t min_ts) {
-    SSILockEntry * read = si_read_lock;
+    // release the si_read locks in last commited history
+    SSILockEntry * read = writehis->si_read_lock;
     SSILockEntry * pre_read = NULL;
     bool is_delete = false;
     while (read != NULL) {
@@ -224,11 +256,11 @@ void Row_ssi::release_lock(ts_t min_ts) {
                 pre_read->next = read->next;
             } 
             else {
-                assert( read == si_read_lock );
-                si_read_lock = read->next;
+                assert( read == writehis->si_read_lock );
+                writehis->si_read_lock = read->next;
             }
             delete_p->next = NULL;
-            delete delete_p;
+            free(delete_p);
         }
         else 
             is_delete = false;
@@ -253,48 +285,62 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t read_start = get_sys_clock();
         // Add the si-read lock
         // the release time for si_read_lock is in the clear_history function
-        get_lock(LOCK_SH, txn);
-        // Traverse the whole write lock, only one active and waiting
-        // as it is more than one txn it is the WW conflict, violating serialization.
-        SSILockEntry * write = write_lock;
-        while (write != NULL) {
-            if (write->txnid == txnid) {
-                write = write->next;
-                continue;
+        //get_lock(LOCK_SH, txn);
+
+        // check write his to the read version
+        SSIHisEntry* c_his = writehis;
+        SSIHisEntry* p_his = writehis;
+
+        // if the read is not the last committed version
+        if (c_his != NULL && c_his->ts > start_ts){
+            p_his = c_his->next;
+            // find the version (p_his) to read and the version (c_his) to build rw
+            while (p_his != NULL && p_his->ts > start_ts){
+                c_his = p_his;
+                p_his = p_his->next;
             }
-            //inout_table.set_inConflict(txn->get_thd_id(), write->txnid, txnid);
-            //inout_table.set_outConflict(txn->get_thd_id(), txnid, write->txnid);
-            //(write->txn.get())->in_rw = true;
-            write->txn->in_rw = true;
-            txn->out_rw = true;
-            DEBUG("ssi read the write_lock in %ld out %ld\n",write->txnid, txnid);
-            write = write->next;
-        }
-        
-        // Check to see if two RW dependencies exist.
-        // Add RW dependencies
-        SSIHisEntry* whis = writehis;
-        while (whis != NULL && whis->ts > start_ts) {
-            //bool out = inout_table.get_outConflict(txn->get_thd_id(),whis->txnid);
-            // if (whis->txn.get()->out_rw) { //! Abort
-            if (whis->txn->out_rw) { //! Abort
+
+            //build rw
+            if (c_his->txn->out_rw) { // Abort when exists out_rw
                 rc = Abort;
-                //INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
                 INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
-                  txnid, whis->txnid, whis->ts, start_ts);
+                  txnid, c_his->txnid, c_his->ts, start_ts);
                 goto end;             
             }
-            //inout_table.set_inConflict(txn->get_thd_id(), whis->txnid, txnid);
-            //inout_table.set_outConflict(txn->get_thd_id(), txnid, whis->txnid);
-            // whis->txn.get()->in_rw = true;
-            whis->txn->in_rw = true;
+            c_his->txn->in_rw = true;
             txn->out_rw = true;
-            DEBUG("ssi read the write_commit in %ld out %ld\n",whis->txnid, txnid);
-            whis = whis->next;
+            DEBUG("ssi read the write_commit in %ld out %ld\n",c_his->txnid, txnid);
+        }
+        // else if the read is the init version or the last committed version  
+        else{ // (c_his == NULL) || (c_his != NULL && c_his->ts < start_ts)
+            SSILockEntry * write = write_lock;
+            while (write != NULL) {
+                if (write->txnid == txnid) { //TODO I wrote the row
+                    write = write->next;
+                    continue;
+                }
+                //build rw
+                if (write->txn->out_rw) { // Abort when exists out_rw
+                    rc = Abort;
+                    INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
+                    DEBUG("ssi txn %ld read the write_lock in %ld abort current_start_ts %ld\n",
+                    txnid, write->txnid, start_ts);
+                    goto end;             
+                }
+                write->txn->in_rw = true;
+                txn->out_rw = true;
+                DEBUG("ssi read the write_lock in %ld out %ld\n",write->txnid, txnid);
+                write = write->next;
+            }
         }
 
-        row_t * ret = (whis == NULL) ? _row : whis->row;
+        // add si_read lock to write history
+        if (p_his != NULL){
+            get_lock(LOCK_SH, txn, p_his); 
+        }
+        
+        row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
 
@@ -307,12 +353,19 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
-            //INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
             INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
-
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
             goto end;
         }
+        uint64_t pre_start1  = get_sys_clock();
+        // WCW conflict in write history
+        if(writehis != NULL && start_ts < writehis->ts) {
+            rc = Abort;
+            INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
+            INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start1);
+            goto end;
+        }
+
         // Add the write lock
         uint64_t lock_start = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_pre_before_time, lock_start - pre_start);
@@ -320,7 +373,9 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t lock_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_pre_lock_time, lock_end - lock_start);
         // Traverse the whole read his
-        SSILockEntry * si_read = si_read_lock;
+        // SSILockEntry * si_read = si_read_lock;
+        // get si_read from last committed history
+        SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : NULL;
         uint64_t start1 = get_sys_clock();
         while (si_read != NULL) {
             if (si_read->txnid == txnid) {
@@ -346,8 +401,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     goto end;
                 } 
                 
-                //inout_table.set_outConflict(txn->get_thd_id(), si_read->txnid, txnid);
-                //inout_table.set_inConflict(txn->get_thd_id(), txnid, si_read->txnid);
                 assert(si_read->txn != NULL);
                 si_read->txn->out_rw = true;
                 txn->in_rw = true;
@@ -406,17 +459,17 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
     if (rc == RCOK) {
         uint64_t clear_start  = get_sys_clock();
-        if (whis_len > g_his_recycle_len || rhis_len > g_his_recycle_len) {
+        //if (whis_len > g_his_recycle_len || rhis_len > g_his_recycle_len) {
+        if (whis_len > 1) {
             ts_t t_th = glob_manager.get_min_ts(txn->get_thd_id());
-            if (readhistail && readhistail->ts < t_th) {
-                clear_history(R_REQ, t_th);
-            }
+            // When we clear the write history, we also clear the si_read locks in that history 
+            // 
             // Here is a tricky bug. The oldest transaction might be
             // reading an even older version whose timestamp < t_th.
             // But we cannot recycle that version because it is still being used.
             // So the HACK here is to make sure that the first version older than
             // t_th not be recycled.
-            if (whis_len > 1 && writehistail->prev->ts < t_th) {
+            if (writehistail->prev->ts < t_th) {
                 row_t * latest_row = clear_history(W_REQ, t_th);
                 if (latest_row != NULL) {
                     assert(_row != latest_row);
