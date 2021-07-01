@@ -61,6 +61,7 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
         INC_STATS(txn->get_thd_id(),mtx[17],get_sys_clock() - mtx_wait_starttime);
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - lock_get_start_time);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - lock_get_start_time);
     if(owner_cnt > 0) {
       INC_STATS(txn->get_thd_id(),twopl_already_owned_cnt,1);
     }
@@ -211,6 +212,7 @@ final:
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
     INC_STATS(txn->get_thd_id(),twopl_getlock_time,timespan);
+    INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
     INC_STATS(txn->get_thd_id(),twopl_getlock_cnt,1);
 
     if (g_central_man)
@@ -223,7 +225,7 @@ final:
 }
 
 
-RC Row_lock::lock_release(TxnManager * txn) {
+RC Row_lock::lock_release(TxnManager * txn, access_t type) {
 
 #if CC_ALG == CALVIN
     if (txn->isRecon()) {
@@ -238,6 +240,13 @@ RC Row_lock::lock_release(TxnManager * txn) {
         INC_STATS(txn->get_thd_id(),mtx[18],get_sys_clock() - mtx_wait_starttime);
     }
 
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
+    if(type == XP){
+        INC_STATS(txn->get_thd_id(), txn_abort_time, get_sys_clock() - starttime);
+    } else{
+        INC_STATS(txn->get_thd_id(), txn_update_manager_time, get_sys_clock() - starttime);
+    }
+    
     DEBUG("unlock (%ld,%ld): owners %d, own type %d, key %ld %lx\n", txn->get_txn_id(),
         txn->get_batch_id(), owner_cnt, lock_type, _row->get_primary_key(), (uint64_t)_row);
 

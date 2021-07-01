@@ -1178,7 +1178,6 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
           trans_access_write_insert_time / BILLION, 100.0*trans_access_write_insert_time/txn_run_time, trans_access_write_release_time / BILLION, 100.0*trans_access_write_release_time/txn_run_time, txn_validate_time / BILLION, 100.0*txn_validate_time/txn_run_time,
           txn_clean_time / BILLION, 100.0*txn_clean_time/txn_run_time, total_rw_abort_cnt, total_ww_abort_cnt);
     */
-   double total_time = 4*60.0;
    txn_wait_thread_time = total_time-txn_useful_time-txn_update_manager_time-txn_cc_manager_time-txn_2pc_time-txn_abort_time;
    fprintf(outf,
     "[detail time cost]:"
@@ -1277,11 +1276,16 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_init_time+=stats->txn_init_time;
     txn_clean_time+=stats->txn_clean_time;
     txn_useful_time+=stats->txn_useful_time;
+    txn_useful_time-=stats->trans_access_lock_wait_time;
+    // TODO: here need to consider whether need to separate access_xp_time from txn_useful_time
+    txn_useful_time-=stats->trans_access_xp_time;
     txn_update_manager_time+=stats->txn_update_manager_time;
+    txn_update_manager_time-=stats->trans_access_write_insert_time;
     txn_cc_manager_time+=stats->txn_cc_manager_time;
     txn_2pc_time+=stats->txn_2pc_time;
     txn_abort_time+=stats->txn_abort_time;
     txn_wait_thread_time+=stats->txn_wait_thread_time;
+    total_time+=60.0*BILLION;
 
     // Client
     txn_sent_cnt+=stats->txn_sent_cnt;

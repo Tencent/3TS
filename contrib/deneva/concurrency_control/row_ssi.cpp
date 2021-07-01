@@ -108,7 +108,7 @@ void Row_ssi::return_his_entry(SSIHisEntry * entry) {
 
 void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
 {
-    uint64_t insert_start = get_sys_clock();
+    //uint64_t insert_start = get_sys_clock();
     SSIHisEntry * new_entry = get_his_entry();
     new_entry->ts = ts;
     new_entry->txnid = txn->get_txn_id();
@@ -135,8 +135,8 @@ void Row_ssi::insert_history(ts_t ts, TxnManager * txn, row_t * row)
     } else
         LIST_PUT_TAIL((*queue), (*tail), new_entry);
 
-    uint64_t insert_end = get_sys_clock();
-    INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - insert_start);
+    //uint64_t insert_end = get_sys_clock();
+    //INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - insert_start);
 
 }
 
@@ -347,7 +347,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
         uint64_t read_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
-        INC_STATS(txn->get_thd_id(), txn_useful_time, read_end - read_start);
 
     } else if (type == P_REQ) {
         uint64_t pre_start  = get_sys_clock();
@@ -411,7 +410,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t pre_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_pre_check_time, pre_end - start1);
         INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
-        INC_STATS(txn->get_thd_id(), txn_useful_time, pre_end - pre_start);
         INC_STATS(txn->get_thd_id(), total_txn_prewrite_cnt, 1);
         
     } else if (type == W_REQ) {
@@ -433,11 +431,10 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         uint64_t write_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
-        INC_STATS(txn->get_thd_id(), txn_update_manager_time, write_end - write_start);
         
     } else if (type == XP_REQ) {
         INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
-        uint64_t xp_start  = get_sys_clock();
+        //uint64_t xp_start  = get_sys_clock();
         //uint64_t xp_end = get_sys_clock();
         //INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
         release_lock(LOCK_EX, txn);
@@ -450,9 +447,8 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //assert (req != NULL);
         //return_req_entry(req);
         
-        uint64_t xp_end = get_sys_clock();
-        INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
-        INC_STATS(txn->get_thd_id(), txn_useful_time, xp_end - xp_start);
+        // uint64_t xp_end = get_sys_clock();
+        // INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
         
     } else {
         assert(false);
@@ -482,7 +478,6 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         uint64_t clear_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_clear_time, clear_end - clear_start);
-        INC_STATS(txn->get_thd_id(), txn_update_manager_time, clear_end - clear_start);
         
     }
 end:
@@ -490,7 +485,8 @@ end:
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
 
-    
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
+    INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
 
     if (g_central_man) {
         glob_manager.release_row(_row);
@@ -498,6 +494,5 @@ end:
         pthread_mutex_unlock(latch);
      }
 
-    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
     return rc;
 }

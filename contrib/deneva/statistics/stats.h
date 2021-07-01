@@ -89,12 +89,15 @@ public:
     double txn_twopc_time;
     double txn_init_time;
     double txn_clean_time;
+
+    //Deneva measurements
     double txn_useful_time;
     double txn_update_manager_time;
     double txn_cc_manager_time;
     double txn_2pc_time;
     double txn_abort_time;
     double txn_wait_thread_time;
+    double total_time;
 
     // Client
     uint64_t txn_sent_cnt;

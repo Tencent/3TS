@@ -38,6 +38,7 @@ RC Row_occ::access(TxnManager *txn, TsType type) {
     uint64_t starttime = get_sys_clock();
     sem_wait(&_semaphore);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
 #if CC_ALG == FOCC
         if (lock_tid != 0 && lock_tid != txn->get_txn_id()) {
@@ -54,6 +55,7 @@ RC Row_occ::access(TxnManager *txn, TsType type) {
         }
     } else assert(false);
     // pthread_mutex_unlock( _latch );
+    INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
     sem_post(&_semaphore);
     return rc;
 }

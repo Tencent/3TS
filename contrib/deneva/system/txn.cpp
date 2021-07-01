@@ -464,6 +464,7 @@ void TxnManager::reset_query() {
 }
 
 RC TxnManager::commit() {
+    uint64_t clean_start = get_sys_clock();
     DEBUG("Commit %ld\n",get_txn_id());
     uint64_t starttime = get_sys_clock();
     release_locks(RCOK);
@@ -481,6 +482,7 @@ RC TxnManager::commit() {
     txn_status = TxnStatus::COMMITTED;
 #endif
     commit_stats();
+    INC_STATS(get_thd_id(), txn_update_manager_time, get_sys_clock()-clean_start);
 #if LOGGING
     LogRecord * record = logger.createRecord(get_txn_id(),L_NOTIFY,0,0);
     if(g_repl_cnt > 0) {
@@ -494,6 +496,7 @@ RC TxnManager::commit() {
 }
 
 RC TxnManager::abort() {
+    uint64_t abort_start = get_sys_clock();
     if (aborted) return Abort;
 #if CC_ALG == SSI
     //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
@@ -514,6 +517,7 @@ RC TxnManager::abort() {
 
     aborted = true;
     release_locks(Abort);
+    INC_STATS(get_thd_id(), txn_abort_time, get_sys_clock()-abort_start);
 #if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
@@ -818,7 +822,6 @@ void TxnManager::release_last_row_lock() {
 }
 
 void TxnManager::cleanup_row(RC rc, uint64_t rid) {
-    uint64_t clean_start = get_sys_clock();
     access_t type = txn->accesses[rid]->type;
     if (type == WR && rc == Abort && CC_ALG != MAAT) {
         type = XP;
@@ -869,9 +872,6 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
 #if CC_ALG != SILO
     txn->accesses[rid]->data = NULL;
 #endif
-
-    INC_STATS(get_thd_id(), txn_abort_time, get_sys_clock()-clean_start);
-
 }
 
 void TxnManager::cleanup(RC rc) {

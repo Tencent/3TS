@@ -273,6 +273,7 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock(latch);
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     uint64_t acesstime = get_sys_clock();
     if (type == R_REQ) {
         uint64_t read_start = get_sys_clock();
@@ -380,13 +381,15 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
 
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
+    INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
+
     if (g_central_man) {
         glob_manager.release_row(_row);
     } else {
         pthread_mutex_unlock(latch);
     }
 
-    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
     return rc;
 }
 
