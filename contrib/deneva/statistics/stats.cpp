@@ -81,6 +81,8 @@ void Stats_thd::clear() {
     //total_txn_abort_cnt=0;
     total_txn_abort_cnt=0;
     total_rw_abort_cnt=0;
+    total_read_abort_cnt=0;
+    total_write_abort_cnt=0;
     total_ww_abort_cnt=0;
     total_validate_abort_cnt=0;
     total_txn_prewrite_cnt=0;
@@ -1145,130 +1147,29 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     fprintf(outf,
     "[detail time cost]:"
     "txn_init_time=%f"
-    ",txn_run_time=%f,%f%%"
-    ",trans_total_run_time=%f,%f%%"
-    ",trans_process_time=%f,%f%%"
-    ",total_access_time=%f,%f%%"
-    ",trans_access_lock_wait_time=%f,%f%%"
-    ",trans_access_read_time=%f,%f%%"
-    ",trans_access_pre_time=%f,%f%%"
-    ",trans_access_write_time=%f,%f%%"
-    ",trans_mvcc_clear_history=%f,%f%%"
-    ",trans_access_pre_getlock_time=%f,%f%%"
-    ",trans_access_pre_RWcheck_time=%f,%f%%"
-    ",trans_access_write_insert_time=%f,%f%%"
-    ",trans_access_write_release_time=%f,%f%%"
-    ",txn_validate_time=%f,%f%%"
-    ",txn_clean_time=%f,%f%%"
-    ",total_read_abort_cnt=%ld"
-    ",total_write_abort_cnt=%ld",
+    ",txn_run_time=%f,%.0f%%"
+    ",trans_total_run_time=%f,%.2f%%"
+    ",trans_process_time=%f,%.2f%%"
+    ",total_access_time=%f,%.2f%%"
+    ",trans_access_lock_wait_time=%f,%.2f%%"
+    ",trans_access_read_time=%f,%.2f%%"
+    ",trans_access_pre_time=%f,%.2f%%"
+    ",trans_access_write_time=%f,%.2f%%"
+    ",trans_access_clear_time=%f,%.2f%%"
+    ",trans_access_pre_getlock_time=%f,%.2f%%"
+    ",trans_access_pre_RWcheck_time=%f,%.2f%%"
+    ",trans_access_write_insert_time=%f,%.2f%%"
+    ",trans_access_write_release_time=%f,%.2f%%"
+    ",txn_validate_time=%f,%.2f%%"
+    ",txn_clean_time=%f,%.2f%%"
+    ",total_rw_abort_cnt=%ld"
+    ",total_ww_abort_cnt=%ld",
           txn_init_time / BILLION, txn_run_time / BILLION, 100.0*txn_run_time/txn_run_time, trans_total_run_time / BILLION, 100.0*trans_total_run_time/txn_run_time,
           trans_process_time / BILLION, 100.0*trans_process_time/txn_run_time, total_access_time / BILLION, 100.0*total_access_time/txn_run_time, trans_access_lock_wait_time / BILLION, 100.0*trans_access_lock_wait_time/txn_run_time,
           trans_access_read_time / BILLION, 100.0*trans_access_read_time/txn_run_time, trans_access_pre_time / BILLION, 100.0*trans_access_pre_time/txn_run_time, trans_access_write_time / BILLION, 100.0*trans_access_write_time/txn_run_time,
-          trans_mvcc_clear_history / BILLION, 100.0*trans_mvcc_clear_history/txn_run_time, trans_access_pre_lock_time / BILLION, 100.0*trans_access_pre_lock_time/txn_run_time, trans_access_pre_check_time / BILLION, 100.0*trans_access_pre_check_time/txn_run_time,
+          trans_access_clear_time / BILLION, 100.0*trans_access_clear_time/txn_run_time, trans_access_pre_lock_time / BILLION, 100.0*trans_access_pre_lock_time/txn_run_time, trans_access_pre_check_time / BILLION, 100.0*trans_access_pre_check_time/txn_run_time,
           trans_access_write_insert_time / BILLION, 100.0*trans_access_write_insert_time/txn_run_time, trans_access_write_release_time / BILLION, 100.0*trans_access_write_release_time/txn_run_time, txn_validate_time / BILLION, 100.0*txn_validate_time/txn_run_time,
           txn_clean_time / BILLION, 100.0*txn_clean_time/txn_run_time, total_rw_abort_cnt, total_ww_abort_cnt);
-
-    if (!prog) {
-        last_start_commit_latency.quicksort(0,last_start_commit_latency.cnt-1);
-        first_start_commit_latency.quicksort(0,first_start_commit_latency.cnt-1);
-        start_abort_commit_latency.quicksort(0,start_abort_commit_latency.cnt-1);
-
-        fprintf(
-            outf,
-            ",fscl0=%f"
-            ",fscl1=%f"
-            ",fscl10=%f"
-            ",fscl25=%f"
-            ",fscl50=%f"
-            ",fscl75=%f"
-            ",fscl90=%f"
-            ",fscl95=%f"
-            ",fscl96=%f"
-            ",fscl97=%f"
-            ",fscl98=%f"
-            ",fscl99=%f"
-            ",fscl100=%f"
-            ",fscl_avg=%f"
-            ",fscl_cnt=%ld",
-            (double)first_start_commit_latency.get_idx(0) / BILLION,
-            (double)first_start_commit_latency.get_percentile(1) / BILLION,
-            (double)first_start_commit_latency.get_percentile(10) / BILLION,
-            (double)first_start_commit_latency.get_percentile(25) / BILLION,
-            (double)first_start_commit_latency.get_percentile(50) / BILLION,
-            (double)first_start_commit_latency.get_percentile(75) / BILLION,
-            (double)first_start_commit_latency.get_percentile(90) / BILLION,
-            (double)first_start_commit_latency.get_percentile(95) / BILLION,
-            (double)first_start_commit_latency.get_percentile(96) / BILLION,
-            (double)first_start_commit_latency.get_percentile(97) / BILLION,
-            (double)first_start_commit_latency.get_percentile(98) / BILLION,
-            (double)first_start_commit_latency.get_percentile(99) / BILLION,
-            (double)first_start_commit_latency.get_idx(first_start_commit_latency.cnt - 1) / BILLION,
-            (double)first_start_commit_latency.get_avg() / BILLION, first_start_commit_latency.cnt);
-
-    fprintf(outf,
-            ",lscl0=%f"
-            ",lscl1=%f"
-            ",lscl10=%f"
-            ",lscl25=%f"
-            ",lscl50=%f"
-            ",lscl75=%f"
-            ",lscl90=%f"
-            ",lscl95=%f"
-            ",lscl96=%f"
-            ",lscl97=%f"
-            ",lscl98=%f"
-            ",lscl99=%f"
-            ",lscl100=%f"
-            ",lscl_avg=%f"
-                ",lscl_cnt=%ld",
-                (double)last_start_commit_latency.get_idx(0) / BILLION,
-                (double)last_start_commit_latency.get_percentile(1) / BILLION,
-                (double)last_start_commit_latency.get_percentile(10) / BILLION,
-                (double)last_start_commit_latency.get_percentile(25) / BILLION,
-                (double)last_start_commit_latency.get_percentile(50) / BILLION,
-                (double)last_start_commit_latency.get_percentile(75) / BILLION,
-                (double)last_start_commit_latency.get_percentile(90) / BILLION,
-                (double)last_start_commit_latency.get_percentile(95) / BILLION,
-                (double)last_start_commit_latency.get_percentile(96) / BILLION,
-                (double)last_start_commit_latency.get_percentile(97) / BILLION,
-                (double)last_start_commit_latency.get_percentile(98) / BILLION,
-                (double)last_start_commit_latency.get_percentile(99) / BILLION,
-                (double)last_start_commit_latency.get_idx(last_start_commit_latency.cnt - 1) / BILLION,
-                (double)last_start_commit_latency.get_avg() / BILLION, last_start_commit_latency.cnt);
-
-        fprintf(
-            outf,
-            ",sacl0=%f"
-            ",sacl1=%f"
-            ",sacl10=%f"
-            ",sacl25=%f"
-            ",sacl50=%f"
-            ",sacl75=%f"
-            ",sacl90=%f"
-            ",sacl95=%f"
-            ",sacl96=%f"
-            ",sacl97=%f"
-            ",sacl98=%f"
-            ",sacl99=%f"
-            ",sacl100=%f"
-            ",sacl_avg=%f"
-            ",sacl_cnt=%ld",
-            (double)start_abort_commit_latency.get_idx(0) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(1) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(10) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(25) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(50) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(75) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(90) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(95) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(96) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(97) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(98) / BILLION,
-            (double)start_abort_commit_latency.get_percentile(99) / BILLION,
-            (double)start_abort_commit_latency.get_idx(start_abort_commit_latency.cnt - 1) / BILLION,
-            (double)start_abort_commit_latency.get_avg() / BILLION, start_abort_commit_latency.cnt);
-    }
 
 }
 
@@ -1290,6 +1191,8 @@ void Stats_thd::combine(Stats_thd * stats) {
     total_txn_abort_cnt+=stats->total_txn_abort_cnt;
     total_rw_abort_cnt+=stats->total_rw_abort_cnt;
     total_ww_abort_cnt+=stats->total_ww_abort_cnt;
+    total_read_abort_cnt+=stats->total_read_abort_cnt;
+    total_write_abort_cnt+=stats->total_write_abort_cnt;
     total_validate_abort_cnt+=stats->total_validate_abort_cnt;
     total_txn_prewrite_cnt+=stats->total_txn_prewrite_cnt;
     positive_txn_abort_cnt += stats->positive_txn_abort_cnt;
