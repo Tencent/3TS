@@ -258,6 +258,7 @@ void WorkerThread::commit() {
     uint64_t abort_timespan = txn_man->txn_stats.restart_starttime - txn_man->txn_stats.starttime;
     INC_STATS(get_thd_id(), real_abort_time, abort_timespan);
     INC_STATS(get_thd_id(), trans_2pc_time, two_pc_timespan);
+    INC_STATS(get_thd_id(), txn_2pc_time, two_pc_timespan);
     INC_STATS(get_thd_id(), trans_finish_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_commit_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_total_run_time, timespan_short);
@@ -286,6 +287,7 @@ void WorkerThread::abort() {
     uint64_t finish_timespan  = end_time - txn_man->txn_stats.finish_start_time;
     INC_STATS(get_thd_id(), trans_abort_reset_time, end_time - reset_start);
     INC_STATS(get_thd_id(), trans_2pc_time, two_pc_timespan);
+    INC_STATS(get_thd_id(), txn_2pc_time, two_pc_timespan);
     INC_STATS(get_thd_id(), trans_finish_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_abort_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_total_run_time, timespan_short);

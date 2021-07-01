@@ -818,6 +818,7 @@ void TxnManager::release_last_row_lock() {
 }
 
 void TxnManager::cleanup_row(RC rc, uint64_t rid) {
+    uint64_t clean_start = get_sys_clock();
     access_t type = txn->accesses[rid]->type;
     if (type == WR && rc == Abort && CC_ALG != MAAT) {
         type = XP;
@@ -868,6 +869,9 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
 #if CC_ALG != SILO
     txn->accesses[rid]->data = NULL;
 #endif
+
+    INC_STATS(get_thd_id(), txn_abort_time, get_sys_clock()-clean_start);
+
 }
 
 void TxnManager::cleanup(RC rc) {
@@ -1174,6 +1178,7 @@ RC TxnManager::validate() {
     }
 #endif
     INC_STATS(get_thd_id(),txn_validate_time,get_sys_clock() - starttime);
+    INC_STATS(get_thd_id(),txn_cc_manager_time,get_sys_clock() - starttime);
     INC_STATS(get_thd_id(),trans_validate_time,get_sys_clock() - starttime);
     return rc;
 }

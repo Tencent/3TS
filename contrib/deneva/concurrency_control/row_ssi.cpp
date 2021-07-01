@@ -281,6 +281,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock(latch);
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
         uint64_t read_start = get_sys_clock();
         // Add the si-read lock
@@ -346,6 +347,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
         uint64_t read_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+        INC_STATS(txn->get_thd_id(), txn_useful_time, read_end - read_start);
 
     } else if (type == P_REQ) {
         uint64_t pre_start  = get_sys_clock();
@@ -367,11 +369,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         }
 
         // Add the write lock
-        uint64_t lock_start = get_sys_clock();
-        INC_STATS(txn->get_thd_id(), trans_access_pre_before_time, lock_start - pre_start);
         get_lock(LOCK_EX, txn);
-        uint64_t lock_end = get_sys_clock();
-        INC_STATS(txn->get_thd_id(), trans_access_pre_lock_time, lock_end - lock_start);
         // Traverse the whole read his
         // SSILockEntry * si_read = si_read_lock;
         // get si_read from last committed history
@@ -413,6 +411,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t pre_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_pre_check_time, pre_end - start1);
         INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
+        INC_STATS(txn->get_thd_id(), txn_useful_time, pre_end - pre_start);
         INC_STATS(txn->get_thd_id(), total_txn_prewrite_cnt, 1);
         
     } else if (type == W_REQ) {
@@ -434,6 +433,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         uint64_t write_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
+        INC_STATS(txn->get_thd_id(), txn_update_manager_time, write_end - write_start);
         
     } else if (type == XP_REQ) {
         INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
@@ -452,6 +452,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         uint64_t xp_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
+        INC_STATS(txn->get_thd_id(), txn_useful_time, xp_end - xp_start);
         
     } else {
         assert(false);
@@ -481,6 +482,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         
         uint64_t clear_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_clear_time, clear_end - clear_start);
+        INC_STATS(txn->get_thd_id(), txn_update_manager_time, clear_end - clear_start);
         
     }
 end:
