@@ -517,7 +517,6 @@ RC TxnManager::abort() {
 
     aborted = true;
     release_locks(Abort);
-    INC_STATS(get_thd_id(), txn_abort_time, get_sys_clock()-abort_start);
 #if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
@@ -529,6 +528,7 @@ RC TxnManager::abort() {
     if (IS_LOCAL(get_txn_id()) && warmup_done) {
         INC_STATS_ARR(get_thd_id(),start_abort_commit_latency, timespan);
     }
+    INC_STATS(get_thd_id(), txn_abort_time, get_sys_clock()-abort_start);
     return Abort;
 }
 
