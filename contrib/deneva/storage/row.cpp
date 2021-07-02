@@ -466,7 +466,9 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     return 0;
 #elif CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC
     assert (row != NULL);
+    uint64_t write_start = get_sys_clock();
     if (type == WR) manager->write(row, txn->get_end_timestamp());
+    INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock() - write_start);
     row->free_row();
     DEBUG_M("row_t::return_row OCC free \n");
     mem_allocator.free(row, sizeof(row_t));

@@ -1279,6 +1279,10 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_useful_time-=stats->trans_access_lock_wait_time;
     // TODO: here need to consider whether need to separate access_xp_time from txn_useful_time
     txn_useful_time-=stats->trans_access_xp_time;
+    txn_useful_time-=stats->trans_mvcc_clear_history;
+    txn_useful_time-=stats->trans_access_clear_time;
+    txn_update_manager_time+=stats->trans_mvcc_clear_history;
+    txn_update_manager_time+=stats->trans_access_clear_time;
     txn_update_manager_time+=stats->txn_update_manager_time;
     txn_update_manager_time-=stats->trans_access_write_insert_time;
     txn_cc_manager_time+=stats->txn_cc_manager_time;
