@@ -433,7 +433,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
         
     } else if (type == XP_REQ) {
-        INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
+        //INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
         //uint64_t xp_start  = get_sys_clock();
         //uint64_t xp_end = get_sys_clock();
         //INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);

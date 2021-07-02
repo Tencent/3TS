@@ -506,7 +506,7 @@ RC TxnManager::abort() {
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
     txn->rc = Abort;
-    //INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
+    INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
     txn_stats.abort_cnt++;
     if(IS_LOCAL(get_txn_id())) {
         INC_STATS(get_thd_id(), local_txn_abort_cnt, 1);
