@@ -877,8 +877,10 @@ RC WorkerThread::process_rtxn(Message * msg) {
         if (rc != RCOK) return rc;
 
         // Execute transaction
+        uint64_t txn_start = get_sys_clock();
         rc = txn_man->run_txn();
         check_if_done(rc);
+        INC_STATS(get_thd_id(), total_time, get_sys_clock() - txn_start);
 #if WORKLOAD == DA
     }
 

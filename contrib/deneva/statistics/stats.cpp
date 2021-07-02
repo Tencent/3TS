@@ -1287,8 +1287,10 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_update_manager_time-=stats->trans_access_write_insert_time;
     txn_cc_manager_time+=stats->txn_cc_manager_time;
     txn_2pc_time+=stats->txn_2pc_time;
+    txn_2pc_time-=stats->txn_validate_time;
     txn_abort_time+=stats->txn_abort_time;
     txn_wait_thread_time+=stats->txn_wait_thread_time;
+    total_time+=stats->total_time;
 
     // Client
     txn_sent_cnt+=stats->txn_sent_cnt;
@@ -1563,7 +1565,6 @@ void Stats::print(bool prog) {
     if (!STATS_ENABLE) return;
 
     totals->clear();
-    totals->total_time = 60.0*BILLION*(thd_cnt/2-1);
     for (uint64_t i = 0; i < thd_cnt; i++) totals->combine(_stats[i]);
         FILE * outf;
         if (output_file != NULL)
