@@ -1181,12 +1181,12 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
    txn_wait_thread_time = total_time-txn_useful_time-txn_update_manager_time-txn_cc_manager_time-txn_2pc_time-txn_abort_time;
    fprintf(outf,
     "[detail time cost]:"
-    "\ntxn_useful_time=%.2f,%.2f%%"
-    "\ntxn_update_manager_time=%.2f,%.2f%%"
-    "\ntxn_cc_manager_time=%.2f,%.2f%%"
-    "\ntxn_2pc_time=%.2f,%.2f%%"
-    "\ntxn_abort_time=%.2f,%.2f%%"
-    "\ntxn_wait_thread_time=%.2f,%.2f%%",
+    "\ntxn_useful_time=%.2f(%.2f%%)"
+    "\ntxn_update_manager_time=%.2f(%.2f%%)"
+    "\ntxn_cc_manager_time=%.2f(%.2f%%)"
+    "\ntxn_2pc_time=%.2f(%.2f%%)"
+    "\ntxn_abort_time=%.2f(%.2f%%)"
+    "\ntxn_wait_thread_time=%.2f(%.2f%%)\n",
           txn_useful_time / BILLION, 100.0 * txn_useful_time / total_time,
           txn_update_manager_time / BILLION, 100.0 * txn_update_manager_time / total_time,
           txn_cc_manager_time / BILLION, 100.0 * txn_cc_manager_time / total_time,
@@ -1275,6 +1275,11 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_twopc_time+=stats->txn_twopc_time;
     txn_init_time+=stats->txn_init_time;
     txn_clean_time+=stats->txn_clean_time;
+
+    //txn_useful_time = access-lock_wait-xp-clear
+    //txn_update_manager_time = commit+clear
+    //txn_cc_manager_time = lock_wait+validate
+    //txn_2pc_time = 2pc-validate-insert
     txn_useful_time+=stats->txn_useful_time;
     txn_useful_time-=stats->trans_access_lock_wait_time;
     // TODO: here need to consider whether need to separate access_xp_time from txn_useful_time
@@ -1284,10 +1289,10 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_update_manager_time+=stats->trans_mvcc_clear_history;
     txn_update_manager_time+=stats->trans_access_clear_time;
     txn_update_manager_time+=stats->txn_update_manager_time;
-    txn_update_manager_time-=stats->trans_access_write_insert_time;
     txn_cc_manager_time+=stats->txn_cc_manager_time;
     txn_2pc_time+=stats->txn_2pc_time;
     txn_2pc_time-=stats->txn_validate_time;
+    txn_2pc_time-=stats->trans_access_write_insert_time;
     txn_abort_time+=stats->txn_abort_time;
     txn_wait_thread_time+=stats->txn_wait_thread_time;
     total_time+=stats->total_time;

@@ -464,11 +464,11 @@ void TxnManager::reset_query() {
 }
 
 RC TxnManager::commit() {
-    uint64_t clean_start = get_sys_clock();
     DEBUG("Commit %ld\n",get_txn_id());
     uint64_t starttime = get_sys_clock();
     release_locks(RCOK);
     INC_STATS(get_thd_id(), txn_clean_time, get_sys_clock() - starttime);
+    uint64_t start = get_sys_clock();
 #if CC_ALG == MAAT
     time_table.release(get_thd_id(),get_txn_id());
 #endif
@@ -482,7 +482,7 @@ RC TxnManager::commit() {
     txn_status = TxnStatus::COMMITTED;
 #endif
     commit_stats();
-    INC_STATS(get_thd_id(), txn_update_manager_time, get_sys_clock()-clean_start);
+    INC_STATS(get_thd_id(), txn_update_manager_time, get_sys_clock()-start);
 #if LOGGING
     LogRecord * record = logger.createRecord(get_txn_id(),L_NOTIFY,0,0);
     if(g_repl_cnt > 0) {
