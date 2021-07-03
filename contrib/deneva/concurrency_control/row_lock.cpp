@@ -244,7 +244,7 @@ RC Row_lock::lock_release(TxnManager * txn, access_t type) {
     if(type == XP){
         if (STATS_ENABLE && simulation->is_warmup_done()) stats._stats[txn->get_thd_id()]->txn_abort_time -= get_sys_clock() - starttime;
     } else{
-        if (STATS_ENABLE && simulation->is_warmup_done()) stats._stats[txn->get_thd_id()]->txn_abort_time -= get_sys_clock() - starttime;
+        if (STATS_ENABLE && simulation->is_warmup_done()) stats._stats[txn->get_thd_id()]->txn_update_manager_time -= get_sys_clock() - starttime;
     }
     
     DEBUG("unlock (%ld,%ld): owners %d, own type %d, key %ld %lx\n", txn->get_txn_id(),
