@@ -175,6 +175,7 @@ ts_t Row_ts::cal_min(TsType type) {
 }
 
 RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
+    INC_STATS(txn->get_thd_id(), trans_access_cnt, 1);
     RC rc;
     uint64_t starttime = get_sys_clock();
     ts_t ts = txn->get_timestamp();
@@ -191,12 +192,19 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             INC_STATS(txn->get_thd_id(), total_read_abort_cnt,1);
         } else if (ts > min_pts) { // read would occur after one of the prereqs already queued
             // insert the req into the read request queue
+            uint64_t buffer_req_start = get_sys_clock();
             buffer_req(R_REQ, txn, NULL);
+            //just for convenience
+            INC_STATS(txn->get_thd_id(), trans_access_pre_check_time, get_sys_clock()-buffer_req_start);
             txn->ts_ready = false;
             rc = WAIT;
         } else { // read is ok
             // return the value.
+            uint64_t copy_start = get_sys_clock();
             txn->cur_row->copy(_row);
+            //just for convenience
+            INC_STATS(txn->get_thd_id(), trans_access_copy_cnt, 1);
+            INC_STATS(txn->get_thd_id(), trans_access_copy_time, get_sys_clock()-copy_start);
             if (rts < ts) rts = ts;
             rc = RCOK;
         }
@@ -205,6 +213,7 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
         INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
 
     } else if (type == P_REQ) {
+        INC_STATS(txn->get_thd_id(), trans_access_write_cnt, 1);
         uint64_t pre_start  = get_sys_clock();
         if (ts < rts) { // pre-write would occur before most recent read
             rc = Abort;

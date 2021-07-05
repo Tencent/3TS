@@ -99,6 +99,12 @@ public:
     double txn_wait_thread_time;
     double total_time;
 
+    //test TIMESTAMP
+    uint64_t trans_access_copy_cnt;
+    uint64_t trans_access_cnt;
+    uint64_t trans_access_write_cnt;
+    double trans_access_copy_time;
+
     // Client
     uint64_t txn_sent_cnt;
     double cl_send_intv;

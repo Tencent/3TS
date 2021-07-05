@@ -152,6 +152,11 @@ void Stats_thd::clear() {
     txn_abort_time=0;
     txn_wait_thread_time=0;
 
+    trans_access_copy_cnt=0;
+    trans_access_cnt=0;
+    trans_access_write_cnt=0;
+    trans_access_copy_time=0;
+
     // Client
     txn_sent_cnt=0;
     cl_send_intv=0;
@@ -1186,13 +1191,18 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     "\ntxn_cc_manager_time=%.2f(%.2f%%)"
     "\ntxn_2pc_time=%.2f(%.2f%%)"
     "\ntxn_abort_time=%.2f(%.2f%%)"
-    "\ntxn_wait_thread_time=%.2f(%.2f%%)\n",
+    "\ntxn_wait_thread_time=%.2f(%.2f%%)"
+    "\ntrans_access_cnt=%ld"
+    "\ntrans_access_copy_cnt=%ld"
+    "\ntrans_access_copy_time=%.2f"
+    "\ntrans_access_write_cnt=%ld\n",
           txn_useful_time / BILLION, 100.0 * txn_useful_time / total_time,
           txn_update_manager_time / BILLION, 100.0 * txn_update_manager_time / total_time,
           txn_cc_manager_time / BILLION, 100.0 * txn_cc_manager_time / total_time,
           txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
           txn_abort_time / BILLION, 100.0 * txn_abort_time / total_time,
-          txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time);
+          txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time,
+          trans_access_cnt, trans_access_copy_cnt, trans_access_copy_time, trans_access_write_cnt);
 
 }
 
@@ -1296,6 +1306,11 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_abort_time+=stats->txn_abort_time;
     txn_wait_thread_time+=stats->txn_wait_thread_time;
     total_time+=stats->total_time;
+
+    trans_access_copy_cnt+=stats->trans_access_copy_cnt;
+    trans_access_cnt+=stats->trans_access_cnt;
+    trans_access_write_cnt+=stats->trans_access_write_cnt;
+    trans_access_copy_time+=stats->trans_access_copy_time;
 
     // Client
     txn_sent_cnt+=stats->txn_sent_cnt;
