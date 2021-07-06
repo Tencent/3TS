@@ -180,11 +180,12 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
         ts_t start_ts = txn->get_start_timestamp();
         // find the read version
         SSIHisEntry* c_his = writehis;
-            while (c_his != NULL && c_his->ts > start_ts){
-                    c_his = c_his->next;
+        while (c_his != NULL && c_his->ts > start_ts){
+        	c_his = c_his->next;
         }
 	    // get the si_read locks in the read version;
-        SSILockEntry * read = c_his != NULL? c_his->si_read_lock : NULL;
+        SSILockEntry * read = c_his != NULL? c_his->si_read_lock : si_read_lock;
+        //SSILockEntry * read = c_his != NULL? c_his->si_read_lock : NULL;
         SSILockEntry * pre_read = NULL;
         bool is_delete = false;
         // delete the si_read lock of this txn
@@ -198,17 +199,30 @@ void Row_ssi::release_lock(lock_t type, TxnManager * txn) {
                     pre_read->next = read->next;
                 } 
                 else {
-                    assert( read == writehis->si_read_lock );
-                    writehis->si_read_lock = read->next;
+                    assert( read == si_read_lock || read == c_his->si_read_lock );
+                    //assert( read == c_his->si_read_lock );
+                    //c_his->si_read_lock = read->next;
+		    //writehis->si_read_lock = read->next;
+		    
+		    if (c_his != NULL){
+                        c_his->si_read_lock = read->next;
+                    }
+                    else{
+                        si_read_lock = read->next;
+                    }
+		
                 }
                 //read->next = NULL;
                 delete_p->next = NULL;
                 free(delete_p);
                 //break; // read more than once
             }
-            else 
+            else{ 
                 is_delete = false;
-            if(!is_delete) pre_read = read;
+	    }
+            if(!is_delete){ 
+		pre_read = read;
+	    }
             //read = read->next;
             read = nex;
         }
@@ -355,22 +369,22 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //WW conflict
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
-            // rc = Abort;
-            txn->flag_ww = true;
-            write_lock->txn->flag_ww = true;
+            rc = Abort;
+            //txn->flag_ww = true;
+            //write_lock->txn->flag_ww = true;
             INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
-            // goto end;
+            goto end;
             
         }
         uint64_t pre_start1  = get_sys_clock();
         // WCW conflict in write history
         if(writehis != NULL && start_ts < writehis->ts) {
-            // rc = Abort;
-            txn->flag_ww = true;
+            rc = Abort;
+            //txn->flag_ww = true;
             INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start1);
-            // goto end;
+            goto end;
             
         }
 
@@ -444,7 +458,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
         
     } else if (type == XP_REQ) {
-        INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
+        //INC_STATS(txn->get_thd_id(),total_txn_abort_cnt,1);
         uint64_t xp_start  = get_sys_clock();
         //uint64_t xp_end = get_sys_clock();
         //INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
