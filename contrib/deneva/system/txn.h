@@ -205,7 +205,7 @@ public:
     // [HSTORE, HSTORE_SPEC]
     int volatile    ready_part;
     int volatile    ready_ulk;
-    bool in_rw, out_rw;
+    bool in_rw, out_rw, flag_ww; // SSI
     TxnStatus txn_status;
     
 

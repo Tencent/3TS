@@ -378,9 +378,11 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     twopl_wait_start = 0;
 
     txn_stats.init();
-    //for ssi 
+    // for ssi 
     in_rw = false;
     out_rw = false;
+    // ww flag, false for no ww, true for ww conflict
+    flag_ww = false;
 }
 
 // reset after abort

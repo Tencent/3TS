@@ -339,6 +339,9 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         if (p_his != NULL){
             get_lock(LOCK_SH, txn, p_his); 
         }
+        else{
+            get_lock(LOCK_SH, txn);
+        }
         
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
@@ -352,18 +355,23 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //WW conflict
         //if (write_lock != NULL && write_lock->txn.get() != txn) {
         if (write_lock != NULL && write_lock->txn != txn) {
-            rc = Abort;
+            // rc = Abort;
+            txn->flag_ww = true;
+            write_lock->txn->flag_ww = true;
             INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start);
-            goto end;
+            // goto end;
+            
         }
         uint64_t pre_start1  = get_sys_clock();
         // WCW conflict in write history
         if(writehis != NULL && start_ts < writehis->ts) {
-            rc = Abort;
+            // rc = Abort;
+            txn->flag_ww = true;
             INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, get_sys_clock() - pre_start1);
-            goto end;
+            // goto end;
+            
         }
 
         // Add the write lock
@@ -375,7 +383,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // Traverse the whole read his
         // SSILockEntry * si_read = si_read_lock;
         // get si_read from last committed history
-        SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : NULL;
+        SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : si_read_lock;
         uint64_t start1 = get_sys_clock();
         while (si_read != NULL) {
             if (si_read->txnid == txnid) {
@@ -474,6 +482,7 @@ RC Row_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 if (latest_row != NULL) {
                     assert(_row != latest_row);
                     _row->copy(latest_row);
+                    si_read_lock = NULL; //can not read initial version once we have clear the versions.
                 }
             }
             release_lock(t_th);
