@@ -21,6 +21,7 @@
 #include "mem_alloc.h"
 #include "manager.h"
 #include "stdint.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_ts::init(row_t * row) {
     _row = row;
@@ -33,21 +34,24 @@ void Row_ts::init(row_t * row) {
     writereq = NULL;
     prereq = NULL;
     preq_len = 0;
-    latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    //latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    latch = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init( latch, NULL );
     blatch = false;
 }
 
 TsReqEntry * Row_ts::get_req_entry() {
-    return (TsReqEntry *) mem_allocator.alloc(sizeof(TsReqEntry));
+    return (TsReqEntry *) malloc(sizeof(TsReqEntry));
 }
 
 void Row_ts::return_req_entry(TsReqEntry * entry) {
     if (entry->row != NULL) {
-        entry->row->free_row();
-        mem_allocator.free(entry->row, sizeof(row_t));
+        // entry->row->free_row();
+        // mem_allocator.free(entry->row, sizeof(row_t));
+        free(entry->row);
     }
-    mem_allocator.free(entry, sizeof(TsReqEntry));
+    // mem_allocator.free(entry, sizeof(TsReqEntry));
+    free(entry);
 }
 
 void Row_ts::return_req_list(TsReqEntry * list) {
@@ -171,6 +175,7 @@ ts_t Row_ts::cal_min(TsType type) {
 }
 
 RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
+    INC_STATS(txn->get_thd_id(), trans_access_cnt, 1);
     RC rc;
     uint64_t starttime = get_sys_clock();
     ts_t ts = txn->get_timestamp();
@@ -179,23 +184,40 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
     else
         pthread_mutex_lock( latch );
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
+        uint64_t read_start = get_sys_clock();
         if (ts < wts) { // read would occur before most recent write
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), total_read_abort_cnt,1);
         } else if (ts > min_pts) { // read would occur after one of the prereqs already queued
             // insert the req into the read request queue
+            uint64_t buffer_req_start = get_sys_clock();
             buffer_req(R_REQ, txn, NULL);
+            //just for convenience
+            INC_STATS(txn->get_thd_id(), trans_access_pre_check_time, get_sys_clock()-buffer_req_start);
             txn->ts_ready = false;
             rc = WAIT;
         } else { // read is ok
             // return the value.
+            uint64_t copy_start = get_sys_clock();
             txn->cur_row->copy(_row);
+            //just for convenience
+            INC_STATS(txn->get_thd_id(), trans_access_copy_cnt, 1);
+            INC_STATS(txn->get_thd_id(), trans_access_copy_time, get_sys_clock()-copy_start);
             if (rts < ts) rts = ts;
             rc = RCOK;
         }
+        
+        uint64_t read_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+
     } else if (type == P_REQ) {
+        INC_STATS(txn->get_thd_id(), trans_access_write_cnt, 1);
+        uint64_t pre_start  = get_sys_clock();
         if (ts < rts) { // pre-write would occur before most recent read
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), total_write_abort_cnt,1);
         } else {
 #if TS_TWR
             buffer_req(P_REQ, txn, NULL);
@@ -203,14 +225,18 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
 #else
             if (ts < wts) { //pre-write would occur before most recent write
                 rc = Abort;
+                INC_STATS(txn->get_thd_id(), total_write_abort_cnt,1);
             } else { // pre-write is ok
                 //printf("Buffer P_REQ %ld\n",txn->txn_id);
                 buffer_req(P_REQ, txn, NULL);
                 rc = RCOK;
             }
+            uint64_t pre_end = get_sys_clock();
+            INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
 #endif
         }
     } else if (type == W_REQ) {
+        uint64_t write_start  = get_sys_clock();
         // write requests are always accepted.
         rc = RCOK;
 #if TS_TWR
@@ -220,8 +246,9 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             assert(req != NULL);
             update_buffer(txn->get_thd_id());
             return_req_entry(req);
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            // row->free_row();
+            // mem_allocator.free(row, sizeof(row_t));
+            free(row);
             goto final;
         }
 #else
@@ -244,24 +271,37 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             update_buffer(txn->get_thd_id());
             return_req_entry(req);
             // the "row" is freed after hard copy to "_row"
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            // row->free_row();
+            // mem_allocator.free(row, sizeof(row_t));
+            free(row);
         }
+        
+        uint64_t write_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
+        
     } else if (type == XP_REQ) {
+        uint64_t xp_start  = get_sys_clock();
         TsReqEntry * req = debuffer_req(P_REQ, txn);
         assert (req != NULL);
         update_buffer(txn->get_thd_id());
         return_req_entry(req);
+        
+        uint64_t xp_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
+        
     } else assert(false);
 
 final:
         uint64_t timespan = get_sys_clock() - starttime;
         txn->txn_stats.cc_time += timespan;
         txn->txn_stats.cc_time_short += timespan;
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
+    INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
     if (g_central_man)
         glob_manager.release_row(_row);
     else
         pthread_mutex_unlock( latch );
+
     return rc;
 }
 

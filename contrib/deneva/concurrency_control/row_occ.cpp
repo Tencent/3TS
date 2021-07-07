@@ -18,10 +18,12 @@
 #include "row.h"
 #include "row_occ.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_occ::init(row_t *row) {
     _row = row;
-    _latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    //_latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    _latch = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(_latch, NULL);
     sem_init(&_semaphore, 0, 1);
     wts = 0;
@@ -30,11 +32,13 @@ void Row_occ::init(row_t *row) {
 }
 
 RC Row_occ::access(TxnManager *txn, TsType type) {
+    return RCOK;
     RC rc = RCOK;
     //pthread_mutex_lock( _latch );
     uint64_t starttime = get_sys_clock();
     sem_wait(&_semaphore);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
 #if CC_ALG == FOCC
         if (lock_tid != 0 && lock_tid != txn->get_txn_id()) {
@@ -51,6 +55,7 @@ RC Row_occ::access(TxnManager *txn, TsType type) {
         }
     } else assert(false);
     // pthread_mutex_unlock( _latch );
+    INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
     sem_post(&_semaphore);
     return rc;
 }

@@ -441,7 +441,7 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
             type == XP) {  // recover from previous writes. should not happen w/ Calvin
         this->copy(row);
     }
-    this->manager->lock_release(txn);
+    this->manager->lock_release(txn, type);
     return 0;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     // for RD or SCAN or XP, the row should be deleted.
@@ -456,17 +456,26 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
         row->free_row();
         DEBUG_M("row_t::return_row XP free \n");
         mem_allocator.free(row, sizeof(row_t));
+        uint64_t xp_start  = get_sys_clock();
         this->manager->access(txn, XP_REQ, NULL);
+        uint64_t xp_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
     } else if (type == WR) {
         assert (type == WR && row != NULL);
         assert (row->get_schema() == this->get_schema());
+        uint64_t insert_start = get_sys_clock();
         RC rc = this->manager->access(txn, W_REQ, row);
+        uint64_t insert_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - insert_start);
         assert(rc == RCOK);
     }
     return 0;
 #elif CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC
     assert (row != NULL);
+    uint64_t write_start = get_sys_clock();
     if (type == WR) manager->write(row, txn->get_end_timestamp());
+    INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, get_sys_clock() - write_start);
+    INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock() - write_start);
     row->free_row();
     DEBUG_M("row_t::return_row OCC free \n");
     mem_allocator.free(row, sizeof(row_t));
