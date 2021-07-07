@@ -114,6 +114,7 @@ void Stats_thd::clear() {
     trans_finish_time=0;
     trans_commit_time=0;
     trans_abort_time=0;
+    trans_commit_process_time=0;
 
     trans_access_lock_wait_time=0;
     total_access_time=0;
@@ -557,6 +558,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
     fprintf(outf,
     ",trans_total_run_time=%f"
     ",trans_process_time=%f"
+    ",trans_commit_process_time=%f"
     ",trans_2pc_time=%f"
     ",trans_prepare_time=%f"
     ",trans_validate_time=%f"
@@ -580,7 +582,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",trans_abort_reset_time=%f"
     ",trans_mvcc_clear_history=%f"
     ",trans_mvcc_access=%f",
-        trans_total_run_time / BILLION, trans_process_time / BILLION, trans_2pc_time / BILLION,
+        trans_total_run_time / BILLION, trans_process_time / BILLION, trans_commit_process_time / BILLION, trans_2pc_time / BILLION,
         trans_prepare_time / BILLION, trans_validate_time / BILLION, trans_finish_time / BILLION,
         trans_commit_time / BILLION, trans_abort_time / BILLION, trans_access_lock_wait_time / BILLION,
         total_access_time / BILLION, trans_access_read_time / BILLION,
@@ -1202,7 +1204,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
           txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
           txn_abort_time / BILLION, 100.0 * txn_abort_time / total_time,
           txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time,
-          trans_access_cnt, trans_access_copy_cnt, trans_access_copy_time, trans_access_write_cnt);
+          trans_access_cnt, trans_access_copy_cnt, trans_access_copy_time / BILLION, trans_access_write_cnt);
 
 }
 
@@ -1270,6 +1272,7 @@ void Stats_thd::combine(Stats_thd * stats) {
     trans_access_pre_before_time+=stats->trans_access_pre_before_time;
     trans_access_pre_lock_time+=stats->trans_access_pre_lock_time;
     real_abort_time+=stats->real_abort_time;
+    trans_commit_process_time+=stats->trans_commit_process_time;
     // trans mvcc
     trans_mvcc_clear_history+=stats->trans_mvcc_clear_history;
     trans_mvcc_access+=stats->trans_mvcc_access;

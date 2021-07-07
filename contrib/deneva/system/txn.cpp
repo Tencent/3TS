@@ -104,7 +104,7 @@ void TxnStats::clear_short() {
 
 void TxnStats::reset() {
     wait_starttime=get_sys_clock();
-    total_process_time += process_time;
+    //total_process_time += process_time;
     process_time = 0;
     total_local_wait_time += local_wait_time;
     local_wait_time = 0;
@@ -130,7 +130,7 @@ void TxnStats::reset() {
 }
 
 void TxnStats::abort_stats(uint64_t thd_id) {
-    total_process_time += process_time;
+    //total_process_time += process_time;
     total_local_wait_time += local_wait_time;
     total_remote_wait_time += remote_wait_time;
     total_twopc_time += twopc_time;
@@ -150,7 +150,7 @@ void TxnStats::abort_stats(uint64_t thd_id) {
 
 void TxnStats::commit_stats(uint64_t thd_id, uint64_t txn_id, uint64_t batch_id,
                                                         uint64_t timespan_long, uint64_t timespan_short) {
-    total_process_time += process_time;
+    //total_process_time += process_time;
     total_local_wait_time += local_wait_time;
     total_remote_wait_time += remote_wait_time;
     total_twopc_time += twopc_time;
@@ -378,7 +378,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     twopl_wait_start = 0;
 
     txn_stats.init();
-    //for ssi 
+    // for ssi 
     in_rw = false;
     out_rw = false;
 }
@@ -465,10 +465,8 @@ void TxnManager::reset_query() {
 
 RC TxnManager::commit() {
     DEBUG("Commit %ld\n",get_txn_id());
-    uint64_t starttime = get_sys_clock();
     release_locks(RCOK);
-    INC_STATS(get_thd_id(), txn_clean_time, get_sys_clock() - starttime);
-    uint64_t start = get_sys_clock();
+    INC_STATS(get_thd_id(),trans_commit_process_time,txn_stats.total_process_time);
 #if CC_ALG == MAAT
     time_table.release(get_thd_id(),get_txn_id());
 #endif
@@ -482,7 +480,6 @@ RC TxnManager::commit() {
     txn_status = TxnStatus::COMMITTED;
 #endif
     commit_stats();
-    INC_STATS(get_thd_id(), txn_update_manager_time, get_sys_clock()-start);
 #if LOGGING
     LogRecord * record = logger.createRecord(get_txn_id(),L_NOTIFY,0,0);
     if(g_repl_cnt > 0) {
@@ -496,7 +493,6 @@ RC TxnManager::commit() {
 }
 
 RC TxnManager::abort() {
-    uint64_t abort_start = get_sys_clock();
     if (aborted) return Abort;
 #if CC_ALG == SSI
     //inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
@@ -528,7 +524,6 @@ RC TxnManager::abort() {
     if (IS_LOCAL(get_txn_id()) && warmup_done) {
         INC_STATS_ARR(get_thd_id(),start_abort_commit_latency, timespan);
     }
-    INC_STATS(get_thd_id(), txn_abort_time, get_sys_clock()-abort_start);
     return Abort;
 }
 
@@ -1178,7 +1173,6 @@ RC TxnManager::validate() {
     }
 #endif
     INC_STATS(get_thd_id(),txn_validate_time,get_sys_clock() - starttime);
-    INC_STATS(get_thd_id(),txn_cc_manager_time,get_sys_clock() - starttime);
     INC_STATS(get_thd_id(),trans_validate_time,get_sys_clock() - starttime);
     return rc;
 }

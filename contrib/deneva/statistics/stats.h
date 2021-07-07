@@ -89,6 +89,7 @@ public:
     double txn_twopc_time;
     double txn_init_time;
     double txn_clean_time;
+    double trans_commit_process_time;
 
     //Deneva measurements
     double txn_useful_time;
