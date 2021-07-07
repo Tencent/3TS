@@ -24,15 +24,6 @@ struct OPT_SSIReqEntry {
     OPT_SSIReqEntry * next;
 };
 
-struct OPT_SSIHisEntry {
-    TxnManager *txn;
-    txnid_t txnid;
-    ts_t ts;
-    row_t *row;
-    OPT_SSIHisEntry *next;
-    OPT_SSIHisEntry *prev;
-};
-
 struct OPT_SSILockEntry {
     lock_t type;
     ts_t   start_ts;
@@ -40,6 +31,16 @@ struct OPT_SSILockEntry {
     txnid_t txnid;
     OPT_SSILockEntry * next;
     OPT_SSILockEntry * prev;
+};
+
+struct OPT_SSIHisEntry {
+    TxnManager *txn;
+    txnid_t txnid;
+    ts_t ts;
+    row_t *row;
+    OPT_SSIHisEntry *next;
+    OPT_SSIHisEntry *prev;
+    OPT_SSILockEntry * si_read_lock;
 };
 
 class Row_opt_ssi {
@@ -56,7 +57,9 @@ private:
 
     row_t * _row;
     void get_lock(lock_t type, TxnManager * txn);
+    void get_lock(lock_t type, TxnManager * txn, OPT_SSIHisEntry * whis);
     void release_lock(lock_t type, TxnManager * txn);
+    void release_lock(ts_t min_ts);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
@@ -65,8 +68,6 @@ private:
     OPT_SSIHisEntry * get_his_entry();
     void return_his_entry(OPT_SSIHisEntry * entry);
 
-    void buffer_req(TsType type, TxnManager * txn);
-    OPT_SSIReqEntry * debuffer_req( TsType type, TxnManager * txn = NULL);
 
 
     OPT_SSILockEntry * get_entry();
