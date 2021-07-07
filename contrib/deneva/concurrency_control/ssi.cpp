@@ -112,6 +112,7 @@ RC opt_ssi::validate(TxnManager * txn) {
     if (txn->in_rw && txn->out_rw)
     {
         DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
+        INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
         rc = Abort;
     } else {
         DEBUG("ssi Validate ok %ld\n",txn->get_txn_id());
