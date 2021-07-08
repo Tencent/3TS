@@ -425,6 +425,7 @@ void TxnManager::reset() {
     //for ssi
     in_rw = false; out_rw = false;
     flag_ww = false;
+    txn_status = TxnStatus::ACTIVE;
 }
 
 void TxnManager::release() {

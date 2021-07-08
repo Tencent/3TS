@@ -50,6 +50,7 @@ public:
     void init(row_t * row);
     RC access(TxnManager * txn, TsType type, row_t * row);
     RC validate_last_commit(TxnManager * txn);
+    SSIHisEntry * writehis;
 private:
     pthread_mutex_t * latch;
 
@@ -79,7 +80,6 @@ private:
 
     SSIReqEntry * prereq_mvcc;
     SSIHisEntry * readhis;
-    SSIHisEntry * writehis;
     SSIHisEntry * readhistail;
     SSIHisEntry * writehistail;
 

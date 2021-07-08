@@ -38,7 +38,10 @@ RC ssi::validate(TxnManager * txn) {
 
     // if exists ww, check rw
     if (txn->flag_ww){
-        if (txn->in_rw || txn->out_rw)
+    //if (true){
+        //if (txn->in_rw || txn->out_rw)
+        /* 
+        if (txn->out_rw)
         {
             DEBUG("ssi Validate abort, %ld\n",txn->get_txn_id());
             INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
@@ -47,6 +50,32 @@ RC ssi::validate(TxnManager * txn) {
             DEBUG("ssi Validate ok %ld\n",txn->get_txn_id());        
             rc = RCOK;
         }
+        */
+	uint64_t start_tn = txn->get_start_timestamp();
+	ssi_set_ent * wset;
+        ssi_set_ent * rset;
+        get_rw_set(txn, rset, wset);
+        bool readonly = (wset->set_size == 0);
+
+        int stop __attribute__((unused));
+        uint64_t checked = 0;
+        sem_wait(&_semaphore);
+
+        if (!readonly) {
+            for (UInt32 i = 0; i < rset->set_size; i++) {
+                checked++;
+		        SSIHisEntry* c_his = rset->rows[i]->manager->writehis;
+                if (c_his != NULL && c_his->ts > start_tn){
+                // if (rset->rows[i]->manager->get_last_commit() > start_tn) {
+            	    INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
+                    rc = Abort;
+                }
+            }
+        }
+        sem_post(&_semaphore);
+        mem_allocator.free(rset->rows, sizeof(row_t *) * rset->set_size);
+        mem_allocator.free(rset, sizeof(ssi_set_ent));
+
     }
     // if no ww, check rw-rw
     else{
