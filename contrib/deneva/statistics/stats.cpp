@@ -78,7 +78,14 @@ void Stats_thd::clear() {
     total_txn_commit_cnt=0;
     local_txn_commit_cnt=0;
     remote_txn_commit_cnt=0;
+    //total_txn_abort_cnt=0;
     total_txn_abort_cnt=0;
+    total_rw_abort_cnt=0;
+    total_read_abort_cnt=0;
+    total_write_abort_cnt=0;
+    total_ww_abort_cnt=0;
+    total_validate_abort_cnt=0;
+    total_txn_prewrite_cnt=0;
     unique_txn_abort_cnt=0;
     local_txn_abort_cnt=0;
     remote_txn_abort_cnt=0;
@@ -107,11 +114,26 @@ void Stats_thd::clear() {
     trans_finish_time=0;
     trans_commit_time=0;
     trans_abort_time=0;
+    trans_commit_process_time=0;
 
     trans_access_lock_wait_time=0;
+    total_access_time=0;
+    trans_access_read_time=0;
+    trans_access_pre_time=0;
+    trans_access_write_time=0;
+    trans_access_xp_time=0;
+    trans_access_clear_time=0;
+    trans_access_write_insert_time=0;
+    trans_access_write_release_time=0;
+    trans_access_pre_check_time=0;
+    trans_access_pre_before_time=0;
+    trans_access_pre_lock_time=0;
+    real_abort_time=0;
+    trans_abort_reset_time=0;
     // trans mvcc
     trans_mvcc_clear_history=0;
     trans_mvcc_access=0;
+    trans_access_write_update_time=0;
 
     // Transaction stats
     txn_total_process_time=0;
@@ -122,6 +144,19 @@ void Stats_thd::clear() {
     txn_remote_wait_time=0;
     txn_total_twopc_time=0;
     txn_twopc_time=0;
+    txn_init_time=0;
+    txn_clean_time=0;
+    txn_useful_time=0;
+    txn_update_manager_time=0;
+    txn_cc_manager_time=0;
+    txn_2pc_time=0;
+    txn_abort_time=0;
+    txn_wait_thread_time=0;
+
+    trans_access_copy_cnt=0;
+    trans_access_cnt=0;
+    trans_access_write_cnt=0;
+    trans_access_copy_time=0;
 
     // Client
     txn_sent_cnt=0;
@@ -479,7 +514,11 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",local_txn_commit_cnt=%ld"
     ",remote_txn_commit_cnt=%ld"
     ",total_txn_abort_cnt=%ld"
-            ",positive_txn_abort_cnt=%ld"
+    ",total_rw_abort_cnt=%ld"
+    ",total_ww_abort_cnt=%ld"
+    ",total_validate_abort_cnt=%ld"
+    ",total_txn_prewrite_cnt=%ld"
+    ",positive_txn_abort_cnt=%ld"
     ",unique_txn_abort_cnt=%ld"
     ",local_txn_abort_cnt=%ld"
     ",remote_txn_abort_cnt=%ld"
@@ -496,7 +535,9 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",parts_touched=%ld"
           ",avg_parts_touched=%f",
           tput, txn_cnt, remote_txn_cnt, local_txn_cnt, local_txn_start_cnt, total_txn_commit_cnt,
-          local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt,positive_txn_abort_cnt, unique_txn_abort_cnt,
+          local_txn_commit_cnt, remote_txn_commit_cnt, total_txn_abort_cnt, total_rw_abort_cnt,
+          total_ww_abort_cnt, total_validate_abort_cnt, total_txn_prewrite_cnt,
+          positive_txn_abort_cnt, unique_txn_abort_cnt,
           local_txn_abort_cnt, remote_txn_abort_cnt, txn_run_time / BILLION,
           txn_run_avg_time / BILLION, multi_part_txn_cnt, multi_part_txn_run_time / BILLION,
           multi_part_txn_avg_time / BILLION, single_part_txn_cnt,
@@ -517,6 +558,7 @@ void Stats_thd::print(FILE * outf, bool prog) {
     fprintf(outf,
     ",trans_total_run_time=%f"
     ",trans_process_time=%f"
+    ",trans_commit_process_time=%f"
     ",trans_2pc_time=%f"
     ",trans_prepare_time=%f"
     ",trans_validate_time=%f"
@@ -524,11 +566,32 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",trans_commit_time=%f"
     ",trans_abort_time=%f"
     ",trans_access_lock_wait_time=%f"
+    ",total_access_time=%f"
+    ",trans_access_read_time=%f"
+    ",trans_access_pre_time=%f"
+    ",trans_access_write_time=%f"
+    ",trans_access_xp_time=%f"
+    ",trans_access_clear_time=%f"
+    ",trans_access_write_insert_time=%f"
+    ",trans_access_write_release_time=%f"
+    ",trans_access_pre_check_time=%f"
+    ",trans_access_pre_before_time=%f"
+    ",trans_access_pre_lock_time=%f"
+    ",trans_access_write_update_time=%f"
+    ",real_abort_time=%f"
+    ",trans_abort_reset_time=%f"
     ",trans_mvcc_clear_history=%f"
     ",trans_mvcc_access=%f",
-        trans_total_run_time / BILLION, trans_process_time / BILLION, trans_2pc_time / BILLION,
+        trans_total_run_time / BILLION, trans_process_time / BILLION, trans_commit_process_time / BILLION, trans_2pc_time / BILLION,
         trans_prepare_time / BILLION, trans_validate_time / BILLION, trans_finish_time / BILLION,
         trans_commit_time / BILLION, trans_abort_time / BILLION, trans_access_lock_wait_time / BILLION,
+        total_access_time / BILLION, trans_access_read_time / BILLION,
+        trans_access_pre_time / BILLION, trans_access_write_time / BILLION,
+        trans_access_xp_time / BILLION, trans_access_clear_time / BILLION,
+        trans_access_write_insert_time / BILLION, trans_access_write_release_time / BILLION,
+        trans_access_pre_check_time / BILLION, trans_access_pre_before_time / BILLION,
+        trans_access_pre_lock_time / BILLION, trans_access_write_update_time / BILLION,
+        real_abort_time / BILLION, trans_abort_reset_time / BILLION,
         trans_mvcc_clear_history / BILLION, trans_mvcc_access / BILLION);
 
 
@@ -1093,6 +1156,58 @@ void Stats_thd::print(FILE * outf, bool prog) {
 
 }
 
+void Stats_thd::print_message(FILE * outf, bool prog) {
+    /*
+    fprintf(outf,
+    "[detail time cost]:"
+    "txn_init_time=%f"
+    ",txn_run_time=%f,%.0f%%"
+    ",trans_total_run_time=%f,%.2f%%"
+    ",trans_process_time=%f,%.2f%%"
+    ",total_access_time=%f,%.2f%%"
+    ",trans_access_lock_wait_time=%f,%.2f%%"
+    ",trans_access_read_time=%f,%.2f%%"
+    ",trans_access_pre_time=%f,%.2f%%"
+    ",trans_access_write_time=%f,%.2f%%"
+    ",trans_access_clear_time=%f,%.2f%%"
+    ",trans_access_pre_getlock_time=%f,%.2f%%"
+    ",trans_access_pre_RWcheck_time=%f,%.2f%%"
+    ",trans_access_write_insert_time=%f,%.2f%%"
+    ",trans_access_write_release_time=%f,%.2f%%"
+    ",txn_validate_time=%f,%.2f%%"
+    ",txn_clean_time=%f,%.2f%%"
+    ",total_rw_abort_cnt=%ld"
+    ",total_ww_abort_cnt=%ld",
+          txn_init_time / BILLION, txn_run_time / BILLION, 100.0*txn_run_time/txn_run_time, trans_total_run_time / BILLION, 100.0*trans_total_run_time/txn_run_time,
+          trans_process_time / BILLION, 100.0*trans_process_time/txn_run_time, total_access_time / BILLION, 100.0*total_access_time/txn_run_time, trans_access_lock_wait_time / BILLION, 100.0*trans_access_lock_wait_time/txn_run_time,
+          trans_access_read_time / BILLION, 100.0*trans_access_read_time/txn_run_time, trans_access_pre_time / BILLION, 100.0*trans_access_pre_time/txn_run_time, trans_access_write_time / BILLION, 100.0*trans_access_write_time/txn_run_time,
+          trans_access_clear_time / BILLION, 100.0*trans_access_clear_time/txn_run_time, trans_access_pre_lock_time / BILLION, 100.0*trans_access_pre_lock_time/txn_run_time, trans_access_pre_check_time / BILLION, 100.0*trans_access_pre_check_time/txn_run_time,
+          trans_access_write_insert_time / BILLION, 100.0*trans_access_write_insert_time/txn_run_time, trans_access_write_release_time / BILLION, 100.0*trans_access_write_release_time/txn_run_time, txn_validate_time / BILLION, 100.0*txn_validate_time/txn_run_time,
+          txn_clean_time / BILLION, 100.0*txn_clean_time/txn_run_time, total_rw_abort_cnt, total_ww_abort_cnt);
+    */
+   txn_wait_thread_time = total_time-txn_useful_time-txn_update_manager_time-txn_cc_manager_time-txn_2pc_time-txn_abort_time;
+   fprintf(outf,
+    "[detail time cost]:"
+    "\ntxn_useful_time=%.2f(%.2f%%)"
+    "\ntxn_update_manager_time=%.2f(%.2f%%)"
+    "\ntxn_cc_manager_time=%.2f(%.2f%%)"
+    "\ntxn_2pc_time=%.2f(%.2f%%)"
+    "\ntxn_abort_time=%.2f(%.2f%%)"
+    "\ntxn_wait_thread_time=%.2f(%.2f%%)"
+    "\ntrans_access_cnt=%ld"
+    "\ntrans_access_copy_cnt=%ld"
+    "\ntrans_access_copy_time=%.2f"
+    "\ntrans_access_write_cnt=%ld\n",
+          txn_useful_time / BILLION, 100.0 * txn_useful_time / total_time,
+          txn_update_manager_time / BILLION, 100.0 * txn_update_manager_time / total_time,
+          txn_cc_manager_time / BILLION, 100.0 * txn_cc_manager_time / total_time,
+          txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
+          txn_abort_time / BILLION, 100.0 * txn_abort_time / total_time,
+          txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time,
+          trans_access_cnt, trans_access_copy_cnt, trans_access_copy_time / BILLION, trans_access_write_cnt);
+
+}
+
 void Stats_thd::combine(Stats_thd * stats) {
     if (stats->total_runtime > total_runtime) total_runtime = stats->total_runtime;
 
@@ -1109,6 +1224,12 @@ void Stats_thd::combine(Stats_thd * stats) {
     local_txn_commit_cnt+=stats->local_txn_commit_cnt;
     remote_txn_commit_cnt+=stats->remote_txn_commit_cnt;
     total_txn_abort_cnt+=stats->total_txn_abort_cnt;
+    total_rw_abort_cnt+=stats->total_rw_abort_cnt;
+    total_ww_abort_cnt+=stats->total_ww_abort_cnt;
+    total_read_abort_cnt+=stats->total_read_abort_cnt;
+    total_write_abort_cnt+=stats->total_write_abort_cnt;
+    total_validate_abort_cnt+=stats->total_validate_abort_cnt;
+    total_txn_prewrite_cnt+=stats->total_txn_prewrite_cnt;
     positive_txn_abort_cnt += stats->positive_txn_abort_cnt;
     unique_txn_abort_cnt+=stats->unique_txn_abort_cnt;
     local_txn_abort_cnt+=stats->local_txn_abort_cnt;
@@ -1139,9 +1260,23 @@ void Stats_thd::combine(Stats_thd * stats) {
     trans_commit_time+=stats->trans_commit_time;
     trans_abort_time+=stats->trans_abort_time;
     trans_access_lock_wait_time+=stats->trans_access_lock_wait_time;
+    total_access_time+=stats->total_access_time;
+    trans_access_read_time+=stats->trans_access_read_time;
+    trans_access_pre_time+=stats->trans_access_pre_time;
+    trans_access_write_time+=stats->trans_access_write_time;
+    trans_access_xp_time+=stats->trans_access_xp_time;
+    trans_access_clear_time+=stats->trans_access_clear_time;
+    trans_access_write_insert_time+=stats->trans_access_write_insert_time;
+    trans_access_write_release_time+=stats->trans_access_write_release_time;
+    trans_access_pre_check_time+=stats->trans_access_pre_check_time;
+    trans_access_pre_before_time+=stats->trans_access_pre_before_time;
+    trans_access_pre_lock_time+=stats->trans_access_pre_lock_time;
+    real_abort_time+=stats->real_abort_time;
+    trans_commit_process_time+=stats->trans_commit_process_time;
     // trans mvcc
     trans_mvcc_clear_history+=stats->trans_mvcc_clear_history;
     trans_mvcc_access+=stats->trans_mvcc_access;
+    trans_access_write_update_time+=stats->trans_access_write_update_time;
     // Transaction stats
     txn_total_process_time+=stats->txn_total_process_time;
     txn_process_time+=stats->txn_process_time;
@@ -1151,6 +1286,34 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_remote_wait_time+=stats->txn_remote_wait_time;
     txn_total_twopc_time+=stats->txn_total_twopc_time;
     txn_twopc_time+=stats->txn_twopc_time;
+    txn_init_time+=stats->txn_init_time;
+    txn_clean_time+=stats->txn_clean_time;
+
+    //txn_useful_time = access-lock_wait-xp-clear
+    //txn_update_manager_time = commit+clear
+    //txn_cc_manager_time = lock_wait+validate
+    //txn_2pc_time = 2pc-validate-insert
+    txn_useful_time+=stats->txn_useful_time;
+    txn_useful_time-=stats->trans_access_lock_wait_time;
+    // TODO: here need to consider whether need to separate access_xp_time from txn_useful_time
+    txn_useful_time-=stats->trans_access_xp_time;
+    txn_useful_time-=stats->trans_mvcc_clear_history;
+    txn_useful_time-=stats->trans_access_clear_time;
+    txn_update_manager_time+=stats->trans_mvcc_clear_history;
+    txn_update_manager_time+=stats->trans_access_clear_time;
+    txn_update_manager_time+=stats->txn_update_manager_time;
+    txn_cc_manager_time+=stats->txn_cc_manager_time;
+    txn_2pc_time+=stats->txn_2pc_time;
+    txn_2pc_time-=stats->txn_validate_time;
+    txn_2pc_time-=stats->trans_access_write_insert_time;
+    txn_abort_time+=stats->txn_abort_time;
+    txn_wait_thread_time+=stats->txn_wait_thread_time;
+    total_time+=stats->total_time;
+
+    trans_access_copy_cnt+=stats->trans_access_copy_cnt;
+    trans_access_cnt+=stats->trans_access_cnt;
+    trans_access_write_cnt+=stats->trans_access_write_cnt;
+    trans_access_copy_time+=stats->trans_access_copy_time;
 
     // Client
     txn_sent_cnt+=stats->txn_sent_cnt;
@@ -1436,6 +1599,8 @@ void Stats::print(bool prog) {
     else
         fprintf(outf, "[summary] ");
     totals->print(outf,prog);
+    fprintf(outf, "\n\n\n\n\n");
+    totals->print_message(outf,prog);
     mem_util(outf);
     cpu_util(outf);
 
@@ -1541,5 +1706,6 @@ void Stats::cpu_util(FILE * outf) {
     lastSysCPU = timeSample.tms_stime;
     lastUserCPU = timeSample.tms_utime;
 }
+
 
 

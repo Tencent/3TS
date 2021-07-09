@@ -256,7 +256,10 @@ void WorkerThread::commit() {
     uint64_t timespan_short  = end_time - txn_man->txn_stats.restart_starttime;
     uint64_t two_pc_timespan  = end_time - txn_man->txn_stats.prepare_start_time;
     uint64_t finish_timespan  = end_time - txn_man->txn_stats.finish_start_time;
+    uint64_t abort_timespan = txn_man->txn_stats.restart_starttime - txn_man->txn_stats.starttime;
+    INC_STATS(get_thd_id(), real_abort_time, abort_timespan);
     INC_STATS(get_thd_id(), trans_2pc_time, two_pc_timespan);
+    INC_STATS(get_thd_id(), txn_2pc_time, two_pc_timespan);
     INC_STATS(get_thd_id(), trans_finish_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_commit_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_total_run_time, timespan_short);
@@ -276,13 +279,16 @@ void WorkerThread::abort() {
   // TODO: TPCC Rollback here
 
     ++txn_man->abort_cnt;
+    uint64_t reset_start = get_sys_clock();
     txn_man->reset();
 
     uint64_t end_time = get_sys_clock();
     uint64_t timespan_short  = end_time - txn_man->txn_stats.restart_starttime;
     uint64_t two_pc_timespan  = end_time - txn_man->txn_stats.prepare_start_time;
     uint64_t finish_timespan  = end_time - txn_man->txn_stats.finish_start_time;
+    INC_STATS(get_thd_id(), trans_abort_reset_time, end_time - reset_start);
     INC_STATS(get_thd_id(), trans_2pc_time, two_pc_timespan);
+    INC_STATS(get_thd_id(), txn_2pc_time, two_pc_timespan);
     INC_STATS(get_thd_id(), trans_finish_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_abort_time, finish_timespan);
     INC_STATS(get_thd_id(), trans_total_run_time, timespan_short);
@@ -734,7 +740,8 @@ uint64_t WorkerThread::get_next_txn_id() {
 
 RC WorkerThread::process_rtxn(Message * msg) {
     RC rc = RCOK;
-    uint64_t txn_id = UINT64_MAX;
+    // uint64_t txn_id = UINT64_MAX;  The default max value happen in future transcation.
+    uint64_t txn_id;
 
 #if WORKLOAD == DA && DA_PRINT_LOG == true
     printf("thd_id:%lu check: state:%lu nextstate:%lu \n",h_thd->_thd_id, da_query->state, _wl->nextstate);
@@ -786,6 +793,7 @@ RC WorkerThread::process_rtxn(Message * msg) {
             msg->copy_to_txn(txn_man);
             DEBUG("START %ld %f %lu\n", txn_man->get_txn_id(),
                 simulation->seconds_from_start(get_sys_clock()), txn_man->txn_stats.starttime);
+            INC_STATS(get_thd_id(),txn_init_time,get_sys_clock() - ready_starttime);
 #if WORKLOAD==DA
             if(da_start_trans_tab.count(txn_man->get_txn_id())==0)
             {
@@ -873,8 +881,10 @@ RC WorkerThread::process_rtxn(Message * msg) {
         if (rc != RCOK) return rc;
 
         // Execute transaction
+        uint64_t txn_start = get_sys_clock();
         rc = txn_man->run_txn();
         check_if_done(rc);
+        INC_STATS(get_thd_id(), total_time, get_sys_clock() - txn_start);
 #if WORKLOAD == DA
     }
 

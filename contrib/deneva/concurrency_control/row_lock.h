@@ -31,7 +31,7 @@ public:
     // [DL_DETECT] txnids are the txn_ids that current txn is waiting for.
     RC lock_get(lock_t type, TxnManager * txn);
     RC lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txncnt);
-    RC lock_release(TxnManager * txn);
+    RC lock_release(TxnManager * txn, access_t type);
 
 private:
     pthread_mutex_t * latch;

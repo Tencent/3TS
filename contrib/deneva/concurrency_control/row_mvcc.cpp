@@ -20,6 +20,7 @@
 #include "manager.h"
 #include "row_mvcc.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_mvcc::init(row_t * row) {
     _row = row;
@@ -30,7 +31,8 @@ void Row_mvcc::init(row_t * row) {
     readhistail = NULL;
     writehistail = NULL;
     blatch = false;
-    latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    //latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
+    latch = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
@@ -60,8 +62,9 @@ row_t * Row_mvcc::clear_history(TsType type, ts_t ts) {
         prev = his->prev;
         assert(prev->ts >= his->ts);
         if (row != NULL) {
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            // row->free_row();
+            // mem_allocator.free(row, sizeof(row_t));
+            free(row);
         }
         row = his->row;
         his->row = NULL;
@@ -84,23 +87,29 @@ row_t * Row_mvcc::clear_history(TsType type, ts_t ts) {
 }
 
 MVReqEntry * Row_mvcc::get_req_entry() {
-    return (MVReqEntry *) mem_allocator.alloc(sizeof(MVReqEntry));
+    // return (MVReqEntry *) mem_allocator.alloc(sizeof(MVReqEntry));
+    return (MVReqEntry *) malloc(sizeof(MVReqEntry));
 }
 
 void Row_mvcc::return_req_entry(MVReqEntry * entry) {
-    mem_allocator.free(entry, sizeof(MVReqEntry));
+    //mem_allocator.free(entry, sizeof(MVReqEntry));
+    free(entry);
+
 }
 
 MVHisEntry * Row_mvcc::get_his_entry() {
-    return (MVHisEntry *) mem_allocator.alloc(sizeof(MVHisEntry));
+    // return (MVHisEntry *) mem_allocator.alloc(sizeof(MVHisEntry));
+    return (MVHisEntry *) malloc(sizeof(MVHisEntry));
 }
 
 void Row_mvcc::return_his_entry(MVHisEntry * entry) {
     if (entry->row != NULL) {
-        entry->row->free_row();
-        mem_allocator.free(entry->row, sizeof(row_t));
+        // entry->row->free_row();
+        // mem_allocator.free(entry->row, sizeof(row_t));
+        free(entry->row);
     }
-    mem_allocator.free(entry, sizeof(MVHisEntry));
+    // mem_allocator.free(entry, sizeof(MVHisEntry));
+    free(entry);
 }
 
 void Row_mvcc::buffer_req(TsType type, TxnManager *txn) {
@@ -249,6 +258,11 @@ bool Row_mvcc::conflict(TsType type, ts_t ts) {
 }
 
 RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
+    // // remove mvcc read
+    // // assert(_row != latest_row);
+    // // _row->copy(latest_row);
+    // return RCOK;
+    // // test exclude below
     RC rc = RCOK;
     ts_t ts = txn->get_timestamp();
     uint64_t starttime = get_sys_clock();
@@ -259,8 +273,10 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock(latch);
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     uint64_t acesstime = get_sys_clock();
     if (type == R_REQ) {
+        uint64_t read_start = get_sys_clock();
         // figure out if ts is in interval(prewrite(x))
         bool conf = conflict(type, ts);
         if ( conf && rreq_len < g_max_read_req) {
@@ -270,6 +286,8 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
             txn->ts_ready = false;
         } else if (conf) {
             rc = Abort;
+            //not RW abort, just for convenience
+            INC_STATS(txn->get_thd_id(), total_rw_abort_cnt, 1);
             printf("\nshould never happen. rreq_len=%ld", rreq_len);
         } else {
             // return results immediately.
@@ -281,31 +299,56 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
             insert_history(ts, NULL);
             assert(strstr(_row->get_table_name(), ret->get_table_name()));
         }
+
+        uint64_t read_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+
     } else if (type == P_REQ) {
+        uint64_t pre_start  = get_sys_clock();
         if (conflict(type, ts)) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), total_ww_abort_cnt, 1);
         } else if (preq_len < g_max_pre_req) {
             DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
             buffer_req(P_REQ, txn);
             rc = RCOK;
         } else {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), total_ww_abort_cnt, 1);
         }
+
+        uint64_t pre_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
+
     } else if (type == W_REQ) {
+        uint64_t write_start  = get_sys_clock();
         rc = RCOK;
         // the corresponding prewrite request is debuffered.
         insert_history(ts, row);
+        uint64_t insert_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - write_start);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         MVReqEntry * req = debuffer_req(P_REQ, txn);
         assert(req != NULL);
         return_req_entry(req);
+        uint64_t update_start = get_sys_clock();
         update_buffer(txn);
+        
+        uint64_t write_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_update_time, write_end - update_start);
+        INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
+        
     } else if (type == XP_REQ) {
+        uint64_t xp_start  = get_sys_clock();
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         MVReqEntry * req = debuffer_req(P_REQ, txn);
         assert (req != NULL);
         return_req_entry(req);
         update_buffer(txn);
+        
+        uint64_t xp_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
+        
     } else {
         assert(false);
     }
@@ -337,6 +380,9 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
     uint64_t timespan = get_sys_clock() - starttime;
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
+
+    INC_STATS(txn->get_thd_id(), total_access_time, timespan);
+    INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
 
     if (g_central_man) {
         glob_manager.release_row(_row);

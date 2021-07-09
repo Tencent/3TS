@@ -22,24 +22,27 @@ struct SSIReqEntry {
     SSIReqEntry * next;
 };
 
-struct SSIHisEntry {
-    // TxnManager * txn;
-    txnid_t txn;
-    ts_t ts;
-    // only for write history. The value needs to be stored.
-//    char * data;
-    row_t * row;
-    SSIHisEntry * next;
-    SSIHisEntry * prev;
-};
-
 struct SSILockEntry {
     lock_t type;
     ts_t   start_ts;
-    // TxnManager * txn;
-    txnid_t txn;
+    //std::shared_ptr<TxnManager> txn;
+    TxnManager * txn;
+    txnid_t txnid;
     SSILockEntry * next;
     SSILockEntry * prev;
+};
+
+struct SSIHisEntry {
+    //std::shared_ptr<TxnManager> txn;
+    TxnManager * txn;
+    txnid_t txnid;
+    ts_t ts;
+    // only for write history. The value needs to be stored.
+    // char * data;
+    row_t * row;
+    SSIHisEntry * next;
+    SSIHisEntry * prev;
+    SSILockEntry * si_read_lock;
 };
 
 class Row_ssi {
@@ -53,24 +56,22 @@ private:
     SSILockEntry * si_read_lock;
     SSILockEntry * write_lock;
 
-    txnid_t commit_lock;
-
     bool blatch;
 
     row_t * _row;
     void get_lock(lock_t type, TxnManager * txn);
+    void get_lock(lock_t type, TxnManager * txn, SSIHisEntry * whis);
     void release_lock(lock_t type, TxnManager * txn);
+    void release_lock(ts_t min_ts);
 
     void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
     SSIReqEntry * get_req_entry();
-    void return_req_entry(SSIReqEntry * entry);
-    SSIHisEntry * get_his_entry();
+    void return_req_entry(SSIReqEntry * entry) ;
+    SSIHisEntry * get_his_entry() ;
     void return_his_entry(SSIHisEntry * entry);
 
     bool conflict(TsType type, ts_t ts);
-    void buffer_req(TsType type, TxnManager * txn);
-    SSIReqEntry * debuffer_req( TsType type, TxnManager * txn = NULL);
 
 
     SSILockEntry * get_entry();
