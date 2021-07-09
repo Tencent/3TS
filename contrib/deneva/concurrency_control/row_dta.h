@@ -31,7 +31,7 @@ struct DTAMVReqEntry {
 struct DTAMVHisEntry {
   ts_t ts;
   // only for write history. The value needs to be stored.
-  //	char * data;
+  // char * data;
   row_t* row;
   uint64_t version;
   DTAMVHisEntry* next;

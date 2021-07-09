@@ -25,6 +25,16 @@ BenchmarkRun = {
   os = "cout"; // filename the benchmark result output to, "cout" means standard output
 };
 
+BenchmarkRun = {
+  trans_nums = (2L, 4L, 6L); // numbers of transactions
+  item_nums = (2L, 4L, 6L); // numbers of variable items
+  algorithms = ("OPT_SSI"); // concurrent algorithms
+  history_num = 1024L; // number of histories to generate
+	with_abort = true; // generate history with Abort operation
+	tcl_position = "TAIL"; // generate TCL operation in history position ("TAIL", "ANYWHERE", "NOWHERE")
+  os = "cout"; // filename the benchmark result output to, "cout" means standard output
+};
+
 /* ========== history generators ========= */
 
 // Generate all histories meeting such conditions.

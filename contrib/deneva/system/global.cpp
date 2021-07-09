@@ -68,6 +68,7 @@ Focc focc_man;
 Bocc bocc_man;
 Maat maat_man;
 ssi ssi_man;
+opt_ssi opt_ssi_man;
 wsi wsi_man;
 Sundial sundial_man;
 Dta dta_man;

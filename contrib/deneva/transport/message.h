@@ -102,7 +102,7 @@ public:
     RC rc;
 
     bool readonly;
-#if CC_ALG == MAAT ||  CC_ALG == SSI || CC_ALG == WSI || CC_ALG == SILO
+#if CC_ALG == MAAT ||  CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
     uint64_t commit_timestamp;
 #endif
 };
@@ -380,7 +380,7 @@ public:
 #if CC_ALG == MVCC
     uint64_t thd_id;
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI
     uint64_t start_ts;
 #endif
 #if MODE==QRY_ONLY_MODE

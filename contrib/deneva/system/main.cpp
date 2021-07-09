@@ -212,6 +212,13 @@ int main(int argc, char *argv[]) {
     ssi_man.init();
     printf("Done\n");
 #endif
+#if CC_ALG == OPT_SSI
+    printf("Initializing OPT_SSI manager... ");
+    fflush(stdout);
+    opt_ssi_man.init();
+    printf("Done\n");
+#endif
+
 #if CC_ALG == WSI
     printf("Initializing WSI manager... ");
     fflush(stdout);
