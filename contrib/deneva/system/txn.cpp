@@ -491,6 +491,7 @@ RC TxnManager::commit() {
 #endif
     commit_stats();
     INC_STATS(get_thd_id(), txn_update_manager_time, get_sys_clock()-start);
+    INC_STATS(get_thd_id(), trans_validate_time, get_sys_clock()-start);
 #if LOGGING
     LogRecord * record = logger.createRecord(get_txn_id(),L_NOTIFY,0,0);
     if(g_repl_cnt > 0) {
@@ -541,6 +542,7 @@ RC TxnManager::abort() {
         INC_STATS_ARR(get_thd_id(),start_abort_commit_latency, timespan);
     }
     INC_STATS(get_thd_id(), txn_abort_time, get_sys_clock()-abort_start);
+    INC_STATS(get_thd_id(), trans_validate_time, get_sys_clock()-abort_start);
     return Abort;
 }
 

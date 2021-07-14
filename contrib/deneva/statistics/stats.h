@@ -91,6 +91,11 @@ public:
     double txn_clean_time;
     double trans_commit_process_time;
 
+    //Transaction three stats
+    double trans_read_time;
+    double trans_write_time;
+    double trans_validate_time;
+
     //Deneva measurements
     double txn_useful_time;
     double txn_update_manager_time;
@@ -122,7 +127,6 @@ public:
     double trans_process_time;
     double trans_2pc_time;
     double trans_prepare_time;
-    double trans_validate_time;
     double trans_finish_time;
     double trans_commit_time;
     double trans_abort_time;

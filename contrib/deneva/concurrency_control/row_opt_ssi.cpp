@@ -271,7 +271,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock(latch);
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
+        uint64_t read_start = get_sys_clock();
         // check write his to the read version
         OPT_SSIHisEntry* c_his = writehis;
         OPT_SSIHisEntry* p_his = writehis;
@@ -329,7 +331,10 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
+        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
+        
     } else if (type == P_REQ) {
+        uint64_t write_start = get_sys_clock();
         //WW lock conflict
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
@@ -371,11 +376,14 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             si_read = si_read->next;
         }
+        INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
         
     } else if (type == W_REQ) {
+        uint64_t write_start = get_sys_clock();
         rc = RCOK;
         release_lock(LOCK_EX, txn);
         insert_history(ts, txn, row);
+        INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());  
     } else if (type == XP_REQ) {
         release_lock(LOCK_EX, txn);
@@ -386,6 +394,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     }
 
     if (rc == RCOK) {
+        uint64_t write_start = get_sys_clock();
         //if (whis_len > g_his_recycle_len || rhis_len > g_his_recycle_len) {
         if (whis_len > g_his_recycle_len) {
             ts_t t_th = glob_manager.get_min_ts(txn->get_thd_id());
@@ -404,7 +413,8 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 }
             }
             release_lock(t_th);
-        }      
+        }
+        INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
     }
 end:
     uint64_t timespan = get_sys_clock() - starttime;
