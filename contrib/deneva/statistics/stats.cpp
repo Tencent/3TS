@@ -1196,16 +1196,18 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     // "\ntxn_2pc_time=%.2f(%.2f%%)"
     // "\ntxn_abort_time=%.2f(%.2f%%)"
     // "\ntxn_idle_time=%.2f(%.2f%%)"
-    "\ntrans_read_time=%.2f"
-    "\ntrans_write_time=%.2f"
-    "\ntrans_validate_time=%.2f\n",
+    "\ntrans_read_time=%.2f(%.2f%%)"
+    "\ntrans_write_time=%.2f(%.2f%%)"
+    "\ntrans_validate_time=%.2f(%.2f%%)\n",
         //   txn_useful_time / BILLION, 100.0 * txn_useful_time / total_time,
         //   txn_update_manager_time / BILLION, 100.0 * txn_update_manager_time / total_time,
         //   txn_cc_manager_time / BILLION, 100.0 * txn_cc_manager_time / total_time,
         //   txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
         //   txn_abort_time / BILLION, 100.0 * txn_abort_time / total_time,
         //   txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time,
-          trans_read_time / BILLION, trans_write_time / BILLION, trans_validate_time / BILLION);
+          trans_read_time / BILLION, 100.0 * trans_read_time / total_time,
+          trans_write_time / BILLION, 100.0 * trans_write_time / total_time,
+          trans_validate_time / BILLION, 100.0 * trans_validate_time / total_time);
 
 }
 
