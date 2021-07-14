@@ -491,7 +491,7 @@ RC TxnManager::commit() {
 #endif
     commit_stats();
     INC_STATS(get_thd_id(), txn_update_manager_time, get_sys_clock()-start);
-    INC_STATS(get_thd_id(), trans_validate_time, get_sys_clock()-start);
+    INC_STATS(get_thd_id(), trans_validate_time, get_sys_clock()-starttime);
 #if LOGGING
     LogRecord * record = logger.createRecord(get_txn_id(),L_NOTIFY,0,0);
     if(g_repl_cnt > 0) {
