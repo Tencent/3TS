@@ -151,9 +151,11 @@ TxnManager::finish(RC rc)
     } else {
         
         for (uint64_t i = 0; i < txn->write_cnt; i++) {
+            uint64_t write_start = get_sys_clock();
             Access * access = txn->accesses[ write_set[i] ];
             access->orig_row->manager->write( 
                 access->data, this->commit_timestamp );
+            INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, get_sys_clock() - write_start);
             txn->accesses[ write_set[i] ]->orig_row->manager->release();
             DEBUG("silo %ld commit release row %ld \n", this->get_txn_id(), txn->accesses[ write_set[i] ]->orig_row->get_primary_key());
         }

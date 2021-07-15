@@ -340,8 +340,14 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
     txn->cur_row->init(get_table(), get_part_id());
     TsType ts_type = (type == RD || type == SCAN)? R_REQ : P_REQ;
+    uint64_t read_start = get_sys_clock();
     rc = this->manager->access(txn, ts_type, txn->cur_row);
     access->data = txn->cur_row;
+    if(type == RD) {
+        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
+    } else {
+        INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - read_start);
+    }
     goto end;
 #elif CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC || CC_ALG == CALVIN
 #if CC_ALG == HSTORE_SPEC

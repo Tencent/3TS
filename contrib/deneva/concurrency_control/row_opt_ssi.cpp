@@ -292,6 +292,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, c_his->txnid, c_his->ts, start_ts);
+                INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
                 goto end;             
             }
             c_his->txn->in_rw = true;
@@ -311,7 +312,8 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     rc = Abort;
                     DEBUG("ssi txn %ld read the write_lock in %ld abort current_start_ts %ld\n",
                     txnid, write->txnid, start_ts);
-                    goto end;             
+                    INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
+                    goto end;
                 }
                 write->txn->in_rw = true;
                 txn->out_rw = true;
@@ -338,11 +340,13 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //WW lock conflict
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
             goto end;         
         }
         // WCW conflict in write history
         if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
             goto end;         
         }
 
@@ -367,6 +371,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",
                       //txnid, si_read->txnid, si_read->txn.get()->get_commit_timestamp(), start_ts);
                       txnid, si_read->txnid, si_read->txn->get_commit_timestamp(), start_ts);
+                    INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
                     goto end;
                 }             
                 assert(si_read->txn != NULL);
