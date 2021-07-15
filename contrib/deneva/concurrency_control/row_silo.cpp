@@ -12,6 +12,7 @@
 #include "row.h"
 #include "row_silo.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 #if CC_ALG==SILO
 
@@ -22,7 +23,7 @@ Row_silo::init(row_t * row)
 #if ATOMIC_WORD
     _tid_word = 0;
 #else 
-    _latch = (pthread_mutex_t *) _mm_malloc(sizeof(pthread_mutex_t), 64);
+    _latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init( _latch, NULL );
     _tid = 0;
 #endif
