@@ -274,11 +274,14 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);
     uint64_t acesstime = get_sys_clock();
     if (type == R_REQ) {
         uint64_t read_start = get_sys_clock();
         // figure out if ts is in interval(prewrite(x))
         bool conf = conflict(type, ts);
+        INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
+        read_start = get_sys_clock();
         if ( conf && rreq_len < g_max_read_req) {
             rc = WAIT;
             DEBUG("buf R_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
@@ -302,16 +305,20 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
 
         uint64_t read_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
 
     } else if (type == P_REQ) {
         uint64_t pre_start  = get_sys_clock();
-        if (conflict(type, ts)) {
+        bool conf = conflict(type, ts);
+        INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - pre_start);
+        pre_start = get_sys_clock();
+        if (conf) {
             rc = Abort;
             INC_STATS(txn->get_thd_id(), total_ww_abort_cnt, 1);
         } else if (preq_len < g_max_pre_req) {
             DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
             buffer_req(P_REQ, txn);
-            rc = RCOK;
+            rc = RCOK;         
         } else {
             rc = Abort;
             INC_STATS(txn->get_thd_id(), total_ww_abort_cnt, 1);
@@ -319,6 +326,7 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
 
         uint64_t pre_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
+        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - pre_start);
 
     } else if (type == W_REQ) {
         uint64_t write_start  = get_sys_clock();
@@ -337,6 +345,7 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
         uint64_t write_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_write_update_time, write_end - update_start);
         INC_STATS(txn->get_thd_id(), trans_access_write_time, write_end - write_start);
+        INC_STATS(txn->get_thd_id(), trans_write_time, write_end - write_start);
         
     } else if (type == XP_REQ) {
         uint64_t xp_start  = get_sys_clock();

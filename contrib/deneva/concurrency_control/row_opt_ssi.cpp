@@ -292,7 +292,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 rc = Abort;
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, c_his->txnid, c_his->ts, start_ts);
-                INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
+                INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
                 goto end;             
             }
             c_his->txn->in_rw = true;
@@ -312,7 +312,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     rc = Abort;
                     DEBUG("ssi txn %ld read the write_lock in %ld abort current_start_ts %ld\n",
                     txnid, write->txnid, start_ts);
-                    INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
+                    INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
                     goto end;
                 }
                 write->txn->in_rw = true;
@@ -322,8 +322,13 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
         }
 
+        INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
+
         // add si_read lock to write history
         // the release si_read_lock is in the clear_history and release_lock
+
+        uint64_t new_start = get_sys_clock();
+
         if (p_his != NULL){
             get_lock(LOCK_SH, txn, p_his);  // si_read_lock add to write history
         } else{
@@ -333,26 +338,27 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
-        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
+        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - new_start);
         
     } else if (type == P_REQ) {
         uint64_t write_start = get_sys_clock();
         //WW lock conflict
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
-            INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
+            INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - write_start);
             goto end;         
         }
         // WCW conflict in write history
         if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
-            INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
+            INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - write_start);
             goto end;         
         }
-
+        uint64_t lock_start = get_sys_clock();
         // Add the write lock
         get_lock(LOCK_EX, txn);
-
+        uint64_t lock_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_read_time, lock_end - lock_start);
         // get si_read from last committed history or row manager(if not write history)
         OPT_SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : si_read_lock;
         while (si_read != NULL) {
@@ -371,7 +377,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",
                       //txnid, si_read->txnid, si_read->txn.get()->get_commit_timestamp(), start_ts);
                       txnid, si_read->txnid, si_read->txn->get_commit_timestamp(), start_ts);
-                    INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
+                    INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - lock_end);
                     goto end;
                 }             
                 assert(si_read->txn != NULL);
@@ -381,7 +387,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             si_read = si_read->next;
         }
-        INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
+        INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - lock_end);
         
     } else if (type == W_REQ) {
         uint64_t write_start = get_sys_clock();

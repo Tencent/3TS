@@ -50,6 +50,7 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn) {
 
 RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txncnt) {
     assert (CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == CALVIN);
+    uint64_t read_start;
     RC rc;
     uint64_t starttime = get_sys_clock();
     uint64_t lock_get_start_time = starttime;
@@ -62,9 +63,11 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - lock_get_start_time);
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - lock_get_start_time);
+    INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - lock_get_start_time);
     if(owner_cnt > 0) {
       INC_STATS(txn->get_thd_id(),twopl_already_owned_cnt,1);
     }
+    uint64_t test_start = get_sys_clock();
     bool conflict = conflict_lock(lock_type, type);
 #if TWOPL_LITE
     conflict = owner_cnt > 0;
@@ -77,8 +80,9 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
     if (CC_ALG == CALVIN && !conflict) {
         if (waiters_head) conflict = true;
     }
-
+    INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - test_start);
     if (conflict) {
+        test_start = get_sys_clock();
         //printf("conflict! rid%ld txnid%ld ",_row->get_primary_key(),txn->get_txn_id());
         // Cannot be added to the owner list.
         if (CC_ALG == NO_WAIT) {
@@ -117,6 +121,8 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
                 }
                 if (!canwait) break;
             }
+            INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - test_start);
+            read_start = get_sys_clock();
             if (canwait) {
                 // insert txn to the right position
                 // the waiter list is always in timestamp order
@@ -154,6 +160,7 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
                     _row->get_primary_key(), (uint64_t)_row);
                 rc = Abort;
             }
+            INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
         } else if (CC_ALG == CALVIN){
             LockEntry * entry = get_entry();
             entry->start_ts = get_sys_clock();
@@ -182,6 +189,7 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
         printf("LOCK %ld %ld\n",entry->txn->get_txn_id(),entry->start_ts);
 #endif
 #if CC_ALG != NO_WAIT
+        read_start = get_sys_clock();
         LockEntry * entry = get_entry();
         entry->type = type;
         entry->start_ts = get_sys_clock();
@@ -201,6 +209,7 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
         }
         lock_type = type;
         rc = RCOK;
+        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
 
     }
 final:

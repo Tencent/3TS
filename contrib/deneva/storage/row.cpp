@@ -445,10 +445,13 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
 
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == CALVIN
     assert (row == NULL || row == this || type == XP);
+    uint64_t write_start = get_sys_clock();
     if (CC_ALG != CALVIN && ROLL_BACK &&
             type == XP) {  // recover from previous writes. should not happen w/ Calvin
         this->copy(row);
     }
+    INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
+    INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, get_sys_clock() - write_start);
     this->manager->lock_release(txn, type);
     return 0;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI

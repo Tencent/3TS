@@ -185,10 +185,12 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock( latch );
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
         uint64_t read_start = get_sys_clock();
         if (ts < wts) { // read would occur before most recent write
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
             INC_STATS(txn->get_thd_id(), total_read_abort_cnt,1);
         } else if (ts > min_pts) { // read would occur after one of the prereqs already queued
             // insert the req into the read request queue
@@ -198,6 +200,7 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             INC_STATS(txn->get_thd_id(), trans_access_pre_check_time, get_sys_clock()-buffer_req_start);
             txn->ts_ready = false;
             rc = WAIT;
+            INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
         } else { // read is ok
             // return the value.
             uint64_t copy_start = get_sys_clock();
@@ -207,16 +210,18 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             INC_STATS(txn->get_thd_id(), trans_access_copy_time, get_sys_clock()-copy_start);
             if (rts < ts) rts = ts;
             rc = RCOK;
+            INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
         }
         
-        uint64_t read_end = get_sys_clock();
-        INC_STATS(txn->get_thd_id(), trans_access_read_time, read_end - read_start);
+        INC_STATS(txn->get_thd_id(), trans_access_read_time, get_sys_clock() - read_start);
 
     } else if (type == P_REQ) {
+        uint64_t read_start = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_write_cnt, 1);
         uint64_t pre_start  = get_sys_clock();
         if (ts < rts) { // pre-write would occur before most recent read
             rc = Abort;
+            INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
             INC_STATS(txn->get_thd_id(), total_write_abort_cnt,1);
         } else {
 #if TS_TWR
@@ -225,11 +230,13 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
 #else
             if (ts < wts) { //pre-write would occur before most recent write
                 rc = Abort;
+                INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
                 INC_STATS(txn->get_thd_id(), total_write_abort_cnt,1);
             } else { // pre-write is ok
                 //printf("Buffer P_REQ %ld\n",txn->txn_id);
                 buffer_req(P_REQ, txn, NULL);
                 rc = RCOK;
+                INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
             }
             uint64_t pre_end = get_sys_clock();
             INC_STATS(txn->get_thd_id(), trans_access_pre_time, pre_end - pre_start);
@@ -237,6 +244,7 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
         }
     } else if (type == W_REQ) {
         uint64_t write_start  = get_sys_clock();
+        uint64_t read_start = get_sys_clock();
         // write requests are always accepted.
         rc = RCOK;
 #if TS_TWR
@@ -254,15 +262,18 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
 #else
         if (ts > min_pts) { // write should happen after older writes are processed
             buffer_req(W_REQ, txn, row);
+            INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
             goto final;
         }
 #endif
         if (ts > min_rts) { // write should happen after older reads are processed
             row = txn->cur_row;
             buffer_req(W_REQ, txn, row);
-                        goto final;
+            INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
+            goto final;
         } else { // write is ok;
             // the write is output.
+            uint64_t real_write_start  = get_sys_clock();
             _row->copy(row);
             if (wts < ts) wts = ts;
             // debuffer the P_REQ
@@ -274,6 +285,7 @@ RC Row_ts::access(TxnManager * txn, TsType type, row_t * row) {
             // row->free_row();
             // mem_allocator.free(row, sizeof(row_t));
             free(row);
+            INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - real_write_start);
         }
         
         uint64_t write_end = get_sys_clock();
