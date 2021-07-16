@@ -189,13 +189,13 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
         printf("LOCK %ld %ld\n",entry->txn->get_txn_id(),entry->start_ts);
 #endif
 #if CC_ALG != NO_WAIT
-        read_start = get_sys_clock();
         LockEntry * entry = get_entry();
         entry->type = type;
         entry->start_ts = get_sys_clock();
         entry->txn = txn;
         STACK_PUSH(owners[hash(txn->get_txn_id())], entry);
 #endif
+        read_start = get_sys_clock();
         if(owner_cnt > 0) {
             assert(type == LOCK_SH);
             INC_STATS(txn->get_thd_id(),twopl_sh_bypass_cnt,1);

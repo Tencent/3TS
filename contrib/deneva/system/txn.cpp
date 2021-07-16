@@ -1047,7 +1047,7 @@ RC TxnManager::get_row(row_t * row, access_t type, row_t *& row_rtn) {
     access->orig_data->init(row->get_table(), part_id, 0);
     uint64_t write_start = get_sys_clock();
     access->orig_data->copy(row);
-    INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
+    INC_STATS(get_thd_id(), trans_write_time, get_sys_clock() - write_start);
     assert(access->orig_data->get_schema() == row->get_schema());
 
     // ARIES-style physiological logging

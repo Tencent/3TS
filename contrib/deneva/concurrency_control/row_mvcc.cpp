@@ -383,6 +383,7 @@ RC Row_mvcc::access(TxnManager * txn, TsType type, row_t * row) {
             }
         }
         uint64_t clear_his_timespan = get_sys_clock() - clear_his_starttime;
+        INC_STATS(txn->get_thd_id(), trans_write_time, clear_his_timespan);
         INC_STATS(txn->get_thd_id(), trans_mvcc_clear_history, clear_his_timespan);
     }
 
