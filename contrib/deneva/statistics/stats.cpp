@@ -1188,6 +1188,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
           txn_clean_time / BILLION, 100.0*txn_clean_time/txn_run_time, total_rw_abort_cnt, total_ww_abort_cnt);
     */
    txn_wait_thread_time = total_time-txn_useful_time-txn_update_manager_time-txn_cc_manager_time-txn_2pc_time-txn_abort_time;
+   total_time = txn_init_time + trans_process_time + txn_2pc_time + txn_clean_time;
    fprintf(outf,
     "[detail time cost]:"
     // "\ntxn_useful_time=%.2f(%.2f%%)"
@@ -1196,18 +1197,20 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     // "\ntxn_2pc_time=%.2f(%.2f%%)"
     // "\ntxn_abort_time=%.2f(%.2f%%)"
     // "\ntxn_idle_time=%.2f(%.2f%%)"
-    "\ntrans_read_time=%.2f(%.2f%%)"
-    "\ntrans_write_time=%.2f(%.2f%%)"
-    "\ntrans_validate_time=%.2f(%.2f%%)\n",
+    "\ntxn_init_time=%.2f(%.2f%%)"
+    "\ntxn_process_time=%.2f(%.2f%%)"
+    "\ntxn_2pc_time=%.2f(%.2f%%)"
+    "\ntxn_clean_time=%.2f(%.2f%%)\n",
         //   txn_useful_time / BILLION, 100.0 * txn_useful_time / total_time,
         //   txn_update_manager_time / BILLION, 100.0 * txn_update_manager_time / total_time,
         //   txn_cc_manager_time / BILLION, 100.0 * txn_cc_manager_time / total_time,
         //   txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
         //   txn_abort_time / BILLION, 100.0 * txn_abort_time / total_time,
         //   txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time,
-          trans_read_time / BILLION, 100.0 * trans_read_time / total_time,
-          trans_write_time / BILLION, 100.0 * trans_write_time / total_time,
-          trans_validate_time / BILLION, 100.0 * trans_validate_time / total_time);
+          txn_init_time / BILLION, 100.0 * txn_init_time / total_time,
+          trans_process_time / BILLION, 100.0 * trans_process_time / total_time,
+          txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
+          txn_clean_time / BILLION, 100.0 * txn_clean_time / total_time);
 
 }
 

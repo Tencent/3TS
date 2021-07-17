@@ -471,7 +471,6 @@ RC TxnManager::commit() {
     DEBUG("Commit %ld\n",get_txn_id());
     uint64_t starttime = get_sys_clock();
     release_locks(RCOK);
-    INC_STATS(get_thd_id(), txn_clean_time, get_sys_clock() - starttime);
     uint64_t start = get_sys_clock();
     INC_STATS(get_thd_id(),trans_commit_process_time,txn_stats.total_process_time);
 #if CC_ALG == MAAT

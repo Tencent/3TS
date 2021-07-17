@@ -212,6 +212,7 @@ void WorkerThread::process(Message * msg) {
 
 void WorkerThread::check_if_done(RC rc) {
     if (txn_man->waiting_for_response()) return;
+    uint64_t clean_start = get_sys_clock();
     if (rc == Commit) {
         txn_man->txn_stats.finish_start_time = get_sys_clock();
         commit();
@@ -220,6 +221,7 @@ void WorkerThread::check_if_done(RC rc) {
         txn_man->txn_stats.finish_start_time = get_sys_clock();
         abort();
     }
+    INC_STATS(get_thd_id(),txn_clean_time,get_sys_clock() - clean_start);
 }
 
 void WorkerThread::release_txn_man() {
