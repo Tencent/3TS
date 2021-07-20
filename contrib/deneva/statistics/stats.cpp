@@ -1246,6 +1246,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     "\nocc_rw_abort_cnt=%ld"
     "\nocc_ww_abort_cnt=%ld"
     "\nocc_max_len=%ld"
+    "\nocc_readonly_cnt=%ld"
     "\nocc_validate&finish_time=%.2f"
     "\nocc_rwset_get_time=%.2f(%.2f%%)"
     "\nocc_wait_add_time=%.2f(%.2f%%)"
@@ -1255,7 +1256,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     "\nocc_validate_ww_time=%.2f(%.2f%%)"
     "\nocc_wait_rm_time=%.2f(%.2f%%)"
     "\nocc_rm_active_time=%.2f(%.2f%%)\n",
-          occ_rhis_abort_cnt, occ_rw_abort_cnt, occ_ww_abort_cnt, occ_max_len, (occ_validate_time+occ_finish_time) / BILLION,
+          occ_rhis_abort_cnt, occ_rw_abort_cnt, occ_ww_abort_cnt, occ_max_len, occ_readonly_cnt, (occ_validate_time+occ_finish_time) / BILLION,
           occ_rwset_get_time / BILLION, 100.0 * occ_rwset_get_time / (occ_validate_time+occ_finish_time),
           occ_wait_add_time / BILLION, 100.0 * occ_wait_add_time / (occ_validate_time+occ_finish_time),
           occ_add_active_time / BILLION, 100.0 * occ_add_active_time / (occ_validate_time+occ_finish_time),
