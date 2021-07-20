@@ -111,6 +111,7 @@ RC OptCC::central_validate(TxnManager * txn) {
     set_ent * rset;
     get_rw_set(txn, rset, wset);
     INC_STATS(txn->get_thd_id(),occ_rwset_get_time,get_sys_clock() - starttime);
+    starttime = get_sys_clock();
     bool readonly = (wset->set_size == 0);
     set_ent * his;
     set_ent * ent;
@@ -145,7 +146,6 @@ RC OptCC::central_validate(TxnManager * txn) {
     sem_post(&_semaphore);
     INC_STATS(txn->get_thd_id(),occ_cs_time,get_sys_clock() - starttime);
     starttime = get_sys_clock();
-    starttime = get_sys_clock();
 
     uint64_t checked = 0;
     uint64_t active_checked = 0;
@@ -164,6 +164,7 @@ RC OptCC::central_validate(TxnManager * txn) {
             if (!valid) {
                 INC_STATS(txn->get_thd_id(),occ_rhis_abort_cnt,1);
                 INC_STATS(txn->get_thd_id(),occ_hist_validate_fail_time,get_sys_clock() - starttime);
+                INC_STATS(txn->get_thd_id(),occ_validate_rhis_time,get_sys_clock() - starttime);
                 goto final;
               }
             his = his->next;
@@ -172,12 +173,12 @@ RC OptCC::central_validate(TxnManager * txn) {
     INC_STATS(txn->get_thd_id(),occ_validate_rhis_time,get_sys_clock() - starttime);
 
     INC_STATS(txn->get_thd_id(),occ_hist_validate_time,get_sys_clock() - starttime);
-    starttime = get_sys_clock();
     stop = 1;
     for (UInt32 i = 0; i < f_active_len; i++) {
         set_ent * wact = finish_active[i];
         ++checked;
         ++active_checked;
+        starttime = get_sys_clock();
         valid = test_valid(wact, rset);
         INC_STATS(txn->get_thd_id(),occ_valiadate_rw_time,get_sys_clock() - starttime);
         if(!valid) INC_STATS(txn->get_thd_id(),occ_rw_abort_cnt,1);
@@ -206,6 +207,7 @@ final:
     //mem_allocator.free(finish_active, sizeof(set_ent*)* f_active_len);
 
 
+    if (STATS_ENABLE && simulation->is_warmup_done()) stats._stats[txn->get_thd_id()]->occ_max_len = max(stats._stats[txn->get_thd_id()]->occ_max_len, checked);
     if (valid) {
         rc = RCOK;
         INC_STATS(txn->get_thd_id(),occ_check_cnt,checked);
@@ -269,6 +271,7 @@ void OptCC::central_finish(RC rc, TxnManager * txn) {
         if(act == NULL) {
             assert(rc == Abort);
             //pthread_mutex_unlock( &latch );
+            INC_STATS(txn->get_thd_id(),occ_rm_active_time,get_sys_clock() - rm_start);
             sem_post(&_semaphore);
             return;
         }

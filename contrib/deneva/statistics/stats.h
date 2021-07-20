@@ -104,6 +104,7 @@ public:
     double txn_abort_time;
     double txn_wait_thread_time;
     double total_time;
+    double total_4phase_time;
 
     //test TIMESTAMP
     uint64_t trans_access_copy_cnt;
@@ -282,6 +283,7 @@ public:
     uint64_t occ_rhis_abort_cnt;
     uint64_t occ_rw_abort_cnt;
     uint64_t occ_ww_abort_cnt;
+    uint64_t occ_max_len;
 
     // WSI
     double wsi_validate_time;

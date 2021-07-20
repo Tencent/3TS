@@ -301,6 +301,7 @@ void Stats_thd::clear() {
     occ_rhis_abort_cnt=0;
     occ_rw_abort_cnt=0;
     occ_ww_abort_cnt=0;
+    occ_max_len=0;
 
     // WSI
     wsi_validate_time=0;
@@ -1199,29 +1200,43 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
           txn_clean_time / BILLION, 100.0*txn_clean_time/txn_run_time, total_rw_abort_cnt, total_ww_abort_cnt);
     */
    txn_wait_thread_time = total_time-txn_useful_time-txn_update_manager_time-txn_cc_manager_time-txn_2pc_time-txn_abort_time;
-   total_time = txn_init_time + trans_process_time + txn_2pc_time + txn_clean_time;
+   total_4phase_time = txn_init_time + trans_process_time + txn_2pc_time + txn_clean_time;
    fprintf(outf,
-    "[detail time cost]:"
-    // "\ntxn_useful_time=%.2f(%.2f%%)"
-    // "\ntxn_manager_time=%.2f(%.2f%%)"
-    // "\ntxn_cc_manager_time=%.2f(%.2f%%)"
-    // "\ntxn_2pc_time=%.2f(%.2f%%)"
-    // "\ntxn_abort_time=%.2f(%.2f%%)"
-    // "\ntxn_idle_time=%.2f(%.2f%%)"
-    "\ntxn_init_time=%.2f(%.2f%%)"
-    "\ntxn_process_time=%.2f(%.2f%%)"
-    "\ntxn_2pc_time=%.2f(%.2f%%)"
-    "\ntxn_clean_time=%.2f(%.2f%%)\n",
-        //   txn_useful_time / BILLION, 100.0 * txn_useful_time / total_time,
-        //   txn_update_manager_time / BILLION, 100.0 * txn_update_manager_time / total_time,
-        //   txn_cc_manager_time / BILLION, 100.0 * txn_cc_manager_time / total_time,
-        //   txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
-        //   txn_abort_time / BILLION, 100.0 * txn_abort_time / total_time,
-        //   txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time,
-          txn_init_time / BILLION, 100.0 * txn_init_time / total_time,
-          trans_process_time / BILLION, 100.0 * trans_process_time / total_time,
+    "[detail time cost_4]:"
+    "\ntxn_init_time_4=%.2f(%.2f%%)"
+    "\ntxn_process_time_4=%.2f(%.2f%%)"
+    "\ntxn_2pc_time_4=%.2f(%.2f%%)"
+    "\ntxn_clean_time_4=%.2f(%.2f%%)\n",
+          txn_init_time / BILLION, 100.0 * txn_init_time / total_4phase_time,
+          trans_process_time / BILLION, 100.0 * trans_process_time / total_4phase_time,
+          txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_4phase_time,
+          txn_clean_time / BILLION, 100.0 * txn_clean_time / total_4phase_time);
+
+    fprintf(outf, "\n\n\n");
+    fprintf(outf,
+    "[detail time cost_6]:"
+    "\ntxn_useful_time_6=%.2f(%.2f%%)"
+    "\ntxn_manager_time_6=%.2f(%.2f%%)"
+    "\ntxn_cc_manager_time_6=%.2f(%.2f%%)"
+    "\ntxn_2pc_time_6=%.2f(%.2f%%)"
+    "\ntxn_abort_time_6=%.2f(%.2f%%)"
+    "\ntxn_idle_time_6=%.2f(%.2f%%)\n",
+          txn_useful_time / BILLION, 100.0 * txn_useful_time / total_time,
+          txn_update_manager_time / BILLION, 100.0 * txn_update_manager_time / total_time,
+          txn_cc_manager_time / BILLION, 100.0 * txn_cc_manager_time / total_time,
           txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
-          txn_clean_time / BILLION, 100.0 * txn_clean_time / total_time);
+          txn_abort_time / BILLION, 100.0 * txn_abort_time / total_time,
+          txn_wait_thread_time / BILLION, 100.0 * txn_wait_thread_time / total_time);
+
+    fprintf(outf, "\n\n\n");
+    fprintf(outf,
+    "[detail time cost_3]:"
+    "\ntrans_read_time_3=%.2f(%.2f%%)"
+    "\ntrans_write_time_3=%.2f(%.2f%%)"
+    "\ntrans_validate_time_3=%.2f(%.2f%%)\n",
+          trans_read_time / BILLION, 100.0 * trans_read_time / total_time,
+          trans_write_time / BILLION, 100.0 * trans_write_time / total_time,
+          trans_validate_time / BILLION, 100.0 * trans_validate_time / total_time);
 
     fprintf(outf, "\n\n\n");
     fprintf(outf,
@@ -1229,6 +1244,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     "\nocc_rhis_abort_cnt=%ld"
     "\nocc_rw_abort_cnt=%ld"
     "\nocc_ww_abort_cnt=%ld"
+    "\nocc_max_len=%ld"
     "\nocc_validate&finish_time=%.2f"
     "\nocc_rwset_get_time=%.2f(%.2f%%)"
     "\nocc_wait_add_time=%.2f(%.2f%%)"
@@ -1238,7 +1254,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     "\nocc_validate_ww_time=%.2f(%.2f%%)"
     "\nocc_wait_rm_time=%.2f(%.2f%%)"
     "\nocc_rm_active_time=%.2f(%.2f%%)\n",
-          occ_rhis_abort_cnt, occ_rw_abort_cnt, occ_ww_abort_cnt, (occ_validate_time+occ_finish_time) / BILLION,
+          occ_rhis_abort_cnt, occ_rw_abort_cnt, occ_ww_abort_cnt, occ_max_len, (occ_validate_time+occ_finish_time) / BILLION,
           occ_rwset_get_time / BILLION, 100.0 * occ_rwset_get_time / (occ_validate_time+occ_finish_time),
           occ_wait_add_time / BILLION, 100.0 * occ_wait_add_time / (occ_validate_time+occ_finish_time),
           occ_add_active_time / BILLION, 100.0 * occ_add_active_time / (occ_validate_time+occ_finish_time),
@@ -1496,6 +1512,7 @@ void Stats_thd::combine(Stats_thd * stats) {
     occ_rhis_abort_cnt+=stats->occ_rhis_abort_cnt;
     occ_rw_abort_cnt+=stats->occ_rw_abort_cnt;
     occ_ww_abort_cnt+=stats->occ_ww_abort_cnt;
+    occ_max_len=max(occ_max_len,stats->occ_max_len);
 
     // MAAT
     maat_validate_cnt+=stats->maat_validate_cnt;
