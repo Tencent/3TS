@@ -290,6 +290,17 @@ void Stats_thd::clear() {
     occ_abort_check_cnt=0;
     occ_ts_abort_cnt=0;
     occ_finish_time=0;
+    occ_rwset_get_time=0;
+    occ_wait_add_time=0;
+    occ_add_active_time=0;
+    occ_validate_rhis_time=0;
+    occ_valiadate_rw_time=0;
+    occ_validate_ww_time=0;
+    occ_wait_rm_time=0;
+    occ_rm_active_time=0;
+    occ_rhis_abort_cnt=0;
+    occ_rw_abort_cnt=0;
+    occ_ww_abort_cnt=0;
 
     // WSI
     wsi_validate_time=0;
@@ -1212,6 +1223,31 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
           txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_time,
           txn_clean_time / BILLION, 100.0 * txn_clean_time / total_time);
 
+    fprintf(outf, "\n\n\n");
+    fprintf(outf,
+    "[detail time cost]:"
+    "\nocc_rhis_abort_cnt=%ld"
+    "\nocc_rw_abort_cnt=%ld"
+    "\nocc_ww_abort_cnt=%ld"
+    "\nocc_validate&finish_time=%.2f"
+    "\nocc_rwset_get_time=%.2f(%.2f%%)"
+    "\nocc_wait_add_time=%.2f(%.2f%%)"
+    "\nocc_add_active_time=%.2f(%.2f%%)"
+    "\nocc_validate_rhis_time=%.2f(%.2f%%)"
+    "\nocc_valiadate_rw_time=%.2f(%.2f%%)"
+    "\nocc_validate_ww_time=%.2f(%.2f%%)"
+    "\nocc_wait_rm_time=%.2f(%.2f%%)"
+    "\nocc_rm_active_time=%.2f(%.2f%%)\n",
+          occ_rhis_abort_cnt, occ_rw_abort_cnt, occ_ww_abort_cnt, (occ_validate_time+occ_finish_time) / BILLION,
+          occ_rwset_get_time / BILLION, 100.0 * occ_rwset_get_time / (occ_validate_time+occ_finish_time),
+          occ_wait_add_time / BILLION, 100.0 * occ_wait_add_time / (occ_validate_time+occ_finish_time),
+          occ_add_active_time / BILLION, 100.0 * occ_add_active_time / (occ_validate_time+occ_finish_time),
+          occ_validate_rhis_time / BILLION, 100.0 * occ_validate_rhis_time / (occ_validate_time+occ_finish_time),
+          occ_valiadate_rw_time / BILLION, 100.0 * occ_valiadate_rw_time / (occ_validate_time+occ_finish_time),
+          occ_validate_ww_time / BILLION, 100.0 * occ_validate_ww_time / (occ_validate_time+occ_finish_time),
+          occ_wait_rm_time / BILLION, 100.0 * occ_wait_rm_time / (occ_validate_time+occ_finish_time),
+          occ_rm_active_time / BILLION, 100.0 * occ_rm_active_time / (occ_validate_time+occ_finish_time));
+
 }
 
 void Stats_thd::combine(Stats_thd * stats) {
@@ -1449,6 +1485,17 @@ void Stats_thd::combine(Stats_thd * stats) {
     occ_abort_check_cnt+=stats->occ_abort_check_cnt;
     occ_ts_abort_cnt+=stats->occ_ts_abort_cnt;
     occ_finish_time+=stats->occ_finish_time;
+    occ_rwset_get_time+=stats->occ_rwset_get_time;
+    occ_wait_add_time+=stats->occ_wait_add_time;
+    occ_add_active_time+=stats->occ_add_active_time;
+    occ_validate_rhis_time+=stats->occ_validate_rhis_time;
+    occ_valiadate_rw_time+=stats->occ_valiadate_rw_time;
+    occ_validate_ww_time+=stats->occ_validate_ww_time;
+    occ_wait_rm_time+=stats->occ_wait_rm_time;
+    occ_rm_active_time+=stats->occ_rm_active_time;
+    occ_rhis_abort_cnt+=stats->occ_rhis_abort_cnt;
+    occ_rw_abort_cnt+=stats->occ_rw_abort_cnt;
+    occ_ww_abort_cnt+=stats->occ_ww_abort_cnt;
 
     // MAAT
     maat_validate_cnt+=stats->maat_validate_cnt;

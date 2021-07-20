@@ -271,6 +271,17 @@ public:
     uint64_t occ_abort_check_cnt;
     uint64_t occ_ts_abort_cnt;
     double occ_finish_time;
+    double occ_rwset_get_time;
+    double occ_wait_add_time;
+    double occ_add_active_time;
+    double occ_validate_rhis_time;
+    double occ_valiadate_rw_time;
+    double occ_validate_ww_time;
+    double occ_wait_rm_time;
+    double occ_rm_active_time;
+    uint64_t occ_rhis_abort_cnt;
+    uint64_t occ_rw_abort_cnt;
+    uint64_t occ_ww_abort_cnt;
 
     // WSI
     double wsi_validate_time;
