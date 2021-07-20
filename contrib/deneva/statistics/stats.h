@@ -284,6 +284,7 @@ public:
     uint64_t occ_rw_abort_cnt;
     uint64_t occ_ww_abort_cnt;
     uint64_t occ_max_len;
+    uint64_t occ_readonly_cnt;
 
     // WSI
     double wsi_validate_time;

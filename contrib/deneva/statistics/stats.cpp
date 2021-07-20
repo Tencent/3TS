@@ -302,6 +302,7 @@ void Stats_thd::clear() {
     occ_rw_abort_cnt=0;
     occ_ww_abort_cnt=0;
     occ_max_len=0;
+    occ_readonly_cnt=0;
 
     // WSI
     wsi_validate_time=0;
@@ -1513,6 +1514,7 @@ void Stats_thd::combine(Stats_thd * stats) {
     occ_rw_abort_cnt+=stats->occ_rw_abort_cnt;
     occ_ww_abort_cnt+=stats->occ_ww_abort_cnt;
     occ_max_len=max(occ_max_len,stats->occ_max_len);
+    occ_readonly_cnt+=stats->occ_readonly_cnt;
 
     // MAAT
     maat_validate_cnt+=stats->maat_validate_cnt;

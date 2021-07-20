@@ -41,13 +41,13 @@ void OptCC::init() {
 
 RC OptCC::validate(TxnManager * txn) {
     RC rc;
-    uint64_t starttime = get_sys_clock();
+    //uint64_t starttime = get_sys_clock();
 #if PER_ROW_VALID
     rc = per_row_validate(txn);
 #else
     rc = central_validate(txn);
 #endif
-  INC_STATS(txn->get_thd_id(),occ_validate_time,get_sys_clock() - starttime);
+  //INC_STATS(txn->get_thd_id(),occ_validate_time,get_sys_clock() - starttime);
     return rc;
 }
 
@@ -113,6 +113,7 @@ RC OptCC::central_validate(TxnManager * txn) {
     INC_STATS(txn->get_thd_id(),occ_rwset_get_time,get_sys_clock() - starttime);
     starttime = get_sys_clock();
     bool readonly = (wset->set_size == 0);
+    if(readonly) INC_STATS(txn->get_thd_id(),occ_readonly_cnt,1);
     set_ent * his;
     set_ent * ent;
     int n = 0;
