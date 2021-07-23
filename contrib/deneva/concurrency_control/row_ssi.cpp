@@ -61,23 +61,23 @@ row_t * Row_ssi::clear_history(TsType type, ts_t ts) {
         }
         row = his->row;
         his->row = NULL;
-        return_his_entry(his);
-        his = prev;
-        if (type == R_REQ) rhis_len --;
-        else whis_len --;
 
         //clear si_read
         SSILockEntry * read = his->si_read_lock;
         while (read != NULL) {
             assert(read != NULL);
             SSILockEntry * delete_p = read;
-            assert( read == his->si_read_lock );
+            //assert( read == his->si_read_lock );
             read = read->next;
             delete_p->next = NULL;
             free(delete_p);
         }
         //clear si_read
 
+        return_his_entry(his);
+        his = prev;
+        if (type == R_REQ) rhis_len --;
+        else whis_len --;
 
     }
     *tail = his;

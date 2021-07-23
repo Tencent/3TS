@@ -59,20 +59,20 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
         }
         row = his->row;
         his->row = NULL;
-        return_his_entry(his);
-        his = prev;
-        if (type == R_REQ) rhis_len --;
-        else whis_len --;
         //clear si_read
         OPT_SSILockEntry * read = his->si_read_lock;
         while (read != NULL) {
             assert(read != NULL);
             OPT_SSILockEntry * delete_p = read;
-            assert( read == his->si_read_lock );
+            //assert( read == his->si_read_lock );
             read = read->next;
             delete_p->next = NULL;
             free(delete_p);
         }
+        return_his_entry(his);
+        his = prev;
+        if (type == R_REQ) rhis_len --;
+        else whis_len --;
     }
     *tail = his;
     if (*tail) (*tail)->next = NULL;
@@ -290,6 +290,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             //build rw
             if (c_his->txn->out_rw) { // Abort when exists out_rw
                 rc = Abort;
+                INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
                 DEBUG("ssi txn %ld read the write_commit in %ld abort, whis_ts %ld current_start_ts %ld\n",
                   txnid, c_his->txnid, c_his->ts, start_ts);
                 INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
@@ -310,6 +311,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 //build rw
                 if (write->txn->out_rw) { // Abort when exists out_rw
                     rc = Abort;
+                    INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
                     DEBUG("ssi txn %ld read the write_lock in %ld abort current_start_ts %ld\n",
                     txnid, write->txnid, start_ts);
                     INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
@@ -345,12 +347,14 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //WW lock conflict
         if (write_lock != NULL && write_lock->txn != txn) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - write_start);
             goto end;         
         }
         // WCW conflict in write history
         if(writehis != NULL && start_ts < writehis->ts) {
             rc = Abort;
+            INC_STATS(txn->get_thd_id(),total_ww_abort_cnt,1);
             INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - write_start);
             goto end;         
         }
@@ -374,6 +378,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 bool in = si_read->txn->in_rw;
                 if (in && interleaved) { //! Abort
                     rc = Abort;
+                    INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1);
                     DEBUG("ssi txn %ld write the read_commit in %ld abort, rhis_ts %ld current_start_ts %ld\n",
                       //txnid, si_read->txnid, si_read->txn.get()->get_commit_timestamp(), start_ts);
                       txnid, si_read->txnid, si_read->txn->get_commit_timestamp(), start_ts);
