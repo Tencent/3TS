@@ -1201,7 +1201,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
           txn_clean_time / BILLION, 100.0*txn_clean_time/txn_run_time, total_rw_abort_cnt, total_ww_abort_cnt);
     */
    txn_wait_thread_time = total_time-txn_useful_time-txn_update_manager_time-txn_cc_manager_time-txn_2pc_time-txn_abort_time;
-   total_4phase_time = txn_init_time + trans_process_time + txn_2pc_time + txn_clean_time;
+   total_4phase_time = txn_init_time + trans_process_time + trans_2pc_time + txn_clean_time;
    fprintf(outf,
     "[detail time cost_4]:"
     "\ntxn_init_time_4=%.2f(%.2f%%)"
@@ -1210,7 +1210,7 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     "\ntxn_clean_time_4=%.2f(%.2f%%)\n",
           txn_init_time / BILLION, 100.0 * txn_init_time / total_4phase_time,
           trans_process_time / BILLION, 100.0 * trans_process_time / total_4phase_time,
-          txn_2pc_time / BILLION, 100.0 * txn_2pc_time / total_4phase_time,
+          trans_2pc_time / BILLION, 100.0 * trans_2pc_time / total_4phase_time,
           txn_clean_time / BILLION, 100.0 * txn_clean_time / total_4phase_time);
 
     fprintf(outf, "\n\n\n");

@@ -32,6 +32,8 @@ Row_silo::init(row_t * row)
 RC
 Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
 
+    uint64_t starttime = get_sys_clock();
+
     if (type == R_REQ) {
         DEBUG("READ %ld -- %ld, table name: %s \n",txn->get_txn_id(),_row->get_primary_key(),_row->get_table_name());
     } else if (type == P_REQ) {
@@ -65,6 +67,7 @@ Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
     release();
     DEBUG("silo %ld read release row %ld \n", txn->get_txn_id(), _row->get_primary_key());
 #endif
+    INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
     return RCOK;
 }
 
@@ -97,6 +100,7 @@ Row_silo::validate(ts_t tid, bool in_write_set) {
 
 void
 Row_silo::write(row_t * data, uint64_t tid) {
+    uint64_t starttime = get_sys_clock();
     _row->copy(data);
 #if ATOMIC_WORD
     uint64_t v = _tid_word;
@@ -105,6 +109,7 @@ Row_silo::write(row_t * data, uint64_t tid) {
 #else
     _tid = tid;
 #endif
+    INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
 }
 
 void

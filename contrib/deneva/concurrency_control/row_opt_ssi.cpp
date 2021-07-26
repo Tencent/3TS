@@ -271,6 +271,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock(latch);
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
         uint64_t read_start = get_sys_clock();
@@ -436,6 +437,8 @@ end:
     uint64_t timespan = get_sys_clock() - starttime;
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
+
+    INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
 
     if (g_central_man) {
         glob_manager.release_row(_row);

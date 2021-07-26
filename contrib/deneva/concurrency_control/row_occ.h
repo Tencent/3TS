@@ -32,6 +32,7 @@ public:
     bool                validate(uint64_t ts);
     void                write(row_t * data, uint64_t ts);
     void                release();
+    uint64_t            txnid;
 
     /* --------------- only used for focc -----------------------*/
     bool                try_lock(uint64_t tid);

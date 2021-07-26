@@ -28,6 +28,7 @@ void Row_occ::init(row_t *row) {
     sem_init(&_semaphore, 0, 1);
     wts = 0;
     lock_tid = 0;
+    txnid = 0;
     blatch = false;
 }
 
