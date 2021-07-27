@@ -242,7 +242,7 @@ bool Row_mvcc::conflict(TsType type, ts_t ts) {
     }
     MVHisEntry * whis = writehis;
     while (whis != NULL && whis->ts > pts) {
-    if (whis->ts < rts) return false;
+        if (whis->ts < rts) return false;
         whis = whis->next;
     }
     return true;
