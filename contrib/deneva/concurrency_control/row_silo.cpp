@@ -100,7 +100,6 @@ Row_silo::validate(ts_t tid, bool in_write_set) {
 
 void
 Row_silo::write(row_t * data, uint64_t tid) {
-    uint64_t starttime = get_sys_clock();
     _row->copy(data);
 #if ATOMIC_WORD
     uint64_t v = _tid_word;
@@ -109,7 +108,6 @@ Row_silo::write(row_t * data, uint64_t tid) {
 #else
     _tid = tid;
 #endif
-    INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
 }
 
 void
