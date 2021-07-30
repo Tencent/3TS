@@ -22,21 +22,21 @@ Row_silo::init(row_t * row)
 #if ATOMIC_WORD
     _tid_word = 0;
 #else 
-    _latch = (pthread_mutex_t *) _mm_malloc(sizeof(pthread_mutex_t), 64);
+    _latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init( _latch, NULL );
     _tid = 0;
 #endif
+    timestamp_last_read = 0;
+    timestamp_last_write = 0;
+    silo_avail = true;
+    uncommitted_writes = new std::set<uint64_t>();
+    uncommitted_reads = new std::set<uint64_t>();
+    assert(uncommitted_writes->begin() == uncommitted_writes->end());
+    assert(uncommitted_writes->size() == 0);
 }
 
 RC
 Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
-
-    if (type == R_REQ) {
-        DEBUG("READ %ld -- %ld, table name: %s \n",txn->get_txn_id(),_row->get_primary_key(),_row->get_table_name());
-    } else if (type == P_REQ) {
-        DEBUG("WRITE %ld -- %ld \n",txn->get_txn_id(),_row->get_primary_key());
-    }
-
 #if ATOMIC_WORD
     uint64_t v = 0;
     uint64_t v2 = 1;
@@ -58,6 +58,54 @@ Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
         return Abort;
         // break;
     }
+#endif
+
+    if (type == R_REQ) {
+        DEBUG("READ %ld -- %ld, table name: %s \n",txn->get_txn_id(),_row->get_primary_key(),_row->get_table_name());
+        // Copy uncommitted writes
+        for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end(); it++) {
+            uint64_t txn_id = *it;
+            txn->uncommitted_writes->insert(txn_id);
+            DEBUG("    UW %ld -- %ld: %ld\n",txn->get_txn_id(),_row->get_primary_key(),txn_id);
+        }
+
+        // Copy write timestamp
+        if(txn->greatest_write_timestamp < timestamp_last_write)
+            txn->greatest_write_timestamp = timestamp_last_write;
+
+        //Add to uncommitted reads (soft lock)
+        uncommitted_reads->insert(txn->get_txn_id());
+        
+    } else if (type == P_REQ) {
+        DEBUG("WRITE %ld -- %ld \n",txn->get_txn_id(),_row->get_primary_key());
+        // Copy uncommitted reads
+        for(auto it = uncommitted_reads->begin(); it != uncommitted_reads->end(); it++) {
+            uint64_t txn_id = *it;
+            txn->uncommitted_reads->insert(txn_id);
+            DEBUG("    UR %ld -- %ld: %ld\n",txn->get_txn_id(),_row->get_primary_key(),txn_id);
+        }
+
+        // Copy uncommitted writes
+        for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end(); it++) {
+            uint64_t txn_id = *it;
+            txn->uncommitted_writes_y->insert(txn_id);
+            DEBUG("    UW %ld -- %ld: %ld\n",txn->get_txn_id(),_row->get_primary_key(),txn_id);
+        }
+
+        // Copy read timestamp
+        if(txn->greatest_read_timestamp < timestamp_last_read)
+            txn->greatest_read_timestamp = timestamp_last_read;
+
+        // Copy write timestamp
+        if(txn->greatest_write_timestamp < timestamp_last_write)
+            txn->greatest_write_timestamp = timestamp_last_write;
+
+        //Add to uncommitted writes (soft lock)
+        uncommitted_writes->insert(txn->get_txn_id());
+
+    }
+
+#if !ATOMIC_WORD
     DEBUG("silo %ld read lock row %ld \n", txn->get_txn_id(), _row->get_primary_key());
     local_row->copy(_row);
     txn->last_tid = _tid;
@@ -155,3 +203,5 @@ Row_silo::get_tid()
 }
 
 #endif
+
+//TODO: abort() and commit()
