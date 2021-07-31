@@ -10,6 +10,7 @@
 
 #include "txn.h"
 #include "row.h"
+#include "silo.h"
 #include "row_silo.h"
 
 #if CC_ALG == SILO
@@ -131,8 +132,8 @@ TxnManager::validate_silo()
     for(auto it = txn->uncommitted_writes->begin(); it != txn->uncommitted_writes->end();it++) {
         uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
         if(upper >= it_lower) {
-            MAATState state = time_table.get_state(txn->get_thd_id(),*it); //TODO
-            if(state == MAAT_VALIDATED || state == MAAT_COMMITTED) {
+            SILOState state = time_table.get_state(txn->get_thd_id(),*it); //TODO
+            if(state == SILO_VALIDATED || state == SILO_COMMITTED) {
                 INC_STATS(txn->get_thd_id(),maat_case2_cnt,1);
                 if(it_lower > 0) {
                 upper = it_lower - 1;
@@ -140,7 +141,7 @@ TxnManager::validate_silo()
                 upper = it_lower;
                 }
             }
-            if(state == MAAT_RUNNING) {
+            if(state == SILO_RUNNING) {
                 after.insert(*it);
             }
         }
@@ -164,12 +165,12 @@ TxnManager::validate_silo()
     //WW
     // upper bound of uncommitted write writes less than lower bound of txn
     for(auto it = txn->uncommitted_writes_y->begin(); it != txn->uncommitted_writes_y->end();it++) {
-        MAATState state = time_table.get_state(txn->get_thd_id(),*it);
+        SILOState state = time_table.get_state(txn->get_thd_id(),*it);
         uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
-        if(state == MAAT_ABORTED) {
+        if(state == SILO_ABORTED) {
             continue;
         }
-        if(state == MAAT_VALIDATED || state == MAAT_COMMITTED) {
+        if(state == SILO_VALIDATED || state == SILO_COMMITTED) {
             if(lower <= it_upper) {
             INC_STATS(txn->get_thd_id(),maat_case5_cnt,1);
             if(it_upper < UINT64_MAX) {
@@ -179,7 +180,7 @@ TxnManager::validate_silo()
             }
             }
         }
-        if(state == MAAT_RUNNING) {
+        if(state == SILO_RUNNING) {
             after.insert(*it);
         }
     }
@@ -252,11 +253,6 @@ TxnManager::validate_silo()
     }
     time_table.set_lower(txn->get_thd_id(),txn->get_txn_id(),lower);
     time_table.set_upper(txn->get_thd_id(),txn->get_txn_id(),upper);
-    INC_STATS(txn->get_thd_id(),maat_validate_cnt,1);
-    timespan = get_sys_clock() - start_time;
-    INC_STATS(txn->get_thd_id(),maat_validate_time,timespan);
-    txn->txn_stats.cc_time += timespan;
-    txn->txn_stats.cc_time_short += timespan;
     DEBUG("MAAT Validate End %ld: %d [%lu,%lu]\n",txn->get_txn_id(),rc==RCOK,lower,upper);
 
     return rc;
@@ -298,7 +294,7 @@ TxnManager::find_tid_silo(ts_t max_tid)
 
 #endif
 
-RC Maat::find_bound(TxnManager * txn) {
+RC Silo::find_bound(TxnManager * txn) {
     RC rc = RCOK;
     uint64_t lower = time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
     uint64_t upper = time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
@@ -419,9 +415,9 @@ void TimeTable::set_upper(uint64_t thd_id, uint64_t key, uint64_t value) {
     pthread_mutex_unlock(&table[idx].mtx);
 }
 
-MAATState TimeTable::get_state(uint64_t thd_id, uint64_t key) {
+SILOState TimeTable::get_state(uint64_t thd_id, uint64_t key) {
     uint64_t idx = hash(key);
-    MAATState state = MAAT_ABORTED;
+    SILOState state = SILO_ABORTED;
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[40],get_sys_clock() - mtx_wait_starttime);

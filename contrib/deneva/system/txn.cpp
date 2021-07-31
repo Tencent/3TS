@@ -360,6 +360,9 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
 #endif
 
 #if CC_ALG == SILO
+    uncommitted_writes = new std::set<uint64_t>();
+    uncommitted_writes_y = new std::set<uint64_t>();
+    uncommitted_reads = new std::set<uint64_t>();
     _pre_abort = (g_params["pre_abort"] == "true");
     if (g_params["validation_lock"] == "no-wait")
         _validation_no_wait = true;
@@ -403,7 +406,7 @@ void TxnManager::reset() {
     greatest_write_timestamp = 0;
     greatest_read_timestamp = 0;
     commit_timestamp = 0;
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT || CC_ALG == SILO
     uncommitted_writes->clear();
     uncommitted_writes_y->clear();
     uncommitted_reads->clear();
@@ -446,6 +449,9 @@ void TxnManager::release() {
 #if CC_ALG == CALVIN
     calvin_locked_rows.release();
 #elif CC_ALG == SILO
+    delete uncommitted_writes;
+    delete uncommitted_writes_y;
+    delete uncommitted_reads;
     num_locks = 0;
     memset(write_set, 0, 100);
     // mem_allocator.free(write_set, sizeof(int) * 100);
@@ -468,7 +474,7 @@ void TxnManager::reset_query() {
 RC TxnManager::commit() {
     DEBUG("Commit %ld\n",get_txn_id());
     release_locks(RCOK);
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT || CC_ALG == SILO
     time_table.release(get_thd_id(),get_txn_id());
 #endif
 
@@ -518,7 +524,7 @@ RC TxnManager::abort() {
 
     aborted = true;
     release_locks(Abort);
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT || CC_ALG == SILO
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
 #endif
@@ -1179,6 +1185,10 @@ RC TxnManager::validate() {
 #if CC_ALG == SILO
     else if (CC_ALG == SILO) {
         rc = validate_silo();
+        // TODO
+        if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
+            rc = maat_man.find_bound(this);
+        }
         if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
             _cur_tid ++;
             commit_timestamp = _cur_tid;

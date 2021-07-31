@@ -152,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG OPT_SSI
+#define CC_ALG SILO
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.

@@ -339,6 +339,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     txn->cur_row->init(get_table(), get_part_id());
     TsType ts_type = (type == RD || type == SCAN)? R_REQ : P_REQ;
     rc = this->manager->access(txn, ts_type, txn->cur_row);
+    txn->cur_row->copy(this);
     access->data = txn->cur_row;
     goto end;
 #elif CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC || CC_ALG == CALVIN
@@ -519,6 +520,11 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     return 0;
 #elif CC_ALG == SILO
     assert (row != NULL);
+    if (rc == Abort) {
+        manager->abort(type,txn);
+    } else {
+        manager->commit(type,txn,row);
+    }
     row->free_row();
     DEBUG_M("row_t::return_row XP free \n");
     mem_allocator.free(row, sizeof(row_t));

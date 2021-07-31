@@ -521,7 +521,7 @@ RC WorkerThread::process_rack_prep(Message * msg) {
 
     int responses_left = txn_man->received_response(((AckMessage*)msg)->rc);
     assert(responses_left >=0);
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT 
     // Integrate bounds
     uint64_t lower = ((AckMessage*)msg)->lower;
     uint64_t upper = ((AckMessage*)msg)->upper;
@@ -557,6 +557,21 @@ RC WorkerThread::process_rack_prep(Message * msg) {
 #endif
 
 #if CC_ALG == SILO
+    // Integrate bounds
+    uint64_t lower = ((AckMessage*)msg)->lower;
+    uint64_t upper = ((AckMessage*)msg)->upper;
+    if(lower > time_table.get_lower(get_thd_id(),msg->get_txn_id())) {
+        time_table.set_lower(get_thd_id(),msg->get_txn_id(),lower);
+    }
+    if(upper < time_table.get_upper(get_thd_id(),msg->get_txn_id())) {
+        time_table.set_upper(get_thd_id(),msg->get_txn_id(),upper);
+    }
+    DEBUG("%ld bound set: [%ld,%ld] -> [%ld,%ld]\n", msg->get_txn_id(), lower, upper,
+            time_table.get_lower(get_thd_id(), msg->get_txn_id()),
+            time_table.get_upper(get_thd_id(), msg->get_txn_id()));
+    if(((AckMessage*)msg)->rc != RCOK) {
+        time_table.set_state(get_thd_id(),msg->get_txn_id(),SILO_ABORTED);
+    }
     uint64_t max_tid = ((AckMessage*)msg)->max_tid;
     txn_man->find_tid_silo(max_tid);
 #endif
@@ -657,7 +672,7 @@ RC WorkerThread::process_rqry(Message * msg) {
 #if CC_ALG == WSI || CC_ALG == SSI || CC_ALG == OPT_SSI
     txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT || CC_ALG == SILO
     time_table.init(get_thd_id(),txn_man->get_txn_id());
 #endif
 #if CC_ALG == DTA
@@ -860,6 +875,23 @@ RC WorkerThread::process_rtxn(Message * msg) {
         assert(time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
         assert(time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
         assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == MAAT_RUNNING);
+#endif
+#endif
+#if CC_ALG == SILO
+#if WORKLOAD==DA
+        if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
+        {
+            da_start_stamp_tab[txn_man->get_txn_id()]=1;
+            time_table.init(get_thd_id(), txn_man->get_txn_id());
+            assert(time_table.get_lower(get_thd_id(), txn_man->get_txn_id()) == 0);
+            assert(time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
+            assert(time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == SILO_RUNNING);
+        }
+#else
+        time_table.init(get_thd_id(),txn_man->get_txn_id());
+        assert(time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
+        assert(time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
+        assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == SILO_RUNNING);
 #endif
 #endif
 #if CC_ALG == DTA
