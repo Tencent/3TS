@@ -347,3 +347,5 @@ RC Row_silo::commit(access_t type, TxnManager * txn, row_t * data) {
     ATOM_CAS(silo_avail,false,true);
     return RCOK;
 }
+
+void Row_silo::write(row_t* data) { _row->copy(data); }

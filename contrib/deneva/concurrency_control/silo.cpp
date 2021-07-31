@@ -16,7 +16,7 @@
 #if CC_ALG == SILO
 
 RC
-TxnManager::validate_silo()
+Silo::validate_silo(TxnManager * txn)
 {
     RC rc = RCOK;
     // lock write tuples in the primary key order.
@@ -99,7 +99,7 @@ TxnManager::validate_silo()
         for (uint64_t i = 0; i < wr_cnt; i++) {
             row_t * row = txn->accesses[ write_set[i] ]->orig_row;
             row->manager->lock();
-            DEBUG("silo %ld write lock row %ld \n", this->get_txn_id(), row->get_primary_key());
+            DEBUG("silo %ld write lock row %ld \n", txn->get_txn_id(), row->get_primary_key());
             num_locks++;
             if (row->manager->get_tid() != txn->accesses[write_set[i]]->tid) {
                 rc = Abort;
@@ -202,11 +202,11 @@ TxnManager::validate_silo()
 
     if(lower >= upper) {
         // Abort
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_ABORTED);
+        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_ABORTED);
         rc = Abort;
     } else {
         // Validated
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_VALIDATED);
+        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_VALIDATED);
         rc = RCOK;
 
         for(auto it = before.begin(); it != before.end();it++) {
@@ -299,10 +299,10 @@ RC Silo::find_bound(TxnManager * txn) {
     uint64_t lower = time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
     uint64_t upper = time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
     if(lower >= upper) {
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_VALIDATED);
+        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_VALIDATED);
         rc = Abort;
     } else {
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_COMMITTED);
+        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_COMMITTED);
         // TODO: can commit_time be selected in a smarter way?
         txn->commit_timestamp = lower;
     }
@@ -429,7 +429,7 @@ SILOState TimeTable::get_state(uint64_t thd_id, uint64_t key) {
     return state;
 }
 
-void TimeTable::set_state(uint64_t thd_id, uint64_t key, MAATState value) {
+void TimeTable::set_state(uint64_t thd_id, uint64_t key, SILOState value) {
     uint64_t idx = hash(key);
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);

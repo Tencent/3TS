@@ -67,6 +67,7 @@ class ssi;
 class opt_ssi;
 class wsi;
 class Maat;
+class Silo;
 class Sundial;
 class Dta;
 class Transport;
@@ -123,6 +124,7 @@ extern ssi ssi_man;
 extern opt_ssi opt_ssi_man;
 extern wsi wsi_man;
 extern Maat maat_man;
+extern Silo silo_man;
 extern Sundial sundial_man;
 extern Dta dta_man;
 #if IS_GENERIC_ALG

@@ -1184,10 +1184,9 @@ RC TxnManager::validate() {
 #endif
 #if CC_ALG == SILO
     else if (CC_ALG == SILO) {
-        rc = validate_silo();
-        // TODO
+        rc = silo_man.validate_silo(this);
         if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
-            rc = maat_man.find_bound(this);
+            rc = silo_man.find_bound(this);
         }
         if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
             _cur_tid ++;

@@ -48,6 +48,7 @@
 #include "client_txn.h"
 #include "sequencer.h"
 #include "logger.h"
+#include "silo.h"
 #include "maat.h"
 #include "sundial.h"
 #include "http.h"
@@ -67,6 +68,7 @@ OptCC occ_man;
 Focc focc_man;
 Bocc bocc_man;
 Maat maat_man;
+Silo silo_man;
 ssi ssi_man;
 opt_ssi opt_ssi_man;
 wsi wsi_man;

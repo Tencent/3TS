@@ -30,6 +30,10 @@ public:
     void                release();
     bool                try_lock();
     uint64_t            get_tid();
+    
+    RC abort(access_t type, TxnManager * txn);
+    RC commit(access_t type, TxnManager * txn, row_t * data);
+    void write(row_t * data);
 #if ATOMIC_WORD
     void                assert_lock() {assert(_tid_word & LOCK_BIT); }
 #else

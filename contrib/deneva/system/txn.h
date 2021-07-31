@@ -245,6 +245,8 @@ public:
     void set_commit_timestamp(uint64_t timestamp) {commit_timestamp = timestamp;}
     uint64_t greatest_write_timestamp;
     uint64_t greatest_read_timestamp;
+    uint64_t timestamp_last_read;
+    uint64_t timestamp_last_write;
     std::set<uint64_t> * uncommitted_reads;
     std::set<uint64_t> * uncommitted_writes;
     std::set<uint64_t> * uncommitted_writes_y;
