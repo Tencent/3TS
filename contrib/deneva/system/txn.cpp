@@ -1197,11 +1197,11 @@ RC TxnManager::validate() {
         if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
             rc = silo_man.find_bound(this);
         }
-        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
-            _cur_tid ++;
-            commit_timestamp = _cur_tid;
-            DEBUG("Validate success: %ld, cts: %ld \n", get_txn_id(), commit_timestamp);
-        }
+        // if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
+        //     _cur_tid ++;
+        //     //commit_timestamp = _cur_tid;
+        //     DEBUG("Validate success: %ld, cts: %ld \n", get_txn_id(), commit_timestamp);
+        // }
     }
 #endif
     INC_STATS(get_thd_id(),txn_validate_time,get_sys_clock() - starttime);

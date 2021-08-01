@@ -264,19 +264,29 @@ Silo::validate_silo(TxnManager * txnmanager)
 RC
 Silo::finish(RC rc, TxnManager * txnmanager)
 {
+    uint64_t wr_cnt = txnmanager->txn->write_cnt;
     if (rc == Abort) {
+        for (uint64_t i = 0; i < txnmanager->txn->row_cnt - wr_cnt; i ++) {
+            Access * access = txnmanager->txn->accesses[ read_set[i] ];
+            access->orig_row->manager->abort(RD, txnmanager);
+        }
         if (this->num_locks > txnmanager->get_access_cnt()) 
             return rc;
         for (uint64_t i = 0; i < this->num_locks; i++) {
+            txnmanager->txn->accesses[ write_set[i] ]->orig_row->manager->abort(WR, txnmanager);
             txnmanager->txn->accesses[ write_set[i] ]->orig_row->manager->release();
             DEBUG("silo %ld abort release row %ld \n", txnmanager->get_txn_id(), txnmanager->txn->accesses[ write_set[i] ]->orig_row->get_primary_key());
         }
     } else {
-        
+        for (uint64_t i = 0; i < txnmanager->txn->row_cnt - wr_cnt; i ++) {
+            Access * access = txnmanager->txn->accesses[ read_set[i] ];
+            access->orig_row->manager->commit(RD, txnmanager, access->data);
+        }
         for (uint64_t i = 0; i < txnmanager->txn->write_cnt; i++) {
             Access * access = txnmanager->txn->accesses[ write_set[i] ];
-            access->orig_row->manager->write( 
-                access->data, txnmanager->commit_timestamp );
+            // access->orig_row->manager->write( 
+            //     access->data, txnmanager->commit_timestamp );
+            txnmanager->txn->accesses[ write_set[i] ]->orig_row->manager->commit(WR, txnmanager, access->data);
             txnmanager->txn->accesses[ write_set[i] ]->orig_row->manager->release();
             DEBUG("silo %ld commit release row %ld \n", txnmanager->get_txn_id(), txnmanager->txn->accesses[ write_set[i] ]->orig_row->get_primary_key());
         }

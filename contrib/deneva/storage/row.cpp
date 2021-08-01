@@ -520,12 +520,12 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     return 0;
 #elif CC_ALG == SILO
     assert (row != NULL);
-    if (rc == Abort) {
-        manager->abort(type,txn);
-    } else {
-        manager->commit(type,txn,row);
-    }
-    row->free_row();
+    // if (rc == Abort) {
+    //     manager->abort(type,txn);
+    // } else {
+    //     manager->commit(type,txn,row);
+    // }
+    // row->free_row();
     DEBUG_M("row_t::return_row XP free \n");
     mem_allocator.free(row, sizeof(row_t));
     return 0;
