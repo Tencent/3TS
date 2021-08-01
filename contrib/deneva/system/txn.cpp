@@ -897,7 +897,7 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
 
 void TxnManager::cleanup(RC rc) {
 #if CC_ALG == SILO
-    finish(rc);
+    finish(rc,this);
 #endif
 #if CC_ALG == OCC && MODE == NORMAL_MODE
     occ_man.finish(rc,this);

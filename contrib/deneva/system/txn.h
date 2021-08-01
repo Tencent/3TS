@@ -30,10 +30,12 @@
 #include "helper.h"
 #include "semaphore.h"
 #include "array.h"
+#include "silo.h"
 #include "transport/message.h"
 #include "../concurrency_control/unified_util.h"
 //#include "wl.h"
 
+class Silo;
 class Workload;
 class Thread;
 class row_t;
@@ -217,7 +219,8 @@ public:
     int             write_set[100];
     int*            read_set;
     RC              find_tid_silo(ts_t max_tid);
-    RC              finish(RC rc);
+    RC              finish(RC rc, TxnManager * txnmanager);
+    friend RC       Silo::validate_silo(TxnManager * txnmanager);
 #endif
 
     bool aborted;

@@ -14,8 +14,18 @@ enum SILOState {
 
 class Silo {
 public:
-    RC validate_silo(TxnManager * txn);
-    RC find_bound(TxnManager * txn);
+    ts_t             last_tid;
+    ts_t            max_tid;
+    uint64_t        num_locks;
+    int             write_set[100];
+    int*            read_set;
+    void            init();
+    RC              find_tid_silo(ts_t max_tid);
+    RC              finish(RC rc, TxnManager * txnmanager);
+    RC              validate_silo(TxnManager * txnmanager);
+    RC              find_bound(TxnManager * txn);
+private:
+    sem_t     _semaphore;
 };
 
 struct SiloTimeTableEntry{

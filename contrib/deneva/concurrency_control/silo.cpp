@@ -15,18 +15,20 @@
 
 #if CC_ALG == SILO
 
+void Silo::init() { sem_init(&_semaphore, 0, 1); }
+
 RC
-Silo::validate_silo(TxnManager * txn)
+Silo::validate_silo(TxnManager * txnmanager)
 {
     RC rc = RCOK;
     // lock write tuples in the primary key order.
-    uint64_t wr_cnt = txn->write_cnt;
+    uint64_t wr_cnt = txnmanager->txn->write_cnt;
     // write_set = (int *) mem_allocator.alloc(sizeof(int) * wr_cnt);
     int cur_wr_idx = 0;
-    int read_set[txn->row_cnt - txn->write_cnt];
+    int read_set[txnmanager->txn->row_cnt - txnmanager->txn->write_cnt];
     int cur_rd_idx = 0;
-    for (uint64_t rid = 0; rid < txn->row_cnt; rid ++) {
-        if (txn->accesses[rid]->type == WR)
+    for (uint64_t rid = 0; rid < txnmanager->txn->row_cnt; rid ++) {
+        if (txnmanager->txn->accesses[rid]->type == WR)
             write_set[cur_wr_idx ++] = rid;
         else 
             read_set[cur_rd_idx ++] = rid;
@@ -37,8 +39,8 @@ Silo::validate_silo(TxnManager * txn)
     {
         for (uint64_t i = wr_cnt - 1; i >= 1; i--) {
             for (uint64_t j = 0; j < i; j++) {
-                if (txn->accesses[ write_set[j] ]->orig_row->get_primary_key() > 
-                    txn->accesses[ write_set[j + 1] ]->orig_row->get_primary_key())
+                if (txnmanager->txn->accesses[ write_set[j] ]->orig_row->get_primary_key() > 
+                    txnmanager->txn->accesses[ write_set[j + 1] ]->orig_row->get_primary_key())
                 {
                     int tmp = write_set[j];
                     write_set[j] = write_set[j+1];
@@ -51,17 +53,17 @@ Silo::validate_silo(TxnManager * txn)
     num_locks = 0;
     ts_t max_tid = 0;
     bool done = false;
-    if (_pre_abort) {
+    if (txnmanager->_pre_abort) {
         for (uint64_t i = 0; i < wr_cnt; i++) {
-            row_t * row = txn->accesses[ write_set[i] ]->orig_row;
-            if (row->manager->get_tid() != txn->accesses[write_set[i]]->tid) {
+            row_t * row = txnmanager->txn->accesses[ write_set[i] ]->orig_row;
+            if (row->manager->get_tid() != txnmanager->txn->accesses[write_set[i]]->tid) {
                 rc = Abort;
                 return rc;
             }    
         }    
-        for (uint64_t i = 0; i < txn->row_cnt - wr_cnt; i ++) {
-            Access * access = txn->accesses[ read_set[i] ];
-            if (access->orig_row->manager->get_tid() != txn->accesses[read_set[i]]->tid) {
+        for (uint64_t i = 0; i < txnmanager->txn->row_cnt - wr_cnt; i ++) {
+            Access * access = txnmanager->txn->accesses[ read_set[i] ];
+            if (access->orig_row->manager->get_tid() != txnmanager->txn->accesses[read_set[i]]->tid) {
                 rc = Abort;
                 return rc;
             }
@@ -69,26 +71,26 @@ Silo::validate_silo(TxnManager * txn)
     }
 
     // lock all rows in the write set.
-    if (_validation_no_wait) {
+    if (txnmanager->_validation_no_wait) {
         while (!done) {
             num_locks = 0;
             for (uint64_t i = 0; i < wr_cnt; i++) {
-                row_t * row = txn->accesses[ write_set[i] ]->orig_row;
+                row_t * row = txnmanager->txn->accesses[ write_set[i] ]->orig_row;
                 if (!row->manager->try_lock())
                 {
                     break;
                 }
-                DEBUG("silo %ld write lock row %ld \n", this->get_txn_id(), row->get_primary_key());
+                DEBUG("silo %ld write lock row %ld \n", txnmanager->get_txn_id(), row->get_primary_key());
                 row->manager->assert_lock();
                 num_locks ++;
-                if (row->manager->get_tid() != txn->accesses[write_set[i]]->tid)
+                if (row->manager->get_tid() != txnmanager->txn->accesses[write_set[i]]->tid)
                 {
                     rc = Abort;
                     return rc;
                 }
             }
             if (num_locks == wr_cnt) {
-                DEBUG("TRY LOCK true %ld\n", get_txn_id());
+                DEBUG("TRY LOCK true %ld\n", txnmanager->get_txn_id());
                 done = true;
             } else {
                 rc = Abort;
@@ -97,44 +99,44 @@ Silo::validate_silo(TxnManager * txn)
         }
     } else {
         for (uint64_t i = 0; i < wr_cnt; i++) {
-            row_t * row = txn->accesses[ write_set[i] ]->orig_row;
+            row_t * row = txnmanager->txn->accesses[ write_set[i] ]->orig_row;
             row->manager->lock();
-            DEBUG("silo %ld write lock row %ld \n", txn->get_txn_id(), row->get_primary_key());
+            DEBUG("silo %ld write lock row %ld \n", txnmanager->get_txn_id(), row->get_primary_key());
             num_locks++;
-            if (row->manager->get_tid() != txn->accesses[write_set[i]]->tid) {
+            if (row->manager->get_tid() != txnmanager->txn->accesses[write_set[i]]->tid) {
                 rc = Abort;
                 return rc;
             }
         }
     }
 
-    uint64_t lower = silo_time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
-    uint64_t upper = silo_time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
-    DEBUG("MAAT Validate Start %ld: [%lu,%lu]\n",txn->get_txn_id(),lower,upper);
+    uint64_t lower = silo_time_table.get_lower(txnmanager->get_thd_id(),txnmanager->get_txn_id());
+    uint64_t upper = silo_time_table.get_upper(txnmanager->get_thd_id(),txnmanager->get_txn_id());
+    DEBUG("MAAT Validate Start %ld: [%lu,%lu]\n",txnmanager->get_txn_id(),lower,upper);
     std::set<uint64_t> after;
     std::set<uint64_t> before;
 
     // lower bound of txn greater than write timestamp
-    if(lower <= txn->greatest_write_timestamp) {
-        lower = txn->greatest_write_timestamp + 1;
-        INC_STATS(txn->get_thd_id(),maat_case1_cnt,1);
+    if(lower <= txnmanager->greatest_write_timestamp) {
+        lower = txnmanager->greatest_write_timestamp + 1;
+        INC_STATS(txnmanager->get_thd_id(),maat_case1_cnt,1);
     }
     // lower bound of txn greater than read timestamp
-    if(lower <= txn->greatest_read_timestamp) {
-        lower = txn->greatest_read_timestamp + 1;
-        INC_STATS(txn->get_thd_id(),maat_case3_cnt,1);
+    if(lower <= txnmanager->greatest_read_timestamp) {
+        lower = txnmanager->greatest_read_timestamp + 1;
+        INC_STATS(txnmanager->get_thd_id(),maat_case3_cnt,1);
     }
 
     COMPILER_BARRIER
 
     //RW
     // lower bound of uncommitted writes greater than upper bound of txn
-    for(auto it = txn->uncommitted_writes->begin(); it != txn->uncommitted_writes->end();it++) {
-        uint64_t it_lower = silo_time_table.get_lower(txn->get_thd_id(),*it);
+    for(auto it = txnmanager->uncommitted_writes->begin(); it != txnmanager->uncommitted_writes->end();it++) {
+        uint64_t it_lower = silo_time_table.get_lower(txnmanager->get_thd_id(),*it);
         if(upper >= it_lower) {
-            SILOState state = silo_time_table.get_state(txn->get_thd_id(),*it); //TODO
+            SILOState state = silo_time_table.get_state(txnmanager->get_thd_id(),*it); //TODO
             if(state == SILO_VALIDATED || state == SILO_COMMITTED) {
-                INC_STATS(txn->get_thd_id(),maat_case2_cnt,1);
+                INC_STATS(txnmanager->get_thd_id(),maat_case2_cnt,1);
                 if(it_lower > 0) {
                 upper = it_lower - 1;
                 } else {
@@ -149,8 +151,8 @@ Silo::validate_silo(TxnManager * txn)
 
     // // validate rows in the read set
     // // for repeatable_read, no need to validate the read set.
-    // for (uint64_t i = 0; i < txn->row_cnt - wr_cnt; i ++) {
-    //     Access * access = txn->accesses[ read_set[i] ];
+    // for (uint64_t i = 0; i < txnmanager->txn->row_cnt - wr_cnt; i ++) {
+    //     Access * access = txnmanager->txn->accesses[ read_set[i] ];
     //     //bool success = access->orig_row->manager->validate(access->tid, false);
     //     if (!success) {
     //         rc = Abort;
@@ -164,15 +166,15 @@ Silo::validate_silo(TxnManager * txn)
 
     //WW
     // upper bound of uncommitted write writes less than lower bound of txn
-    for(auto it = txn->uncommitted_writes_y->begin(); it != txn->uncommitted_writes_y->end();it++) {
-        SILOState state = silo_time_table.get_state(txn->get_thd_id(),*it);
-        uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
+    for(auto it = txnmanager->uncommitted_writes_y->begin(); it != txnmanager->uncommitted_writes_y->end();it++) {
+        SILOState state = silo_time_table.get_state(txnmanager->get_thd_id(),*it);
+        uint64_t it_upper = silo_time_table.get_upper(txnmanager->get_thd_id(),*it);
         if(state == SILO_ABORTED) {
             continue;
         }
         if(state == SILO_VALIDATED || state == SILO_COMMITTED) {
             if(lower <= it_upper) {
-            INC_STATS(txn->get_thd_id(),maat_case5_cnt,1);
+            INC_STATS(txnmanager->get_thd_id(),maat_case5_cnt,1);
             if(it_upper < UINT64_MAX) {
                 lower = it_upper + 1;
             } else {
@@ -188,7 +190,7 @@ Silo::validate_silo(TxnManager * txn)
     //TODO: need to consider whether need WR check or not
 
     // for (uint64_t i = 0; i < wr_cnt; i++) {
-    //     Access * access = txn->accesses[ write_set[i] ];
+    //     Access * access = txnmanager->txn->accesses[ write_set[i] ];
     //     bool success = access->orig_row->manager->validate(access->tid, true);
     //     if (!success) {
     //         rc = Abort;
@@ -202,32 +204,32 @@ Silo::validate_silo(TxnManager * txn)
 
     if(lower >= upper) {
         // Abort
-        silo_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_ABORTED);
+        silo_time_table.set_state(txnmanager->get_thd_id(),txnmanager->get_txn_id(),SILO_ABORTED);
         rc = Abort;
     } else {
         // Validated
-        silo_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_VALIDATED);
+        silo_time_table.set_state(txnmanager->get_thd_id(),txnmanager->get_txn_id(),SILO_VALIDATED);
         rc = RCOK;
 
         for(auto it = before.begin(); it != before.end();it++) {
-            uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
+            uint64_t it_upper = silo_time_table.get_upper(txnmanager->get_thd_id(),*it);
             if(it_upper > lower && it_upper < upper-1) {
                 lower = it_upper + 1;
             }
         }
         for(auto it = before.begin(); it != before.end();it++) {
-            uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
+            uint64_t it_upper = silo_time_table.get_upper(txnmanager->get_thd_id(),*it);
             if(it_upper >= lower) {
                 if(lower > 0) {
-                silo_time_table.set_upper(txn->get_thd_id(),*it,lower-1);
+                silo_time_table.set_upper(txnmanager->get_thd_id(),*it,lower-1);
                 } else {
-                silo_time_table.set_upper(txn->get_thd_id(),*it,lower);
+                silo_time_table.set_upper(txnmanager->get_thd_id(),*it,lower);
                 }
             }
         }
         for(auto it = after.begin(); it != after.end();it++) {
-            uint64_t it_lower = silo_time_table.get_lower(txn->get_thd_id(),*it);
-            uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
+            uint64_t it_lower = silo_time_table.get_lower(txnmanager->get_thd_id(),*it);
+            uint64_t it_upper = silo_time_table.get_upper(txnmanager->get_thd_id(),*it);
             if(it_upper != UINT64_MAX && it_upper > lower + 2 && it_upper < upper ) {
                 upper = it_upper - 2;
             }
@@ -237,45 +239,45 @@ Silo::validate_silo(TxnManager * txn)
         }
         // set all upper and lower bounds to meet inequality
         for(auto it = after.begin(); it != after.end();it++) {
-            uint64_t it_lower = silo_time_table.get_lower(txn->get_thd_id(),*it);
+            uint64_t it_lower = silo_time_table.get_lower(txnmanager->get_thd_id(),*it);
             if(it_lower <= upper) {
                 if(upper < UINT64_MAX) {
-                silo_time_table.set_lower(txn->get_thd_id(),*it,upper+1);
+                silo_time_table.set_lower(txnmanager->get_thd_id(),*it,upper+1);
                 } else {
-                silo_time_table.set_lower(txn->get_thd_id(),*it,upper);
+                silo_time_table.set_lower(txnmanager->get_thd_id(),*it,upper);
                 }
             }
         }
 
         assert(lower < upper);
-        INC_STATS(txn->get_thd_id(),maat_range,upper-lower);
-        INC_STATS(txn->get_thd_id(),maat_commit_cnt,1);
+        INC_STATS(txnmanager->get_thd_id(),maat_range,upper-lower);
+        INC_STATS(txnmanager->get_thd_id(),maat_commit_cnt,1);
     }
-    silo_time_table.set_lower(txn->get_thd_id(),txn->get_txn_id(),lower);
-    silo_time_table.set_upper(txn->get_thd_id(),txn->get_txn_id(),upper);
-    DEBUG("MAAT Validate End %ld: %d [%lu,%lu]\n",txn->get_txn_id(),rc==RCOK,lower,upper);
+    silo_time_table.set_lower(txnmanager->get_thd_id(),txnmanager->get_txn_id(),lower);
+    silo_time_table.set_upper(txnmanager->get_thd_id(),txnmanager->get_txn_id(),upper);
+    DEBUG("MAAT Validate End %ld: %d [%lu,%lu]\n",txnmanager->get_txn_id(),rc==RCOK,lower,upper);
 
     return rc;
 }
 
 RC
-TxnManager::finish(RC rc)
+Silo::finish(RC rc, TxnManager * txnmanager)
 {
     if (rc == Abort) {
-        if (this->num_locks > get_access_cnt()) 
+        if (this->num_locks > txnmanager->get_access_cnt()) 
             return rc;
         for (uint64_t i = 0; i < this->num_locks; i++) {
-            txn->accesses[ write_set[i] ]->orig_row->manager->release();
-            DEBUG("silo %ld abort release row %ld \n", this->get_txn_id(), txn->accesses[ write_set[i] ]->orig_row->get_primary_key());
+            txnmanager->txn->accesses[ write_set[i] ]->orig_row->manager->release();
+            DEBUG("silo %ld abort release row %ld \n", txnmanager->get_txn_id(), txnmanager->txn->accesses[ write_set[i] ]->orig_row->get_primary_key());
         }
     } else {
         
-        for (uint64_t i = 0; i < txn->write_cnt; i++) {
-            Access * access = txn->accesses[ write_set[i] ];
+        for (uint64_t i = 0; i < txnmanager->txn->write_cnt; i++) {
+            Access * access = txnmanager->txn->accesses[ write_set[i] ];
             access->orig_row->manager->write( 
-                access->data, this->commit_timestamp );
-            txn->accesses[ write_set[i] ]->orig_row->manager->release();
-            DEBUG("silo %ld commit release row %ld \n", this->get_txn_id(), txn->accesses[ write_set[i] ]->orig_row->get_primary_key());
+                access->data, txnmanager->commit_timestamp );
+            txnmanager->txn->accesses[ write_set[i] ]->orig_row->manager->release();
+            DEBUG("silo %ld commit release row %ld \n", txnmanager->get_txn_id(), txnmanager->txn->accesses[ write_set[i] ]->orig_row->get_primary_key());
         }
     }
     num_locks = 0;
