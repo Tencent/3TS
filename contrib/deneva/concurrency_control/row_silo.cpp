@@ -109,7 +109,7 @@ Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
 #if !ATOMIC_WORD
     DEBUG("silo %ld read lock row %ld \n", txn->get_txn_id(), _row->get_primary_key());
     local_row->copy(_row);
-    txn->last_tid = _tid;
+    // txn->last_tid = _tid;
     release();
     DEBUG("silo %ld read release row %ld \n", txn->get_txn_id(), _row->get_primary_key());
 #endif

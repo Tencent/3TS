@@ -372,8 +372,8 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     else
         assert(false);
     _cur_tid = 0;
-    num_locks = 0;
-    memset(write_set, 0, 100);
+    silo_man.num_locks = 0;
+    memset(silo_man.write_set, 0, 100);
   // write_set = (int *) mem_allocator.alloc(sizeof(int) * 100);
 #endif
 
@@ -453,8 +453,8 @@ void TxnManager::release() {
     delete uncommitted_writes;
     delete uncommitted_writes_y;
     delete uncommitted_reads;
-    num_locks = 0;
-    memset(write_set, 0, 100);
+    silo_man.num_locks = 0;
+    memset(silo_man.write_set, 0, 100);
     // mem_allocator.free(write_set, sizeof(int) * 100);
 #elif IS_GENERIC_ALG
     uni_txn_man_ = nullptr;
@@ -1033,9 +1033,10 @@ RC TxnManager::get_row(row_t * row, access_t type, row_t *& row_rtn) {
     }
     access->type = type;
     access->orig_row = row;
-#if CC_ALG == SILO
-    access->tid = last_tid;
-#endif
+
+// #if CC_ALG == SILO
+//     access->tid = last_tid;
+// #endif
 
 #if ROLL_BACK && (CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || \
                                     CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC)

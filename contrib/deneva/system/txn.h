@@ -209,18 +209,12 @@ public:
     int volatile    ready_ulk;
     bool in_rw, out_rw;
     TxnStatus txn_status;
-    
 
 #if CC_ALG == SILO
-    ts_t             last_tid;
-    ts_t            max_tid;
-    uint64_t        num_locks;
-    // int*            write_set;
-    int             write_set[100];
-    int*            read_set;
-    RC              find_tid_silo(ts_t max_tid);
-    RC              finish(RC rc, TxnManager * txnmanager);
-    friend RC       Silo::validate_silo(TxnManager * txnmanager);
+    bool             _pre_abort;
+    bool             _validation_no_wait;
+    ts_t             _cur_tid;
+    RC                validate_silo();
 #endif
 
     bool aborted;
@@ -331,12 +325,6 @@ protected:
 
     sem_t rsp_mutex;
     bool registed_;
-#if CC_ALG == SILO
-    bool             _pre_abort;
-    bool             _validation_no_wait;
-    ts_t             _cur_tid;
-    RC                validate_silo();
-#endif
 };
 
 #endif

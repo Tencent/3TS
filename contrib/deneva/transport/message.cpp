@@ -1133,7 +1133,7 @@ void AckMessage::copy_from_txn(TxnManager * txn) {
     upper = dta_time_table.get_upper(txn->get_thd_id(), txn->get_txn_id());
 #endif
 #if CC_ALG == SILO
-    max_tid = txn->max_tid;
+    // max_tid = txn->max_tid;
     lower = silo_time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
     upper = silo_time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
 #endif

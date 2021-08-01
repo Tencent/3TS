@@ -15,7 +15,8 @@
 
 #if CC_ALG == SILO
 
-void Silo::init() { sem_init(&_semaphore, 0, 1); }
+void Silo::init() {
+}
 
 RC
 Silo::validate_silo(TxnManager * txnmanager)
@@ -284,14 +285,6 @@ Silo::finish(RC rc, TxnManager * txnmanager)
     memset(write_set, 0, 100);
 
     return rc;
-}
-
-RC
-TxnManager::find_tid_silo(ts_t max_tid)
-{
-    if (max_tid > _cur_tid)
-        _cur_tid = max_tid;
-    return RCOK;
 }
 
 #endif

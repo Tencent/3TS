@@ -573,8 +573,8 @@ RC WorkerThread::process_rack_prep(Message * msg) {
     if(((AckMessage*)msg)->rc != RCOK) {
         silo_time_table.set_state(get_thd_id(),msg->get_txn_id(),SILO_ABORTED);
     }
-    uint64_t max_tid = ((AckMessage*)msg)->max_tid;
-    txn_man->find_tid_silo(max_tid);
+    //uint64_t max_tid = ((AckMessage*)msg)->max_tid;
+    //txn_man->find_tid_silo(max_tid);
 #endif
 
     if (responses_left > 0) return WAIT;
