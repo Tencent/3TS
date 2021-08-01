@@ -48,7 +48,6 @@ private:
     ts_t                _tid;
 #endif
     row_t *             _row;
-    volatile bool silo_avail;
     std::set<uint64_t> * uncommitted_reads;
     std::set<uint64_t> * uncommitted_writes;
     uint64_t timestamp_last_read;

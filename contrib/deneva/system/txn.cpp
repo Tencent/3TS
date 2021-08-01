@@ -373,7 +373,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
         assert(false);
     _cur_tid = 0;
     silo_man.num_locks = 0;
-    memset(silo_man.write_set, 0, 100);
+    memset(silo_man.write_set, 0, sizeof(silo_man.write_set));
   // write_set = (int *) mem_allocator.alloc(sizeof(int) * 100);
 #endif
 
@@ -454,7 +454,7 @@ void TxnManager::release() {
     delete uncommitted_writes_y;
     delete uncommitted_reads;
     silo_man.num_locks = 0;
-    memset(silo_man.write_set, 0, 100);
+    memset(silo_man.write_set, 0, sizeof(silo_man.write_set));
     // mem_allocator.free(write_set, sizeof(int) * 100);
 #elif IS_GENERIC_ALG
     uni_txn_man_ = nullptr;

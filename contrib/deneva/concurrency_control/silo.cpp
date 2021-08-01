@@ -52,7 +52,7 @@ Silo::validate_silo(TxnManager * txnmanager)
     }
 
     num_locks = 0;
-    ts_t max_tid = 0;
+    //ts_t max_tid = 0;
     bool done = false;
     if (txnmanager->_pre_abort) {
         for (uint64_t i = 0; i < wr_cnt; i++) {
@@ -282,7 +282,7 @@ Silo::finish(RC rc, TxnManager * txnmanager)
         }
     }
     num_locks = 0;
-    memset(write_set, 0, 100);
+    memset(write_set, 0, sizeof(write_set));
 
     return rc;
 }
