@@ -53,6 +53,7 @@
 #include "focc.h"
 #include "bocc.h"
 #include "dta.h"
+#include "silo.h"
 #include "client_query.h"
 #include "sundial.h"
 #include "http.h"

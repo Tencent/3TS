@@ -25,6 +25,7 @@
 #include "global.h"
 #include "message.h"
 #include "maat.h"
+#include "silo.h"
 #include "dta.h"
 #include "da.h"
 #include "da_query.h"

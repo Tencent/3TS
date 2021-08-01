@@ -41,6 +41,7 @@
 #include "work_queue.h"
 #include "ycsb_query.h"
 #include "maat.h"
+#include "silo.h"
 #include "sundial.h"
 #include "wsi.h"
 #include "ssi.h"

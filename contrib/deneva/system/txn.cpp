@@ -52,6 +52,7 @@
 #include "pps_query.h"
 #include "array.h"
 #include "maat.h"
+#include "silo.h"
 #include "sundial.h"
 #include "ssi.h"
 #include "wsi.h"

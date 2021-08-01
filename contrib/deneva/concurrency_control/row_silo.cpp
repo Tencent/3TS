@@ -10,6 +10,7 @@
 
 #include "txn.h"
 #include "row.h"
+#include "silo.h"
 #include "row_silo.h"
 #include "mem_alloc.h"
 

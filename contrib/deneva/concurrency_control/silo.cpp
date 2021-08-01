@@ -108,8 +108,8 @@ Silo::validate_silo(TxnManager * txn)
         }
     }
 
-    uint64_t lower = time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
-    uint64_t upper = time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
+    uint64_t lower = silo_time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
+    uint64_t upper = silo_time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
     DEBUG("MAAT Validate Start %ld: [%lu,%lu]\n",txn->get_txn_id(),lower,upper);
     std::set<uint64_t> after;
     std::set<uint64_t> before;
@@ -130,9 +130,9 @@ Silo::validate_silo(TxnManager * txn)
     //RW
     // lower bound of uncommitted writes greater than upper bound of txn
     for(auto it = txn->uncommitted_writes->begin(); it != txn->uncommitted_writes->end();it++) {
-        uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
+        uint64_t it_lower = silo_time_table.get_lower(txn->get_thd_id(),*it);
         if(upper >= it_lower) {
-            SILOState state = time_table.get_state(txn->get_thd_id(),*it); //TODO
+            SILOState state = silo_time_table.get_state(txn->get_thd_id(),*it); //TODO
             if(state == SILO_VALIDATED || state == SILO_COMMITTED) {
                 INC_STATS(txn->get_thd_id(),maat_case2_cnt,1);
                 if(it_lower > 0) {
@@ -165,8 +165,8 @@ Silo::validate_silo(TxnManager * txn)
     //WW
     // upper bound of uncommitted write writes less than lower bound of txn
     for(auto it = txn->uncommitted_writes_y->begin(); it != txn->uncommitted_writes_y->end();it++) {
-        SILOState state = time_table.get_state(txn->get_thd_id(),*it);
-        uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
+        SILOState state = silo_time_table.get_state(txn->get_thd_id(),*it);
+        uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
         if(state == SILO_ABORTED) {
             continue;
         }
@@ -202,32 +202,32 @@ Silo::validate_silo(TxnManager * txn)
 
     if(lower >= upper) {
         // Abort
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_ABORTED);
+        silo_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_ABORTED);
         rc = Abort;
     } else {
         // Validated
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_VALIDATED);
+        silo_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_VALIDATED);
         rc = RCOK;
 
         for(auto it = before.begin(); it != before.end();it++) {
-            uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
+            uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
             if(it_upper > lower && it_upper < upper-1) {
                 lower = it_upper + 1;
             }
         }
         for(auto it = before.begin(); it != before.end();it++) {
-            uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
+            uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
             if(it_upper >= lower) {
                 if(lower > 0) {
-                time_table.set_upper(txn->get_thd_id(),*it,lower-1);
+                silo_time_table.set_upper(txn->get_thd_id(),*it,lower-1);
                 } else {
-                time_table.set_upper(txn->get_thd_id(),*it,lower);
+                silo_time_table.set_upper(txn->get_thd_id(),*it,lower);
                 }
             }
         }
         for(auto it = after.begin(); it != after.end();it++) {
-            uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
-            uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
+            uint64_t it_lower = silo_time_table.get_lower(txn->get_thd_id(),*it);
+            uint64_t it_upper = silo_time_table.get_upper(txn->get_thd_id(),*it);
             if(it_upper != UINT64_MAX && it_upper > lower + 2 && it_upper < upper ) {
                 upper = it_upper - 2;
             }
@@ -237,12 +237,12 @@ Silo::validate_silo(TxnManager * txn)
         }
         // set all upper and lower bounds to meet inequality
         for(auto it = after.begin(); it != after.end();it++) {
-            uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
+            uint64_t it_lower = silo_time_table.get_lower(txn->get_thd_id(),*it);
             if(it_lower <= upper) {
                 if(upper < UINT64_MAX) {
-                time_table.set_lower(txn->get_thd_id(),*it,upper+1);
+                silo_time_table.set_lower(txn->get_thd_id(),*it,upper+1);
                 } else {
-                time_table.set_lower(txn->get_thd_id(),*it,upper);
+                silo_time_table.set_lower(txn->get_thd_id(),*it,upper);
                 }
             }
         }
@@ -251,8 +251,8 @@ Silo::validate_silo(TxnManager * txn)
         INC_STATS(txn->get_thd_id(),maat_range,upper-lower);
         INC_STATS(txn->get_thd_id(),maat_commit_cnt,1);
     }
-    time_table.set_lower(txn->get_thd_id(),txn->get_txn_id(),lower);
-    time_table.set_upper(txn->get_thd_id(),txn->get_txn_id(),upper);
+    silo_time_table.set_lower(txn->get_thd_id(),txn->get_txn_id(),lower);
+    silo_time_table.set_upper(txn->get_thd_id(),txn->get_txn_id(),upper);
     DEBUG("MAAT Validate End %ld: %d [%lu,%lu]\n",txn->get_txn_id(),rc==RCOK,lower,upper);
 
     return rc;
@@ -296,13 +296,13 @@ TxnManager::find_tid_silo(ts_t max_tid)
 
 RC Silo::find_bound(TxnManager * txn) {
     RC rc = RCOK;
-    uint64_t lower = time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
-    uint64_t upper = time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
+    uint64_t lower = silo_time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
+    uint64_t upper = silo_time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
     if(lower >= upper) {
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_VALIDATED);
+        silo_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_VALIDATED);
         rc = Abort;
     } else {
-        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_COMMITTED);
+        silo_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),SILO_COMMITTED);
         // TODO: can commit_time be selected in a smarter way?
         txn->commit_timestamp = lower;
     }
