@@ -202,6 +202,16 @@ int main(int argc, char *argv[]) {
     maat_man.init();
     printf("Done\n");
 #endif
+#if CC_ALG == SILO
+    printf("Initializing Time Table... ");
+    fflush(stdout);
+    silo_time_table.init();
+    printf("Done\n");
+    printf("Initializing SILO manager... ");
+    fflush(stdout);
+    silo_man.init();
+    printf("Done\n");
+#endif
 #if CC_ALG == SSI
     printf("Initializing In Out Table... ");
     fflush(stdout);

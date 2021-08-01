@@ -311,20 +311,20 @@ RC Silo::find_bound(TxnManager * txn) {
     return rc;
 }
 
-void TimeTable::init() {
+void SiloTimeTable::init() {
     //table_size = g_inflight_max * g_node_cnt * 2 + 1;
     table_size = g_inflight_max + 1;
-    DEBUG_M("TimeTable::init table alloc\n");
-    table = (TimeTableNode*) mem_allocator.alloc(sizeof(TimeTableNode) * table_size);
+    DEBUG_M("SiloTimeTable::init table alloc\n");
+    table = (SiloTimeTableNode*) mem_allocator.alloc(sizeof(SiloTimeTableNode) * table_size);
     for(uint64_t i = 0; i < table_size;i++) {
         table[i].init();
     }
 }
 
-uint64_t TimeTable::hash(uint64_t key) { return key % table_size; }
+uint64_t SiloTimeTable::hash(uint64_t key) { return key % table_size; }
 
-TimeTableEntry* TimeTable::find(uint64_t key) {
-    TimeTableEntry * entry = table[hash(key)].head;
+SiloTimeTableEntry* SiloTimeTable::find(uint64_t key) {
+    SiloTimeTableEntry * entry = table[hash(key)].head;
     while(entry) {
         if (entry->key == key) break;
         entry = entry->next;
@@ -333,42 +333,42 @@ TimeTableEntry* TimeTable::find(uint64_t key) {
 
 }
 
-void TimeTable::init(uint64_t thd_id, uint64_t key) {
+void SiloTimeTable::init(uint64_t thd_id, uint64_t key) {
     uint64_t idx = hash(key);
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[34],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(!entry) {
-        DEBUG_M("TimeTable::init entry alloc\n");
-        entry = (TimeTableEntry*) mem_allocator.alloc(sizeof(TimeTableEntry));
+        DEBUG_M("SiloTimeTable::init entry alloc\n");
+        entry = (SiloTimeTableEntry*) mem_allocator.alloc(sizeof(SiloTimeTableEntry));
         entry->init(key);
         LIST_PUT_TAIL(table[idx].head,table[idx].tail,entry);
     }
     pthread_mutex_unlock(&table[idx].mtx);
 }
 
-void TimeTable::release(uint64_t thd_id, uint64_t key) {
+void SiloTimeTable::release(uint64_t thd_id, uint64_t key) {
     uint64_t idx = hash(key);
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[35],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(entry) {
         LIST_REMOVE_HT(entry,table[idx].head,table[idx].tail);
-        DEBUG_M("TimeTable::release entry free\n");
-        mem_allocator.free(entry,sizeof(TimeTableEntry));
+        DEBUG_M("SiloTimeTable::release entry free\n");
+        mem_allocator.free(entry,sizeof(SiloTimeTableEntry));
     }
     pthread_mutex_unlock(&table[idx].mtx);
 }
 
-uint64_t TimeTable::get_lower(uint64_t thd_id, uint64_t key) {
+uint64_t SiloTimeTable::get_lower(uint64_t thd_id, uint64_t key) {
     uint64_t idx = hash(key);
     uint64_t value = 0;
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[36],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(entry) {
         value = entry->lower;
     }
@@ -376,13 +376,13 @@ uint64_t TimeTable::get_lower(uint64_t thd_id, uint64_t key) {
     return value;
 }
 
-uint64_t TimeTable::get_upper(uint64_t thd_id, uint64_t key) {
+uint64_t SiloTimeTable::get_upper(uint64_t thd_id, uint64_t key) {
     uint64_t idx = hash(key);
     uint64_t value = UINT64_MAX;
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[37],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(entry) {
         value = entry->upper;
     }
@@ -391,37 +391,37 @@ uint64_t TimeTable::get_upper(uint64_t thd_id, uint64_t key) {
 }
 
 
-void TimeTable::set_lower(uint64_t thd_id, uint64_t key, uint64_t value) {
+void SiloTimeTable::set_lower(uint64_t thd_id, uint64_t key, uint64_t value) {
     uint64_t idx = hash(key);
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[38],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(entry) {
         entry->lower = value;
     }
     pthread_mutex_unlock(&table[idx].mtx);
 }
 
-void TimeTable::set_upper(uint64_t thd_id, uint64_t key, uint64_t value) {
+void SiloTimeTable::set_upper(uint64_t thd_id, uint64_t key, uint64_t value) {
     uint64_t idx = hash(key);
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[39],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(entry) {
         entry->upper = value;
     }
     pthread_mutex_unlock(&table[idx].mtx);
 }
 
-SILOState TimeTable::get_state(uint64_t thd_id, uint64_t key) {
+SILOState SiloTimeTable::get_state(uint64_t thd_id, uint64_t key) {
     uint64_t idx = hash(key);
     SILOState state = SILO_ABORTED;
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[40],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(entry) {
         state = entry->state;
     }
@@ -429,12 +429,12 @@ SILOState TimeTable::get_state(uint64_t thd_id, uint64_t key) {
     return state;
 }
 
-void TimeTable::set_state(uint64_t thd_id, uint64_t key, SILOState value) {
+void SiloTimeTable::set_state(uint64_t thd_id, uint64_t key, SILOState value) {
     uint64_t idx = hash(key);
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[41],get_sys_clock() - mtx_wait_starttime);
-    TimeTableEntry* entry = find(key);
+    SiloTimeTableEntry* entry = find(key);
     if(entry) {
         entry->state = value;
     }

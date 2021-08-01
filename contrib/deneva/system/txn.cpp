@@ -474,8 +474,12 @@ void TxnManager::reset_query() {
 RC TxnManager::commit() {
     DEBUG("Commit %ld\n",get_txn_id());
     release_locks(RCOK);
-#if CC_ALG == MAAT || CC_ALG == SILO
+#if CC_ALG == MAAT
     time_table.release(get_thd_id(),get_txn_id());
+#endif
+
+#if CC_ALG == SILO
+    silo_time_table.release(get_thd_id(),get_txn_id());
 #endif
 
 #if CC_ALG == SUNDIAL
@@ -524,9 +528,12 @@ RC TxnManager::abort() {
 
     aborted = true;
     release_locks(Abort);
-#if CC_ALG == MAAT || CC_ALG == SILO
+#if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
+#endif
+#if CC_ALG == SILO
+    silo_time_table.release(get_thd_id(),get_txn_id());
 #endif
 #if CC_ALG == DTA
     dta_time_table.release(get_thd_id(), get_txn_id());

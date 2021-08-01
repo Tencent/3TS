@@ -18,13 +18,13 @@ public:
     RC find_bound(TxnManager * txn);
 };
 
-struct TimeTableEntry{
+struct SiloTimeTableEntry{
     uint64_t lower;
     uint64_t upper;
     uint64_t key;
     SILOState state;
-    TimeTableEntry * next;
-    TimeTableEntry * prev;
+    SiloTimeTableEntry * next;
+    SiloTimeTableEntry * prev;
     void init(uint64_t key) {
         lower = 0;
         upper = UINT64_MAX;
@@ -35,9 +35,9 @@ struct TimeTableEntry{
     }
 };
 
-struct TimeTableNode {
-    TimeTableEntry * head;
-    TimeTableEntry * tail;
+struct SiloTimeTableNode {
+    SiloTimeTableEntry * head;
+    SiloTimeTableEntry * tail;
     pthread_mutex_t mtx;
     void init() {
         head = NULL;
@@ -46,7 +46,7 @@ struct TimeTableNode {
     }
 };
 
-class TimeTable {
+class SiloTimeTable {
 public:
     void init();
     void init(uint64_t thd_id, uint64_t key);
@@ -61,10 +61,10 @@ private:
     // hash table
     uint64_t hash(uint64_t key);
     uint64_t table_size;
-    TimeTableNode* table;
-    TimeTableEntry* find(uint64_t key);
+    SiloTimeTableNode* table;
+    SiloTimeTableEntry* find(uint64_t key);
 
-    TimeTableEntry * find_entry(uint64_t id);
+    SiloTimeTableEntry * find_entry(uint64_t id);
 
     sem_t     _semaphore;
 };

@@ -94,6 +94,7 @@ Sequencer seq_man;
 Logger logger;
 TimeTable time_table;
 DtaTimeTable dta_time_table;
+SiloTimeTable silo_time_table;
 InOutTable inout_table;
 // QTcpQueue tcp_queue;
 TcpTimestamp tcp_ts;
