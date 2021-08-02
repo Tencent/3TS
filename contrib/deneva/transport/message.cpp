@@ -1112,7 +1112,8 @@ uint64_t AckMessage::get_size() {
     size += sizeof(uint64_t) * 2;
 #endif
 #if CC_ALG == SILO
-    size += sizeof(uint64_t);
+    //size += sizeof(uint64_t);
+    size += sizeof(uint64_t) * 2;
 #endif
 #if WORKLOAD == PPS && CC_ALG == CALVIN
     size += sizeof(size_t);
@@ -1162,7 +1163,9 @@ void AckMessage::copy_from_buf(char * buf) {
     COPY_VAL(upper,buf,ptr);
 #endif
 #if CC_ALG == SILO
-    COPY_VAL(max_tid,buf,ptr);
+    //COPY_VAL(max_tid,buf,ptr);
+    COPY_VAL(lower,buf,ptr);
+    COPY_VAL(upper,buf,ptr);
 #endif
 #if WORKLOAD == PPS && CC_ALG == CALVIN
 
@@ -1187,7 +1190,9 @@ void AckMessage::copy_to_buf(char * buf) {
     COPY_BUF(buf,upper,ptr);
 #endif
 #if CC_ALG == SILO
-    COPY_BUF(buf,max_tid,ptr);
+    //COPY_BUF(buf,max_tid,ptr);
+    COPY_BUF(buf,lower,ptr);
+    COPY_BUF(buf,upper,ptr);
 #endif
 #if WORKLOAD == PPS && CC_ALG == CALVIN
 

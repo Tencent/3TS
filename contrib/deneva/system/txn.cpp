@@ -301,7 +301,7 @@ void Transaction::release_accesses(uint64_t thd_id) {
 void Transaction::release_inserts(uint64_t thd_id) {
     for(uint64_t i = 0; i < insert_rows.size(); i++) {
         row_t * row = insert_rows[i];
-#if CC_ALG != MAAT && CC_ALG != OCC && CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC
+#if CC_ALG != MAAT && CC_ALG != SILO && CC_ALG != OCC && CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC
         DEBUG_M("TxnManager::cleanup row->manager free\n");
         mem_allocator.free(row->manager, 0);
 #endif
@@ -844,7 +844,7 @@ void TxnManager::release_last_row_lock() {
 
 void TxnManager::cleanup_row(RC rc, uint64_t rid) {
     access_t type = txn->accesses[rid]->type;
-    if (type == WR && rc == Abort && CC_ALG != MAAT) {
+    if (type == WR && rc == Abort && CC_ALG != MAAT && CC_ALG != SILO) {
         type = XP;
     }
 
@@ -890,9 +890,9 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
         glob_manager.set_max_cts(_min_commit_ts);
 #endif
 
-#if CC_ALG != SILO
+//#if CC_ALG != SILO
     txn->accesses[rid]->data = NULL;
-#endif
+//#endif
 }
 
 void TxnManager::cleanup(RC rc) {
