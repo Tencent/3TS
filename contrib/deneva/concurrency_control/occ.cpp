@@ -21,6 +21,7 @@
 #include "manager.h"
 #include "mem_alloc.h"
 #include "row_occ.h"
+#include "row.h"
 #include "txn.h"
 
 set_ent::set_ent() {
@@ -61,6 +62,24 @@ void OptCC::finish(RC rc, TxnManager * txn) {
 
 RC OptCC::per_row_validate(TxnManager *txn) {
     RC rc = RCOK;
+
+    uint64_t lower = occ_time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
+    uint64_t upper = occ_time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
+    std::set<uint64_t> after;
+    std::set<uint64_t> before;
+
+    // lower bound of txn greater than write timestamp
+    if(lower <= txn->greatest_write_timestamp) {
+        lower = txn->greatest_write_timestamp + 1;
+        INC_STATS(txn->get_thd_id(),maat_case1_cnt,1);
+    }
+
+    // lower bound of txn greater than read timestamp
+    if(lower <= txn->greatest_read_timestamp) {
+        lower = txn->greatest_read_timestamp + 1;
+        INC_STATS(txn->get_thd_id(),maat_case3_cnt,1);
+    }
+
 #if CC_ALG == OCC
     // sort all rows accessed in primary key order.
     for (uint64_t i = txn->get_access_cnt() - 1; i > 0; i--) {
@@ -93,13 +112,147 @@ RC OptCC::per_row_validate(TxnManager *txn) {
     // }
     // rc = ok ? RCOK : Abort;
 
-    // lock all rows
-    int lock_cnt = 0;
-    for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
-        lock_cnt ++;
-        txn->get_access_original_row(i)->manager->latch();
+    // lock all rows, no wait for lock
+    bool done = false;
+    while (!done) {
+        txn->num_locks = 0;
+        for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
+            row_t * row = txn->get_access_original_row(i);
+            if (!row->manager->try_lock(txn->get_txn_id()))
+            {
+                break;
+            }
+
+            txn->num_locks ++;
+        }
+        if (txn->num_locks == txn->get_access_cnt()) {
+     
+            done = true;
+        } else {
+            rc = Abort;
+            return rc;
+        }
     }
+
+    // for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
+    //     txn->get_access_original_row(i)->manager->latch();
+    //     validate()
+    // }
     
+    // RW validation
+    // lower bound of uncommitted writes greater than upper bound of txn
+    for(auto it = txn->uncommitted_writes->begin(); it != txn->uncommitted_writes->end();it++) {
+        uint64_t it_lower = occ_time_table.get_lower(txn->get_thd_id(),*it);
+        if(upper >= it_lower) {
+            OCCState state = occ_time_table.get_state(txn->get_thd_id(),*it);
+            if(state == OCC_VALIDATED || state == OCC_COMMITTED) {
+                INC_STATS(txn->get_thd_id(),maat_case2_cnt,1);
+                if(it_lower > 0) {
+                upper = it_lower - 1;
+                } else {
+                upper = it_lower;
+                }
+            }
+            if(state == OCC_RUNNING) {
+                after.insert(*it);
+            }
+        }
+    }
+
+    // WR validation
+    // upper bound of uncommitted reads less than lower bound of txn
+    for(auto it = txn->uncommitted_reads->begin(); it != txn->uncommitted_reads->end();it++) {
+        uint64_t it_upper = occ_time_table.get_upper(txn->get_thd_id(),*it);
+        if(lower <= it_upper) {
+            OCCState state = occ_time_table.get_state(txn->get_thd_id(),*it);
+            if(state == OCC_VALIDATED || state == OCC_COMMITTED) {
+                INC_STATS(txn->get_thd_id(),maat_case4_cnt,1);
+                if(it_upper < UINT64_MAX) {
+                lower = it_upper + 1;
+                } else {
+                lower = it_upper;
+                }
+            }
+            if(state == OCC_RUNNING) {
+                before.insert(*it);
+            }
+        }
+    }
+
+    // WW validation
+    // upper bound of uncommitted write writes less than lower bound of txn
+    for(auto it = txn->uncommitted_writes_y->begin(); it != txn->uncommitted_writes_y->end();it++) {
+        OCCState state = occ_time_table.get_state(txn->get_thd_id(),*it);
+        uint64_t it_upper = occ_time_table.get_upper(txn->get_thd_id(),*it);
+        if(state == OCC_ABORTED) {
+            continue;
+        }
+        if(state == OCC_VALIDATED || state == OCC_COMMITTED) {
+            if(lower <= it_upper) {
+            INC_STATS(txn->get_thd_id(),maat_case5_cnt,1);
+            if(it_upper < UINT64_MAX) {
+                lower = it_upper + 1;
+            } else {
+                lower = it_upper;
+            }
+            }
+        }
+        if(state == OCC_RUNNING) {
+            after.insert(*it);
+        }
+    }
+
+    if(lower >= upper) {
+        // Abort
+        occ_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),OCC_ABORTED);
+        rc = Abort;
+    } else {
+        // Validated
+        occ_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),OCC_VALIDATED);
+        rc = RCOK;
+
+        for(auto it = before.begin(); it != before.end();it++) {
+            uint64_t it_upper = occ_time_table.get_upper(txn->get_thd_id(),*it);
+            if(it_upper > lower && it_upper < upper-1) {
+                lower = it_upper + 1;
+            }
+        }
+        for(auto it = before.begin(); it != before.end();it++) {
+            uint64_t it_upper = occ_time_table.get_upper(txn->get_thd_id(),*it);
+            if(it_upper >= lower) {
+                if(lower > 0) {
+                occ_time_table.set_upper(txn->get_thd_id(),*it,lower-1);
+                } else {
+                occ_time_table.set_upper(txn->get_thd_id(),*it,lower);
+                }
+            }
+        }
+        for(auto it = after.begin(); it != after.end();it++) {
+            uint64_t it_lower = occ_time_table.get_lower(txn->get_thd_id(),*it);
+            uint64_t it_upper = occ_time_table.get_upper(txn->get_thd_id(),*it);
+            if(it_upper != UINT64_MAX && it_upper > lower + 2 && it_upper < upper ) {
+                upper = it_upper - 2;
+            }
+            if((it_lower < upper && it_lower > lower+1)) {
+                upper = it_lower - 1;
+            }
+        }
+        // set all upper and lower bounds to meet inequality
+        for(auto it = after.begin(); it != after.end();it++) {
+            uint64_t it_lower = occ_time_table.get_lower(txn->get_thd_id(),*it);
+            if(it_lower <= upper) {
+                if(upper < UINT64_MAX) {
+                occ_time_table.set_lower(txn->get_thd_id(),*it,upper+1);
+                } else {
+                occ_time_table.set_lower(txn->get_thd_id(),*it,upper);
+                }
+            }
+        }
+
+        assert(lower < upper);
+        INC_STATS(txn->get_thd_id(),maat_range,upper-lower);
+        INC_STATS(txn->get_thd_id(),maat_commit_cnt,1);
+    }
 
 
 #endif
@@ -257,10 +410,39 @@ void OptCC::per_row_finish(RC rc, TxnManager * txn) {
     //     txn->set_end_timestamp(glob_manager.get_ts( txn->get_thd_id() ));
     // }
     if(rc == RCOK) {
-        // todo abort release things
+        // release uncommitted read and write when commit
+        for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
+            if(txn->get_access_type(i) == WR){
+                txn->get_access_original_row(i)->manager->commit(WR, txn, txn->get_access_original_row(i));
+            }
+            else{
+                txn->get_access_original_row(i)->manager->commit(RD, txn, txn->get_access_original_row(i));
+            }
+            txn->get_access_original_row(i)->manager->release();
+        }
     }
     else{
-        // todo commit release things
+        // release uncommitted read and write when abort
+        for (uint64_t i = 0; i < txn->num_locks; i++) {
+            if(txn->get_access_type(i) == WR){
+                txn->get_access_original_row(i)->manager->abort(WR, txn);
+            }
+            else{
+                txn->get_access_original_row(i)->manager->abort(RD, txn);
+            }
+            txn->get_access_original_row(i)->manager->release();
+        }
+
+        // release uncommitted read and write when abort
+        for (uint64_t i = txn->num_locks; i < txn->get_access_cnt(); i++) {
+            if(txn->get_access_type(i) == WR){
+                txn->get_access_original_row(i)->manager->abort_no_lock(WR, txn);
+            }
+            else{
+                txn->get_access_original_row(i)->manager->abort_no_lock(RD, txn);
+            }
+        }
+
     }
 
 }

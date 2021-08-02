@@ -220,6 +220,10 @@ public:
     RC              finish(RC rc);
 #endif
 
+#if CC_ALG == OCC
+    uint64_t        num_locks;
+#endif
+
     bool aborted;
     uint64_t return_id;
     RC        validate();

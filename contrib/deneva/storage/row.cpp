@@ -491,7 +491,7 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     row->free_row();
     DEBUG_M("row_t::return_row OCC free \n");
     mem_allocator.free(row, sizeof(row_t));
-    manager->release();
+    // manager->release();
     return 0;
 #elif CC_ALG == CNULL
     assert (row != NULL);

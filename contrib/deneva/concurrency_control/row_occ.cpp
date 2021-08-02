@@ -144,6 +144,7 @@ void Row_occ::write(row_t *data, uint64_t ts) {
 
 void Row_occ::release() {
     //pthread_mutex_unlock( _latch );
+    lock_tid = 0;
     sem_post(&_semaphore);
 }
 
@@ -152,13 +153,20 @@ void Row_occ::write(row_t* data) { _row->copy(data); }
 /* --------------- only used for focc -----------------------*/
 
 bool Row_occ::try_lock(uint64_t tid) {
-    bool success = true;
-    sem_wait(&_semaphore);
-    if (lock_tid == 0 || lock_tid == tid) {
-        lock_tid = tid;
-    } else success = false;
-    sem_post(&_semaphore);
+    bool success = false;
+    if (sem_trywait(&_semaphore) == 0){
+        if (lock_tid == 0 || lock_tid == tid) {
+            lock_tid = tid;
+            success = true;
+        } 
+    }
     return success;
+    // sem_wait(&_semaphore);
+    // if (lock_tid == 0 || lock_tid == tid) {
+    //     lock_tid = tid;
+    // } else success = false;
+    // sem_post(&_semaphore);
+    // return success;
 }
 
 void Row_occ::release_lock(uint64_t tid) {
@@ -195,6 +203,38 @@ RC Row_occ::abort(access_t type, TxnManager * txn) {
     }
 #endif
     return Abort;
+}
+
+RC Row_occ::abort_no_lock(access_t type, TxnManager * txn) {
+    sem_wait(&_semaphore);
+    DEBUG("OCC Abort %ld: %d -- %ld\n",txn->get_txn_id(),type,_row->get_primary_key());
+#if WORKLOAD == TPCC
+    uncommitted_reads->erase(txn->get_txn_id());
+    uncommitted_writes->erase(txn->get_txn_id());
+#else
+
+    if(type == RD || type == SCAN) {
+        uncommitted_reads->erase(txn->get_txn_id());
+        // if (uncommitted_reads->count(txn->get_txn_id()) != 0) {
+        //     uncommitted_reads->erase(txn->get_txn_id());
+        // } else {
+        // // no x 
+        // }
+        
+    }
+
+    if(type == WR) {
+        uncommitted_writes->erase(txn->get_txn_id());
+        // if (uncommitted_writes->count(txn->get_txn_id()) != 0) {
+        //     uncommitted_writes->erase(txn->get_txn_id());
+        // } else {
+        // // no x 
+        // }
+        
+    }
+#endif
+    return Abort;
+    sem_post(&_semaphore);
 }
 
 RC Row_occ::commit(access_t type, TxnManager * txn, row_t * data) {

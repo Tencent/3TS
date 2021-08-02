@@ -41,6 +41,7 @@ public:
 
     // for occ_dta
     RC abort(access_t type, TxnManager * txn);
+    RC abort_no_lock(access_t type, TxnManager * txn);
     RC commit(access_t type, TxnManager * txn, row_t * data);
     void write(row_t * data);
 
