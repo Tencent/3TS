@@ -102,7 +102,7 @@ public:
     RC rc;
 
     bool readonly;
-#if CC_ALG == MAAT ||  CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
+#if CC_ALG == MAAT || CC_ALG == OCC ||  CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == SILO
     uint64_t commit_timestamp;
 #endif
 };
@@ -173,7 +173,7 @@ public:
     void release() {}
 
     RC rc;
-#if CC_ALG == MAAT || CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+#if CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     uint64_t lower;
     uint64_t upper;
 #endif

@@ -47,7 +47,6 @@
 #include "ycsb.h"
 #include "ycsb_query.h"
 #include "da.h"
-#include "maat.h"
 #include "ssi.h"
 #include "wsi.h"
 #include "focc.h"
@@ -296,6 +295,12 @@ int main(int argc, char *argv[]) {
     //    query_queue.init(m_wl);
     //}
 #if CC_ALG == OCC
+    printf("Initializing Time Table... ");
+    fflush(stdout);
+    occ_time_table.init();
+    printf("Done\n");
+    printf("Initializing OCC manager... ");
+    fflush(stdout);
     printf("Initializing occ lock manager... ");
     occ_man.init();
     printf("Done\n");

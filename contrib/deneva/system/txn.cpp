@@ -51,7 +51,6 @@
 #include "tpcc_query.h"
 #include "pps_query.h"
 #include "array.h"
-#include "maat.h"
 #include "sundial.h"
 #include "ssi.h"
 #include "wsi.h"
@@ -341,7 +340,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     return_id = UINT64_MAX;
 
     this->h_wl = h_wl;
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT || CC_ALG == OCC
     uncommitted_writes = new std::set<uint64_t>();
     uncommitted_writes_y = new std::set<uint64_t>();
     uncommitted_reads = new std::set<uint64_t>();
@@ -405,7 +404,7 @@ void TxnManager::reset() {
     greatest_write_timestamp = 0;
     greatest_read_timestamp = 0;
     commit_timestamp = 0;
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT || CC_ALG == OCC
     uncommitted_writes->clear();
     uncommitted_writes_y->clear();
     uncommitted_reads->clear();
@@ -439,7 +438,7 @@ void TxnManager::release() {
     INC_STATS(get_thd_id(),mtx[1],get_sys_clock()-prof_starttime);
     txn = NULL;
 
-#if CC_ALG == MAAT
+#if CC_ALG == MAAT|| CC_ALG == OCC
     delete uncommitted_writes;
     delete uncommitted_writes_y;
     delete uncommitted_reads;
@@ -475,6 +474,10 @@ RC TxnManager::commit() {
     INC_STATS(get_thd_id(),trans_commit_process_time,txn_stats.total_process_time);
 #if CC_ALG == MAAT
     time_table.release(get_thd_id(),get_txn_id());
+#endif
+
+#if CC_ALG == OCC
+    occ_time_table.release(get_thd_id(),get_txn_id());
 #endif
 
 #if CC_ALG == SUNDIAL
@@ -532,6 +535,10 @@ RC TxnManager::abort() {
 #if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
+#endif
+#if CC_ALG == OCC
+    //assert(time_table.get_state(get_txn_id()) == OCC_ABORTED);
+    occ_time_table.release(get_thd_id(),get_txn_id());
 #endif
 #if CC_ALG == DTA
     dta_time_table.release(get_thd_id(), get_txn_id());
@@ -843,7 +850,7 @@ void TxnManager::release_last_row_lock() {
 
 void TxnManager::cleanup_row(RC rc, uint64_t rid) {
     access_t type = txn->accesses[rid]->type;
-    if (type == WR && rc == Abort && CC_ALG != MAAT) {
+    if (type == WR && rc == Abort && CC_ALG != MAAT && CC_ALG != OCC) {
         type = XP;
     }
 
@@ -1157,6 +1164,10 @@ RC TxnManager::validate() {
     uint64_t starttime = get_sys_clock();
     if (CC_ALG == OCC) {
         rc = occ_man.validate(this);
+        // Note: home node must be last to validate
+        if(IS_LOCAL(get_txn_id()) && rc == RCOK) {
+            rc = occ_man.find_bound(this);
+        }
     } else if (CC_ALG == BOCC) {
         rc = bocc_man.validate(this);
     } else if (CC_ALG == FOCC) {

@@ -38,6 +38,12 @@ public:
     void                release_lock(uint64_t tid);
     uint64_t            check_lock();
     /* --------------- only used for focc -----------------------*/
+
+    // for occ_dta
+    RC abort(access_t type, TxnManager * txn);
+    RC commit(access_t type, TxnManager * txn, row_t * data);
+    void write(row_t * data);
+
 private:
     pthread_mutex_t *   _latch;
     sem_t               _semaphore;
@@ -50,6 +56,13 @@ private:
     /* --------------- only used for focc -----------------------*/
     uint64_t            lock_tid;
     /* --------------- only used for focc -----------------------*/
+
+    // for occ_dta
+    std::set<uint64_t> * uncommitted_reads;
+    std::set<uint64_t> * uncommitted_writes;
+    uint64_t timestamp_last_read;
+    uint64_t timestamp_last_write;
+
 };
 
 #endif

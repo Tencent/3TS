@@ -29,6 +29,13 @@
 
 class TxnManager;
 
+enum OCCState {
+    OCC_RUNNING = 0,
+    OCC_VALIDATED,
+    OCC_COMMITTED,
+    OCC_ABORTED
+};
+
 class set_ent{
 public:
     set_ent();
@@ -43,6 +50,7 @@ class OptCC {
 public:
     void init();
     RC validate(TxnManager * txn);
+    RC find_bound(TxnManager * txn);
     void finish(RC rc, TxnManager * txn);
     volatile bool lock_all;
     uint64_t lock_txn_id;
@@ -65,6 +73,57 @@ private:
     uint64_t active_len;
     volatile uint64_t tnc; // transaction number counter
     pthread_mutex_t latch;
+    sem_t     _semaphore;
+};
+
+struct OCCTimeTableEntry{
+    uint64_t lower;
+    uint64_t upper;
+    uint64_t key;
+    OCCState state;
+    OCCTimeTableEntry * next;
+    OCCTimeTableEntry * prev;
+    void init(uint64_t key) {
+        lower = 0;
+        upper = UINT64_MAX;
+        this->key = key;
+        state = OCC_RUNNING;
+        next = NULL;
+        prev = NULL;
+    }
+};
+
+struct OCCTimeTableNode {
+    OCCTimeTableEntry * head;
+    OCCTimeTableEntry * tail;
+    pthread_mutex_t mtx;
+    void init() {
+        head = NULL;
+        tail = NULL;
+        pthread_mutex_init(&mtx,NULL);
+    }
+};
+
+class OCCTimeTable {
+public:
+    void init();
+    void init(uint64_t thd_id, uint64_t key);
+    void release(uint64_t thd_id, uint64_t key);
+    uint64_t get_lower(uint64_t thd_id, uint64_t key);
+    uint64_t get_upper(uint64_t thd_id, uint64_t key);
+    void set_lower(uint64_t thd_id, uint64_t key, uint64_t value);
+    void set_upper(uint64_t thd_id, uint64_t key, uint64_t value);
+    OCCState get_state(uint64_t thd_id, uint64_t key);
+    void set_state(uint64_t thd_id, uint64_t key, OCCState value);
+private:
+    // hash table
+    uint64_t hash(uint64_t key);
+    uint64_t table_size;
+    OCCTimeTableNode* table;
+    OCCTimeTableEntry* find(uint64_t key);
+
+    OCCTimeTableEntry * find_entry(uint64_t id);
+
     sem_t     _semaphore;
 };
 

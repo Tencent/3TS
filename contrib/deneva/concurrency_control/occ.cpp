@@ -84,14 +84,24 @@ RC OptCC::per_row_validate(TxnManager *txn) {
 #endif
     // lock all rows in the readset and writeset.
     // Validate each access
-    bool ok = true;
+    // bool ok = true;
+    // int lock_cnt = 0;
+    // for (uint64_t i = 0; i < txn->get_access_cnt() && ok; i++) {
+    //     lock_cnt ++;
+    //     txn->get_access_original_row(i)->manager->latch();
+    //     ok = txn->get_access_original_row(i)->manager->validate( txn->get_start_timestamp() );
+    // }
+    // rc = ok ? RCOK : Abort;
+
+    // lock all rows
     int lock_cnt = 0;
-    for (uint64_t i = 0; i < txn->get_access_cnt() && ok; i++) {
+    for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
         lock_cnt ++;
         txn->get_access_original_row(i)->manager->latch();
-        ok = txn->get_access_original_row(i)->manager->validate( txn->get_start_timestamp() );
     }
-    rc = ok ? RCOK : Abort;
+    
+
+
 #endif
     return rc;
 }
@@ -242,10 +252,17 @@ final:
 }
 
 void OptCC::per_row_finish(RC rc, TxnManager * txn) {
+    // if(rc == RCOK) {
+    //     // advance the global timestamp and get the end_ts
+    //     txn->set_end_timestamp(glob_manager.get_ts( txn->get_thd_id() ));
+    // }
     if(rc == RCOK) {
-        // advance the global timestamp and get the end_ts
-        txn->set_end_timestamp(glob_manager.get_ts( txn->get_thd_id() ));
+        // todo abort release things
     }
+    else{
+        // todo commit release things
+    }
+
 }
 
 void OptCC::central_finish(RC rc, TxnManager * txn) {
@@ -334,4 +351,153 @@ bool OptCC::test_valid(set_ent * set1, set_ent * set2) {
             }
         }
     return true;
+}
+
+
+
+RC OptCC::find_bound(TxnManager * txn) {
+    RC rc = RCOK;
+    uint64_t lower = occ_time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
+    uint64_t upper = occ_time_table.get_upper(txn->get_thd_id(),txn->get_txn_id());
+    if(lower >= upper) {
+        occ_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),OCC_VALIDATED);
+        rc = Abort;
+    } else {
+        occ_time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),OCC_COMMITTED);
+        // TODO: can commit_time be selected in a smarter way?
+        txn->commit_timestamp = lower;
+    }
+    DEBUG("OCC Bound %ld: %d [%lu,%lu] %lu\n", txn->get_txn_id(), rc, lower, upper,
+            txn->commit_timestamp);
+    return rc;
+}
+
+void OCCTimeTable::init() {
+    //table_size = g_inflight_max * g_node_cnt * 2 + 1;
+    table_size = g_inflight_max + 1;
+    DEBUG_M("OCCTimeTable::init table alloc\n");
+    table = (OCCTimeTableNode*) mem_allocator.alloc(sizeof(OCCTimeTableNode) * table_size);
+    for(uint64_t i = 0; i < table_size;i++) {
+        table[i].init();
+    }
+}
+
+uint64_t OCCTimeTable::hash(uint64_t key) { return key % table_size; }
+
+OCCTimeTableEntry* OCCTimeTable::find(uint64_t key) {
+    OCCTimeTableEntry * entry = table[hash(key)].head;
+    while(entry) {
+        if (entry->key == key) break;
+        entry = entry->next;
+    }
+    return entry;
+
+}
+
+void OCCTimeTable::init(uint64_t thd_id, uint64_t key) {
+    uint64_t idx = hash(key);
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[34],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(!entry) {
+        DEBUG_M("OCCTimeTable::init entry alloc\n");
+        entry = (OCCTimeTableEntry*) mem_allocator.alloc(sizeof(OCCTimeTableEntry));
+        entry->init(key);
+        LIST_PUT_TAIL(table[idx].head,table[idx].tail,entry);
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
+}
+
+void OCCTimeTable::release(uint64_t thd_id, uint64_t key) {
+    uint64_t idx = hash(key);
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[35],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(entry) {
+        LIST_REMOVE_HT(entry,table[idx].head,table[idx].tail);
+        DEBUG_M("OCCTimeTable::release entry free\n");
+        mem_allocator.free(entry,sizeof(OCCTimeTableEntry));
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
+}
+
+uint64_t OCCTimeTable::get_lower(uint64_t thd_id, uint64_t key) {
+    uint64_t idx = hash(key);
+    uint64_t value = 0;
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[36],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(entry) {
+        value = entry->lower;
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
+    return value;
+}
+
+uint64_t OCCTimeTable::get_upper(uint64_t thd_id, uint64_t key) {
+    uint64_t idx = hash(key);
+    uint64_t value = UINT64_MAX;
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[37],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(entry) {
+        value = entry->upper;
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
+    return value;
+}
+
+
+void OCCTimeTable::set_lower(uint64_t thd_id, uint64_t key, uint64_t value) {
+    uint64_t idx = hash(key);
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[38],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(entry) {
+        entry->lower = value;
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
+}
+
+void OCCTimeTable::set_upper(uint64_t thd_id, uint64_t key, uint64_t value) {
+    uint64_t idx = hash(key);
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[39],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(entry) {
+        entry->upper = value;
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
+}
+
+OCCState OCCTimeTable::get_state(uint64_t thd_id, uint64_t key) {
+    uint64_t idx = hash(key);
+    OCCState state = OCC_ABORTED;
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[40],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(entry) {
+        state = entry->state;
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
+    return state;
+}
+
+void OCCTimeTable::set_state(uint64_t thd_id, uint64_t key, OCCState value) {
+    uint64_t idx = hash(key);
+    uint64_t mtx_wait_starttime = get_sys_clock();
+    pthread_mutex_lock(&table[idx].mtx);
+    INC_STATS(thd_id,mtx[41],get_sys_clock() - mtx_wait_starttime);
+    OCCTimeTableEntry* entry = find(key);
+    if(entry) {
+        entry->state = value;
+    }
+    pthread_mutex_unlock(&table[idx].mtx);
 }

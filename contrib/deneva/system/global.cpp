@@ -48,7 +48,6 @@
 #include "client_txn.h"
 #include "sequencer.h"
 #include "logger.h"
-#include "maat.h"
 #include "sundial.h"
 #include "http.h"
 
@@ -92,6 +91,7 @@ Sequencer seq_man;
 Logger logger;
 TimeTable time_table;
 DtaTimeTable dta_time_table;
+OCCTimeTable occ_time_table;
 InOutTable inout_table;
 // QTcpQueue tcp_queue;
 TcpTimestamp tcp_ts;

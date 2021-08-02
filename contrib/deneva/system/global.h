@@ -88,6 +88,7 @@ class Sequencer;
 class Logger;
 class TimeTable;
 class DtaTimeTable;
+class OCCTimeTable;
 class InOutTable;
 
 class DAQuery;
@@ -145,6 +146,7 @@ extern Sequencer seq_man;
 extern Logger logger;
 extern TimeTable time_table;
 extern DtaTimeTable dta_time_table;
+extern OCCTimeTable occ_time_table;
 extern InOutTable inout_table;
 
 // extern QTcpQueue tcp_queue;

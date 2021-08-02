@@ -40,7 +40,7 @@
 #include "wl.h"
 #include "work_queue.h"
 #include "ycsb_query.h"
-#include "maat.h"
+#include "occ.h"
 #include "sundial.h"
 #include "wsi.h"
 #include "ssi.h"
@@ -499,7 +499,7 @@ RC WorkerThread::process_rfin(Message * msg) {
 
     M_ASSERT_V(!IS_LOCAL(msg->get_txn_id()), "RFIN local: %ld %ld/%d\n", msg->get_txn_id(),
                 msg->get_txn_id() % g_node_cnt, g_node_id);
-#if CC_ALG == MAAT || CC_ALG == SILO
+#if CC_ALG == MAAT || CC_ALG == OCC ||CC_ALG == SILO
     txn_man->set_commit_timestamp(((FinishMessage*)msg)->commit_timestamp);
 #endif
 
@@ -544,6 +544,23 @@ RC WorkerThread::process_rack_prep(Message * msg) {
             time_table.get_upper(get_thd_id(), msg->get_txn_id()));
     if(((AckMessage*)msg)->rc != RCOK) {
         time_table.set_state(get_thd_id(),msg->get_txn_id(),MAAT_ABORTED);
+    }
+#endif
+#if CC_ALG == OCC
+    // Integrate bounds
+    uint64_t lower = ((AckMessage*)msg)->lower;
+    uint64_t upper = ((AckMessage*)msg)->upper;
+    if(lower > occ_time_table.get_lower(get_thd_id(),msg->get_txn_id())) {
+        occ_time_table.set_lower(get_thd_id(),msg->get_txn_id(),lower);
+    }
+    if(upper < occ_time_table.get_upper(get_thd_id(),msg->get_txn_id())) {
+        occ_time_table.set_upper(get_thd_id(),msg->get_txn_id(),upper);
+    }
+    DEBUG("%ld bound set: [%ld,%ld] -> [%ld,%ld]\n", msg->get_txn_id(), lower, upper,
+            occ_time_table.get_lower(get_thd_id(), msg->get_txn_id()),
+            occ_time_table.get_upper(get_thd_id(), msg->get_txn_id()));
+    if(((AckMessage*)msg)->rc != RCOK) {
+        occ_time_table.set_state(get_thd_id(),msg->get_txn_id(),OCC_ABORTED);
     }
 #endif
 #if CC_ALG == DTA
@@ -667,6 +684,9 @@ RC WorkerThread::process_rqry(Message * msg) {
 #endif
 #if CC_ALG == MAAT
     time_table.init(get_thd_id(),txn_man->get_txn_id());
+#endif
+#if CC_ALG == OCC
+    occ_time_table.init(get_thd_id(),txn_man->get_txn_id());
 #endif
 #if CC_ALG == DTA
     txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_timestamp());
@@ -871,6 +891,14 @@ RC WorkerThread::process_rtxn(Message * msg) {
         assert(time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
         assert(time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == MAAT_RUNNING);
 #endif
+#endif
+#if CC_ALG == OCC
+
+        occ_time_table.init(get_thd_id(),txn_man->get_txn_id());
+        assert(occ_time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
+        assert(occ_time_table.get_upper(get_thd_id(),txn_man->get_txn_id()) == UINT64_MAX);
+        assert(occ_time_table.get_state(get_thd_id(),txn_man->get_txn_id()) == OCC_RUNNING);
+
 #endif
 #if CC_ALG == DTA
         txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_timestamp());
