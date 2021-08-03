@@ -28,10 +28,18 @@ public:
     RC commit(access_t type, TxnManager * txn, row_t * data);
     void write(row_t * data);
 
+    // for occ_dta
+    bool check_lock_id(uint64_t tid);
+    bool try_lock(uint64_t tid);
+    void release(uint64_t tid);
+
 private:
     volatile bool maat_avail;
 
     row_t * _row;
+    // for per row lock
+    uint64_t            lock_tid;
+    pthread_mutex_t *   _latch;
 
     std::set<uint64_t> * uncommitted_reads;
     std::set<uint64_t> * uncommitted_writes;

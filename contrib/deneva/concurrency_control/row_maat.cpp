@@ -24,7 +24,7 @@
 
 void Row_maat::init(row_t * row) {
     _row = row;
-
+    lock_tid = 0;
     timestamp_last_read = 0;
     timestamp_last_write = 0;
     maat_avail = true;
@@ -32,6 +32,9 @@ void Row_maat::init(row_t * row) {
     uncommitted_reads = new std::set<uint64_t>();
     assert(uncommitted_writes->begin() == uncommitted_writes->end());
     assert(uncommitted_writes->size() == 0);
+
+    _latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init( _latch, NULL );
 
 }
 
@@ -312,5 +315,28 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     ATOM_CAS(maat_avail,false,true);
     return RCOK;
 }
+
+bool Row_maat::try_lock(uint64_t tid)
+{
+    bool success = pthread_mutex_trylock( _latch ) != EBUSY;
+    if (success) {
+        assert(lock_tid == 0);
+        lock_tid = tid;
+    }
+    return success;
+}
+
+bool Row_maat::check_lock_id(uint64_t tid) {
+    return lock_tid == tid;
+}
+
+void Row_maat::release(uint64_t tid) {
+    if (lock_tid == tid){
+        assert(lock_tid == tid);
+        lock_tid = 0;
+        pthread_mutex_unlock( _latch );
+    }
+}
+
 
 void Row_maat::write(row_t* data) { _row->copy(data); }

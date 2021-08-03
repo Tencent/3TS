@@ -345,6 +345,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     uncommitted_writes = new std::set<uint64_t>();
     uncommitted_writes_y = new std::set<uint64_t>();
     uncommitted_reads = new std::set<uint64_t>();
+    num_locks = 0;
 #endif
 #if CC_ALG == SUNDIAL
     _is_sub_txn = true;

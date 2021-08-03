@@ -219,7 +219,9 @@ public:
     RC              find_tid_silo(ts_t max_tid);
     RC              finish(RC rc);
 #endif
-
+#if CC_ALG == MAAT
+    uint64_t        num_locks;
+#endif
     bool aborted;
     uint64_t return_id;
     RC        validate();

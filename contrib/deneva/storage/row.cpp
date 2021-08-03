@@ -495,6 +495,7 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     row->free_row();
     DEBUG_M("row_t::return_row Maat free \n");
     mem_allocator.free(row, sizeof(row_t));
+    manager->release(txn->get_txn_id());
     return 0;
 #elif CC_ALG == SUNDIAL
     assert (row != NULL);

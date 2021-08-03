@@ -27,7 +27,7 @@ void Maat::init() { sem_init(&_semaphore, 0, 1); }
 RC Maat::validate(TxnManager * txn) {
     uint64_t start_time = get_sys_clock();
     uint64_t timespan;
-    sem_wait(&_semaphore);
+    
 
     timespan = get_sys_clock() - start_time;
     txn->txn_stats.cc_block_time += timespan;
@@ -40,6 +40,39 @@ RC Maat::validate(TxnManager * txn) {
     DEBUG("MAAT Validate Start %ld: [%lu,%lu]\n",txn->get_txn_id(),lower,upper);
     std::set<uint64_t> after;
     std::set<uint64_t> before;
+
+
+    // sort all rows accessed in primary key order.
+    for (uint64_t i = txn->get_access_cnt() - 1; i > 0; i--) {
+        for (uint64_t j = 0; j < i; j ++) {
+            int tabcmp = strcmp(txn->get_access_original_row(j)->get_table_name(),
+                txn->get_access_original_row(j+1)->get_table_name());
+      if (tabcmp > 0 ||
+          (tabcmp == 0 && txn->get_access_original_row(j)->get_primary_key() >
+                              txn->get_access_original_row(j + 1)->get_primary_key())) {
+                txn->swap_accesses(j,j+1);
+            }
+        }
+    }
+
+
+
+    txn->num_locks = 0;
+    for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
+        row_t * row = txn->get_access_original_row(i);
+        if (!row->manager->try_lock(txn->get_txn_id()))
+        {
+            break;
+        }
+        txn->num_locks ++;
+    }
+    if (txn->num_locks != txn->get_access_cnt()) {
+        rc = Abort;
+        return rc;
+    }
+    
+
+
     // lower bound of txn greater than write timestamp
     if(lower <= txn->greatest_write_timestamp) {
         lower = txn->greatest_write_timestamp + 1;
@@ -166,7 +199,7 @@ RC Maat::validate(TxnManager * txn) {
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
     DEBUG("MAAT Validate End %ld: %d [%lu,%lu]\n",txn->get_txn_id(),rc==RCOK,lower,upper);
-    sem_post(&_semaphore);
+
     return rc;
 
 }
