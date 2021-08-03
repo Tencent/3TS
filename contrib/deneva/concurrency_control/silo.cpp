@@ -86,14 +86,17 @@ TxnManager::validate_silo()
                 if (row->manager->get_tid() != txn->accesses[write_set[i]]->tid)
                 {
                     rc = Abort;
+                    INC_STATS(get_thd_id(), silo_lock_time, get_sys_clock()-lock_start);
                     return rc;
                 }
             }
             if (num_locks == wr_cnt) {
                 DEBUG("TRY LOCK true %ld\n", get_txn_id());
                 done = true;
+                INC_STATS(get_thd_id(), silo_lock_time, get_sys_clock()-lock_start);
             } else {
                 rc = Abort;
+                INC_STATS(get_thd_id(), silo_lock_time, get_sys_clock()-lock_start);
                 return rc;
             }
         }
@@ -109,7 +112,6 @@ TxnManager::validate_silo()
             }
         }
     }
-    INC_STATS(get_thd_id(), silo_lock_time, get_sys_clock()-lock_start);
 
     COMPILER_BARRIER
 
