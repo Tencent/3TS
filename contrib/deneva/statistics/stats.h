@@ -311,6 +311,13 @@ public:
     double maat_range;
     uint64_t maat_commit_cnt;
 
+    // SILO
+    double silo_access_time;
+    double silo_sort_time;
+    double silo_lock_time;
+    double silo_check_time;
+    double silo_finish_time;
+
     // // SSI
     // uint64_t ssi_validate_cnt;
     // double ssi_validate_time;

@@ -17,6 +17,7 @@
 RC
 TxnManager::validate_silo()
 {
+    uint64_t validate_start = get_sys_clock();
     RC rc = RCOK;
     // lock write tuples in the primary key order.
     uint64_t wr_cnt = txn->write_cnt;
@@ -46,6 +47,7 @@ TxnManager::validate_silo()
             }
         }
     }
+    INC_STATS(get_thd_id(), silo_sort_time, get_sys_clock()-validate_start);
 
     num_locks = 0;
     ts_t max_tid = 0;
@@ -67,6 +69,7 @@ TxnManager::validate_silo()
         }
     }
 
+    uint64_t lock_start = get_sys_clock();
     // lock all rows in the write set.
     if (_validation_no_wait) {
         while (!done) {
@@ -106,9 +109,11 @@ TxnManager::validate_silo()
             }
         }
     }
+    INC_STATS(get_thd_id(), silo_lock_time, get_sys_clock()-lock_start);
 
     COMPILER_BARRIER
 
+    uint64_t check_start =get_sys_clock();
     // validate rows in the read set
     // for repeatable_read, no need to validate the read set.
     for (uint64_t i = 0; i < txn->row_cnt - wr_cnt; i ++) {
@@ -134,6 +139,7 @@ TxnManager::validate_silo()
     }
 
     this->max_tid = max_tid;
+    INC_STATS(get_thd_id(), silo_check_time, get_sys_clock()-check_start);
 
     return rc;
 }
@@ -141,6 +147,7 @@ TxnManager::validate_silo()
 RC
 TxnManager::finish(RC rc)
 {
+    uint64_t finish_start = get_sys_clock();
     if (rc == Abort) {
         if (this->num_locks > get_access_cnt()) 
             return rc;
@@ -163,6 +170,7 @@ TxnManager::finish(RC rc)
     }
     num_locks = 0;
     memset(write_set, 0, sizeof(write_set));
+    INC_STATS(get_thd_id(), silo_finish_time, get_sys_clock()-finish_start);
 
     return rc;
 }

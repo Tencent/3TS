@@ -67,6 +67,7 @@ Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
     release();
     DEBUG("silo %ld read release row %ld \n", txn->get_txn_id(), _row->get_primary_key());
 #endif
+    INC_STATS(txn->get_thd_id(), silo_access_time, get_sys_clock()-starttime);
     INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
     return RCOK;
 }

@@ -329,6 +329,13 @@ void Stats_thd::clear() {
     maat_range=0;
     maat_commit_cnt=0;
 
+    // SILO
+    silo_access_time=0;
+    silo_sort_time=0;
+    silo_lock_time=0;
+    silo_check_time=0;
+    silo_finish_time=0;
+
     // Logging
     log_write_cnt=0;
     log_write_time=0;
@@ -1276,16 +1283,34 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
     fprintf(outf, "\n\n\n");
     fprintf(outf,
     "[detail time cost]:"
-    "\nmaat_adjust_time=%.2f"
-    "\nmaat_validate_wait_time=%.2f"
-    "\nmaat_other_wait_time=%.2f"
-    "\nmaat_read_time=%.2f"
-    "\nmaat_write_time=%.2f"
-    "\nmaat_abort_time=%.2f"
-    "\nmaat_commit_time=%.2f\n",
-          maat_adjust_time / BILLION, maat_validate_wait_time / BILLION, maat_other_wait_time / BILLION,
-          maat_read_time / BILLION, maat_write_time / BILLION,
-          maat_abort_time / BILLION, maat_commit_time / BILLION);
+    "\nmaat_adjust_time=%.2f(%.2f%%)"
+    "\nmaat_validate_wait_time=%.2f(%.2f%%)"
+    "\nmaat_other_wait_time=%.2f(%.2f%%)"
+    "\nmaat_read_time=%.2f(%.2f%%)"
+    "\nmaat_write_time=%.2f(%.2f%%)"
+    "\nmaat_abort_time=%.2f(%.2f%%)"
+    "\nmaat_commit_time=%.2f(%.2f%%)\n",
+          maat_adjust_time / BILLION, 100.0 * maat_adjust_time / total_time,
+          maat_validate_wait_time / BILLION, 100.0 * maat_validate_wait_time / total_time,
+          maat_other_wait_time / BILLION, 100.0 * maat_other_wait_time / total_time,
+          maat_read_time / BILLION, 100.0 * maat_read_time / total_time,
+          maat_write_time / BILLION, 100.0 * maat_write_time / total_time,
+          maat_abort_time / BILLION, 100.0 * maat_abort_time / total_time,
+          maat_commit_time / BILLION, 100.0 * maat_commit_time / total_time);
+
+    fprintf(outf, "\n\n\n");
+    fprintf(outf,
+    "[detail time cost]:"
+    "\nsilo_access_time=%.2f(%.2f%%)"
+    "\nsilo_sort_time=%.2f(%.2f%%)"
+    "\nsilo_lock_time=%.2f(%.2f%%)"
+    "\nsilo_check_time=%.2f(%.2f%%)"
+    "\nsilo_finish_time=%.2f(%.2f%%)\n",
+          silo_access_time / BILLION, 100.0 * silo_access_time / total_time,
+          silo_sort_time / BILLION, 100.0 * silo_sort_time / total_time,
+          silo_lock_time / BILLION, 100.0 * silo_lock_time / total_time,
+          silo_check_time / BILLION, 100.0 * silo_check_time / total_time,
+          silo_finish_time / BILLION, 100.0 * silo_finish_time / total_time);
 
 }
 
@@ -1556,6 +1581,13 @@ void Stats_thd::combine(Stats_thd * stats) {
     maat_case5_cnt+=stats->maat_case5_cnt;
     maat_range+=stats->maat_range;
     maat_commit_cnt+=stats->maat_commit_cnt;
+
+    // SILO
+    silo_access_time+=stats->silo_access_time;
+    silo_sort_time+=stats->silo_sort_time;
+    silo_lock_time+=stats->silo_lock_time;
+    silo_check_time+=stats->silo_check_time;
+    silo_finish_time+=stats->silo_finish_time;
 
     // Logging
     log_write_cnt+=stats->log_write_cnt;
