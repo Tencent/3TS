@@ -409,41 +409,41 @@ void OptCC::per_row_finish(RC rc, TxnManager * txn) {
     //     // advance the global timestamp and get the end_ts
     //     txn->set_end_timestamp(glob_manager.get_ts( txn->get_thd_id() ));
     // }
-    if(rc == RCOK) {
-        // release uncommitted read and write when commit
-        for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
-            if(txn->get_access_type(i) == WR){
-                txn->get_access_original_row(i)->manager->commit(WR, txn, txn->get_access_original_row(i));
-            }
-            else{
-                txn->get_access_original_row(i)->manager->commit(RD, txn, txn->get_access_original_row(i));
-            }
-            txn->get_access_original_row(i)->manager->release();
-        }
-    }
-    else{
-        // release uncommitted read and write when abort
-        for (uint64_t i = 0; i < txn->num_locks; i++) {
-            if(txn->get_access_type(i) == WR){
-                txn->get_access_original_row(i)->manager->abort(WR, txn);
-            }
-            else{
-                txn->get_access_original_row(i)->manager->abort(RD, txn);
-            }
-            txn->get_access_original_row(i)->manager->release();
-        }
+    // if(rc == RCOK) {
+    //     // release uncommitted read and write when commit
+    //     for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
+    //         if(txn->get_access_type(i) == WR){
+    //             txn->get_access_original_row(i)->manager->commit(WR, txn, txn->get_access_original_row(i));
+    //         }
+    //         else{
+    //             txn->get_access_original_row(i)->manager->commit(RD, txn, txn->get_access_original_row(i));
+    //         }
+    //         txn->get_access_original_row(i)->manager->release();
+    //     }
+    // }
+    // else{
+    //     // release uncommitted read and write when abort
+    //     for (uint64_t i = 0; i < txn->num_locks; i++) {
+    //         if(txn->get_access_type(i) == WR){
+    //             txn->get_access_original_row(i)->manager->abort(WR, txn);
+    //         }
+    //         else{
+    //             txn->get_access_original_row(i)->manager->abort(RD, txn);
+    //         }
+    //         txn->get_access_original_row(i)->manager->release();
+    //     }
 
-        // release uncommitted read and write when abort
-        for (uint64_t i = txn->num_locks; i < txn->get_access_cnt(); i++) {
-            if(txn->get_access_type(i) == WR){
-                txn->get_access_original_row(i)->manager->abort_no_lock(WR, txn);
-            }
-            else{
-                txn->get_access_original_row(i)->manager->abort_no_lock(RD, txn);
-            }
-        }
+    //     // release uncommitted read and write when abort
+    //     for (uint64_t i = txn->num_locks; i < txn->get_access_cnt(); i++) {
+    //         if(txn->get_access_type(i) == WR){
+    //             txn->get_access_original_row(i)->manager->abort_no_lock(WR, txn);
+    //         }
+    //         else{
+    //             txn->get_access_original_row(i)->manager->abort_no_lock(RD, txn);
+    //         }
+    //     }
 
-    }
+    // }
 
 }
 

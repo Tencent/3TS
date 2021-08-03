@@ -32,6 +32,7 @@ public:
     bool                validate(uint64_t ts);
     void                write(row_t * data, uint64_t ts);
     void                release();
+    void                release(uint64_t tid);
 
     /* --------------- only used for focc -----------------------*/
     bool                try_lock(uint64_t tid);
@@ -44,8 +45,10 @@ public:
     RC abort_no_lock(access_t type, TxnManager * txn);
     RC commit(access_t type, TxnManager * txn, row_t * data);
     void write(row_t * data);
+    bool check_lock_id(uint64_t tid);
 
 private:
+    volatile bool occ_avail;
     pthread_mutex_t *   _latch;
     sem_t               _semaphore;
     bool                blatch;

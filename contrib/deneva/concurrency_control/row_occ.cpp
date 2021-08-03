@@ -30,6 +30,7 @@ void Row_occ::init(row_t *row) {
     pthread_mutex_init(_latch, NULL);
     sem_init(&_semaphore, 0, 1);
     wts = 0;
+    occ_avail = true;
     lock_tid = 0;
     blatch = false;
 
@@ -46,10 +47,18 @@ RC Row_occ::access(TxnManager *txn, TsType type) {
     RC rc = RCOK;
     //pthread_mutex_lock( _latch );
     uint64_t starttime = get_sys_clock();
-    sem_wait(&_semaphore);
+    // sem_wait(&_semaphore);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     
+    // if (!try_lock(txn->get_txn_id()))
+    // {
+    //     return Abort;
+    //     // break;
+    // }
+    while (!ATOM_CAS(occ_avail, true, false)) {
+    }
+
     if (type == R_REQ) {
         DEBUG("READ %ld -- %ld, table name: %s \n",txn->get_txn_id(),_row->get_primary_key(),_row->get_table_name());
 
@@ -118,7 +127,9 @@ RC Row_occ::access(TxnManager *txn, TsType type) {
 //     // pthread_mutex_unlock( _latch );
 
     INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
-    sem_post(&_semaphore);
+    // sem_post(&_semaphore);
+    // release();
+    ATOM_CAS(occ_avail,false,true);
     return rc;
 }
 
@@ -144,8 +155,21 @@ void Row_occ::write(row_t *data, uint64_t ts) {
 
 void Row_occ::release() {
     //pthread_mutex_unlock( _latch );
-    lock_tid = 0;
-    sem_post(&_semaphore);
+    pthread_mutex_unlock( _latch );
+    // sem_post(&_semaphore);
+}
+
+void Row_occ::release(uint64_t tid) {
+    //pthread_mutex_unlock( _latch );
+    if (lock_tid == tid){
+        lock_tid = 0;
+        pthread_mutex_unlock( _latch );
+    }
+    // sem_post(&_semaphore);
+}
+
+bool Row_occ::check_lock_id(uint64_t tid) {
+    return lock_tid == tid;
 }
 
 void Row_occ::write(row_t* data) { _row->copy(data); }
@@ -153,14 +177,19 @@ void Row_occ::write(row_t* data) { _row->copy(data); }
 /* --------------- only used for focc -----------------------*/
 
 bool Row_occ::try_lock(uint64_t tid) {
-    bool success = false;
-    if (sem_trywait(&_semaphore) == 0){
-        if (lock_tid == 0 || lock_tid == tid) {
-            lock_tid = tid;
-            success = true;
-        } 
+    bool success = pthread_mutex_trylock( _latch ) != EBUSY;
+    if (success){
+        lock_tid = tid;
     }
     return success;
+    // bool success = false;
+    // if (sem_trywait(&_semaphore) == 0){
+    //     if (lock_tid == 0 || lock_tid == tid) {
+    //         lock_tid = tid;
+    //         success = true;
+    //     } 
+    // }
+    // return success;
     // sem_wait(&_semaphore);
     // if (lock_tid == 0 || lock_tid == tid) {
     //     lock_tid = tid;
@@ -189,6 +218,8 @@ uint64_t Row_occ::check_lock() {
 // for occ+dta
 
 RC Row_occ::abort(access_t type, TxnManager * txn) {
+    while (!ATOM_CAS(occ_avail, true, false)) {
+    }
     DEBUG("OCC Abort %ld: %d -- %ld\n",txn->get_txn_id(),type,_row->get_primary_key());
 #if WORKLOAD == TPCC
     uncommitted_reads->erase(txn->get_txn_id());
@@ -202,6 +233,7 @@ RC Row_occ::abort(access_t type, TxnManager * txn) {
         uncommitted_writes->erase(txn->get_txn_id());
     }
 #endif
+    ATOM_CAS(occ_avail,false,true);
     return Abort;
 }
 
@@ -238,7 +270,8 @@ RC Row_occ::abort_no_lock(access_t type, TxnManager * txn) {
 }
 
 RC Row_occ::commit(access_t type, TxnManager * txn, row_t * data) {
-
+    while (!ATOM_CAS(occ_avail, true, false)) {
+    }
     DEBUG("OCC Commit %ld: %d,%lu -- %ld\n", txn->get_txn_id(), type, txn->get_commit_timestamp(),
             _row->get_primary_key());
 
@@ -294,6 +327,6 @@ RC Row_occ::commit(access_t type, TxnManager * txn, row_t * data) {
         }
 
     }
-
+    ATOM_CAS(occ_avail,false,true);
     return RCOK;
 }

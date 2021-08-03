@@ -331,6 +331,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     txn->cur_row->init(get_table(), get_part_id());
     uint64_t read_start = get_sys_clock();
     rc = this->manager->access(txn, R_REQ);
+    txn->cur_row->copy(this);
     access->data = txn->cur_row;
     INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);
     goto end;
@@ -490,8 +491,15 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock() - write_start);
     row->free_row();
     DEBUG_M("row_t::return_row OCC free \n");
+
+    if (rc == Abort) {
+        manager->abort(type,txn);
+    } else {
+        manager->commit(type,txn,row);
+    }
+
     mem_allocator.free(row, sizeof(row_t));
-    // manager->release();
+    manager->release(txn->get_txn_id());
     return 0;
 #elif CC_ALG == CNULL
     assert (row != NULL);
