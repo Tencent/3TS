@@ -56,6 +56,7 @@ RC Row_maat::read_and_prewrite(TxnManager * txn) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     while (!ATOM_CAS(maat_avail, true, false)) {
     }
+    INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[30],get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - mtx_wait_starttime);
     DEBUG("READ + PREWRITE %ld -- %ld: lw %ld\n", txn->get_txn_id(), _row->get_primary_key(),
@@ -103,11 +104,12 @@ RC Row_maat::read(TxnManager * txn) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     while (!ATOM_CAS(maat_avail, true, false)) {
     }
+    INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[30],get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - mtx_wait_starttime);
     DEBUG("READ %ld -- %ld: lw %ld\n", txn->get_txn_id(), _row->get_primary_key(),
             timestamp_last_write);
-
+    uint64_t read_start = get_sys_clock();
     // Copy uncommitted writes
     for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end(); it++) {
         uint64_t txn_id = *it;
@@ -121,7 +123,7 @@ RC Row_maat::read(TxnManager * txn) {
 
     //Add to uncommitted reads (soft lock)
     uncommitted_reads->insert(txn->get_txn_id());
-
+    INC_STATS(txn->get_thd_id(),maat_read_time,get_sys_clock() - read_start);
     ATOM_CAS(maat_avail,false,true);
 
     return rc;
@@ -134,11 +136,12 @@ RC Row_maat::prewrite(TxnManager * txn) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     while (!ATOM_CAS(maat_avail, true, false)) {
     }
+    INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[31],get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - mtx_wait_starttime);
     DEBUG("PREWRITE %ld -- %ld: lw %ld, lr %ld\n", txn->get_txn_id(), _row->get_primary_key(),
         timestamp_last_write, timestamp_last_read);
-
+    uint64_t write_start = get_sys_clock();
     // Copy uncommitted reads
     for(auto it = uncommitted_reads->begin(); it != uncommitted_reads->end(); it++) {
         uint64_t txn_id = *it;
@@ -163,7 +166,7 @@ RC Row_maat::prewrite(TxnManager * txn) {
 
     //Add to uncommitted writes (soft lock)
     uncommitted_writes->insert(txn->get_txn_id());
-
+    INC_STATS(txn->get_thd_id(),maat_write_time,get_sys_clock() - write_start);
     ATOM_CAS(maat_avail,false,true);
 
     return rc;
@@ -173,8 +176,10 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     while (!ATOM_CAS(maat_avail, true, false)) {
     }
+    INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[32],get_sys_clock() - mtx_wait_starttime);
     DEBUG("Maat Abort %ld: %d -- %ld\n",txn->get_txn_id(),type,_row->get_primary_key());
+    uint64_t abort_start = get_sys_clock();
 #if WORKLOAD == TPCC
     uncommitted_reads->erase(txn->get_txn_id());
     uncommitted_writes->erase(txn->get_txn_id());
@@ -187,7 +192,7 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
         uncommitted_writes->erase(txn->get_txn_id());
     }
 #endif
-
+    INC_STATS(txn->get_thd_id(),maat_abort_time,get_sys_clock() - abort_start);
     ATOM_CAS(maat_avail,false,true);
     return Abort;
 }
@@ -196,10 +201,11 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     while (!ATOM_CAS(maat_avail, true, false)) {
     }
+    INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[33],get_sys_clock() - mtx_wait_starttime);
     DEBUG("Maat Commit %ld: %d,%lu -- %ld\n", txn->get_txn_id(), type, txn->get_commit_timestamp(),
             _row->get_primary_key());
-
+    uint64_t commit_start = get_sys_clock();
 #if WORKLOAD == TPCC
     if(txn->get_commit_timestamp() >  timestamp_last_read) timestamp_last_read = txn->get_commit_timestamp();
     uncommitted_reads->erase(txn->get_txn_id());
@@ -308,7 +314,7 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
 
     }
 #endif
-
+    INC_STATS(txn->get_thd_id(),maat_commit_time,get_sys_clock() - commit_start);
     ATOM_CAS(maat_avail,false,true);
     return RCOK;
 }

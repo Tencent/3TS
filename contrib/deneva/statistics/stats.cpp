@@ -314,6 +314,13 @@ void Stats_thd::clear() {
     maat_validate_cnt=0;
     maat_validate_time=0;
     maat_cs_wait_time=0;
+    maat_adjust_time=0;
+    maat_validate_wait_time=0;
+    maat_other_wait_time=0;
+    maat_read_time=0;
+    maat_write_time=0;
+    maat_abort_time=0;
+    maat_commit_time=0;
     maat_case1_cnt=0;
     maat_case2_cnt=0;
     maat_case3_cnt=0;
@@ -1239,32 +1246,46 @@ void Stats_thd::print_message(FILE * outf, bool prog) {
           trans_write_time / BILLION, 100.0 * trans_write_time / total_time,
           trans_validate_time / BILLION, 100.0 * trans_validate_time / total_time);
 
+    // fprintf(outf, "\n\n\n");
+    // fprintf(outf,
+    // "[detail time cost]:"
+    // "\nocc_rhis_abort_cnt=%ld"
+    // "\nocc_rw_abort_cnt=%ld"
+    // "\nocc_ww_abort_cnt=%ld"
+    // "\nocc_max_len=%ld"
+    // "\nocc_readonly_cnt=%ld"
+    // "\nocc_validate&finish_time=%.2f"
+    // "\nocc_rwset_get_time=%.2f(%.2f%%)"
+    // "\nocc_wait_add_time=%.2f(%.2f%%)"
+    // "\nocc_add_active_time=%.2f(%.2f%%)"
+    // "\nocc_validate_rhis_time=%.2f(%.2f%%)"
+    // "\nocc_valiadate_rw_time=%.2f(%.2f%%)"
+    // "\nocc_validate_ww_time=%.2f(%.2f%%)"
+    // "\nocc_wait_rm_time=%.2f(%.2f%%)"
+    // "\nocc_rm_active_time=%.2f(%.2f%%)\n",
+    //       occ_rhis_abort_cnt, occ_rw_abort_cnt, occ_ww_abort_cnt, occ_max_len, occ_readonly_cnt, (occ_validate_time+occ_finish_time) / BILLION,
+    //       occ_rwset_get_time / BILLION, 100.0 * occ_rwset_get_time / (occ_validate_time+occ_finish_time),
+    //       occ_wait_add_time / BILLION, 100.0 * occ_wait_add_time / (occ_validate_time+occ_finish_time),
+    //       occ_add_active_time / BILLION, 100.0 * occ_add_active_time / (occ_validate_time+occ_finish_time),
+    //       occ_validate_rhis_time / BILLION, 100.0 * occ_validate_rhis_time / (occ_validate_time+occ_finish_time),
+    //       occ_valiadate_rw_time / BILLION, 100.0 * occ_valiadate_rw_time / (occ_validate_time+occ_finish_time),
+    //       occ_validate_ww_time / BILLION, 100.0 * occ_validate_ww_time / (occ_validate_time+occ_finish_time),
+    //       occ_wait_rm_time / BILLION, 100.0 * occ_wait_rm_time / (occ_validate_time+occ_finish_time),
+    //       occ_rm_active_time / BILLION, 100.0 * occ_rm_active_time / (occ_validate_time+occ_finish_time));
+
     fprintf(outf, "\n\n\n");
     fprintf(outf,
     "[detail time cost]:"
-    "\nocc_rhis_abort_cnt=%ld"
-    "\nocc_rw_abort_cnt=%ld"
-    "\nocc_ww_abort_cnt=%ld"
-    "\nocc_max_len=%ld"
-    "\nocc_readonly_cnt=%ld"
-    "\nocc_validate&finish_time=%.2f"
-    "\nocc_rwset_get_time=%.2f(%.2f%%)"
-    "\nocc_wait_add_time=%.2f(%.2f%%)"
-    "\nocc_add_active_time=%.2f(%.2f%%)"
-    "\nocc_validate_rhis_time=%.2f(%.2f%%)"
-    "\nocc_valiadate_rw_time=%.2f(%.2f%%)"
-    "\nocc_validate_ww_time=%.2f(%.2f%%)"
-    "\nocc_wait_rm_time=%.2f(%.2f%%)"
-    "\nocc_rm_active_time=%.2f(%.2f%%)\n",
-          occ_rhis_abort_cnt, occ_rw_abort_cnt, occ_ww_abort_cnt, occ_max_len, occ_readonly_cnt, (occ_validate_time+occ_finish_time) / BILLION,
-          occ_rwset_get_time / BILLION, 100.0 * occ_rwset_get_time / (occ_validate_time+occ_finish_time),
-          occ_wait_add_time / BILLION, 100.0 * occ_wait_add_time / (occ_validate_time+occ_finish_time),
-          occ_add_active_time / BILLION, 100.0 * occ_add_active_time / (occ_validate_time+occ_finish_time),
-          occ_validate_rhis_time / BILLION, 100.0 * occ_validate_rhis_time / (occ_validate_time+occ_finish_time),
-          occ_valiadate_rw_time / BILLION, 100.0 * occ_valiadate_rw_time / (occ_validate_time+occ_finish_time),
-          occ_validate_ww_time / BILLION, 100.0 * occ_validate_ww_time / (occ_validate_time+occ_finish_time),
-          occ_wait_rm_time / BILLION, 100.0 * occ_wait_rm_time / (occ_validate_time+occ_finish_time),
-          occ_rm_active_time / BILLION, 100.0 * occ_rm_active_time / (occ_validate_time+occ_finish_time));
+    "\nmaat_adjust_time=%.2f"
+    "\nmaat_validate_wait_time=%.2f"
+    "\nmaat_other_wait_time=%.2f"
+    "\nmaat_read_time=%.2f"
+    "\nmaat_write_time=%.2f"
+    "\nmaat_abort_time=%.2f"
+    "\nmaat_commit_time=%.2f\n",
+          maat_adjust_time / BILLION, maat_validate_wait_time / BILLION, maat_other_wait_time / BILLION,
+          maat_read_time / BILLION, maat_write_time / BILLION,
+          maat_abort_time / BILLION, maat_commit_time / BILLION);
 
 }
 
@@ -1521,6 +1542,13 @@ void Stats_thd::combine(Stats_thd * stats) {
     maat_validate_cnt+=stats->maat_validate_cnt;
     maat_validate_time+=stats->maat_validate_time;
     maat_cs_wait_time+=stats->maat_cs_wait_time;
+    maat_adjust_time+=stats->maat_adjust_time;
+    maat_validate_wait_time+=stats->maat_validate_wait_time;
+    maat_other_wait_time+=stats->maat_other_wait_time;
+    maat_read_time+=stats->maat_read_time;
+    maat_write_time+=stats->maat_write_time;
+    maat_abort_time+=stats->maat_abort_time;
+    maat_commit_time+=stats->maat_commit_time;
     maat_case1_cnt+=stats->maat_case1_cnt;
     maat_case2_cnt+=stats->maat_case2_cnt;
     maat_case3_cnt+=stats->maat_case3_cnt;

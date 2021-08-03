@@ -28,6 +28,7 @@ RC Maat::validate(TxnManager * txn) {
     uint64_t start_time = get_sys_clock();
     uint64_t timespan;
     sem_wait(&_semaphore);
+    INC_STATS(txn->get_thd_id(),maat_validate_wait_time,get_sys_clock()-start_time);
 
     timespan = get_sys_clock() - start_time;
     txn->txn_stats.cc_block_time += timespan;
@@ -40,6 +41,7 @@ RC Maat::validate(TxnManager * txn) {
     DEBUG("MAAT Validate Start %ld: [%lu,%lu]\n",txn->get_txn_id(),lower,upper);
     std::set<uint64_t> after;
     std::set<uint64_t> before;
+    uint64_t adjust_start = get_sys_clock();
     // lower bound of txn greater than write timestamp
     if(lower <= txn->greatest_write_timestamp) {
         lower = txn->greatest_write_timestamp + 1;
@@ -153,6 +155,7 @@ RC Maat::validate(TxnManager * txn) {
                 }
             }
         }
+    INC_STATS(txn->get_thd_id(),maat_adjust_time,get_sys_clock()-adjust_start);
 
         assert(lower < upper);
         INC_STATS(txn->get_thd_id(),maat_range,upper-lower);

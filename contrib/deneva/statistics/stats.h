@@ -296,6 +296,13 @@ public:
     uint64_t maat_validate_cnt;
     double maat_validate_time;
     double maat_cs_wait_time;
+    double maat_adjust_time;
+    double maat_validate_wait_time;
+    double maat_other_wait_time;
+    double maat_read_time;
+    double maat_write_time;
+    double maat_abort_time;
+    double maat_commit_time;
     uint64_t maat_case1_cnt;
     uint64_t maat_case2_cnt;
     uint64_t maat_case3_cnt;
