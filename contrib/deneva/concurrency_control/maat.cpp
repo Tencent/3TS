@@ -29,7 +29,7 @@ RC Maat::validate(TxnManager * txn) {
     uint64_t timespan;
     sem_wait(&_semaphore);
     INC_STATS(txn->get_thd_id(),maat_validate_wait_time,get_sys_clock()-start_time);
-
+    INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock()-start_time);
     timespan = get_sys_clock() - start_time;
     txn->txn_stats.cc_block_time += timespan;
     txn->txn_stats.cc_block_time_short += timespan;
@@ -218,6 +218,7 @@ void TimeTable::init(uint64_t thd_id, uint64_t key) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[34],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(!entry) {
         DEBUG_M("TimeTable::init entry alloc\n");
@@ -233,6 +234,7 @@ void TimeTable::release(uint64_t thd_id, uint64_t key) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[35],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(entry) {
         LIST_REMOVE_HT(entry,table[idx].head,table[idx].tail);
@@ -248,6 +250,7 @@ uint64_t TimeTable::get_lower(uint64_t thd_id, uint64_t key) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[36],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(entry) {
         value = entry->lower;
@@ -262,6 +265,7 @@ uint64_t TimeTable::get_upper(uint64_t thd_id, uint64_t key) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[37],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(entry) {
         value = entry->upper;
@@ -276,6 +280,7 @@ void TimeTable::set_lower(uint64_t thd_id, uint64_t key, uint64_t value) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[38],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(entry) {
         entry->lower = value;
@@ -288,6 +293,7 @@ void TimeTable::set_upper(uint64_t thd_id, uint64_t key, uint64_t value) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[39],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(entry) {
         entry->upper = value;
@@ -301,6 +307,7 @@ MAATState TimeTable::get_state(uint64_t thd_id, uint64_t key) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[40],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(entry) {
         state = entry->state;
@@ -314,6 +321,7 @@ void TimeTable::set_state(uint64_t thd_id, uint64_t key, MAATState value) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     pthread_mutex_lock(&table[idx].mtx);
     INC_STATS(thd_id,mtx[41],get_sys_clock() - mtx_wait_starttime);
+    INC_STATS(thd_id,txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     TimeTableEntry* entry = find(key);
     if(entry) {
         entry->state = value;
