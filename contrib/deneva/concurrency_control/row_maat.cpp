@@ -37,12 +37,12 @@ void Row_maat::init(row_t * row) {
 
 RC Row_maat::access(access_t type, TxnManager * txn) {
     uint64_t starttime = get_sys_clock();
-#if WORKLOAD == TPCC
-    read_and_prewrite(txn);
-#else
+// #if WORKLOAD == TPCC
+//     read_and_prewrite(txn);
+// #else
     if (type == RD || type == SCAN) read(txn);
     if (type == WR) prewrite(txn);
-#endif
+// #endif
     uint64_t timespan = get_sys_clock() - starttime;
     INC_STATS(txn->get_thd_id(),txn_useful_time,timespan);
     txn->txn_stats.cc_time += timespan;
@@ -187,10 +187,10 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     INC_STATS(txn->get_thd_id(),mtx[32],get_sys_clock() - mtx_wait_starttime);
     DEBUG("Maat Abort %ld: %d -- %ld\n",txn->get_txn_id(),type,_row->get_primary_key());
     uint64_t abort_start = get_sys_clock();
-#if WORKLOAD == TPCC
-    uncommitted_reads->erase(txn->get_txn_id());
-    uncommitted_writes->erase(txn->get_txn_id());
-#else
+// #if WORKLOAD == TPCC
+//     uncommitted_reads->erase(txn->get_txn_id());
+//     uncommitted_writes->erase(txn->get_txn_id());
+// #else
     if(type == RD || type == SCAN) {
         uncommitted_reads->erase(txn->get_txn_id());
     }
@@ -198,7 +198,7 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     if(type == WR) {
         uncommitted_writes->erase(txn->get_txn_id());
     }
-#endif
+// #endif
     INC_STATS(txn->get_thd_id(),maat_abort_time,get_sys_clock() - abort_start);
     ATOM_CAS(maat_avail,false,true);
     return Abort;
@@ -215,55 +215,55 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     DEBUG("Maat Commit %ld: %d,%lu -- %ld\n", txn->get_txn_id(), type, txn->get_commit_timestamp(),
             _row->get_primary_key());
     uint64_t commit_start = get_sys_clock();
-#if WORKLOAD == TPCC
-    if(txn->get_commit_timestamp() >  timestamp_last_read) timestamp_last_read = txn->get_commit_timestamp();
-    uncommitted_reads->erase(txn->get_txn_id());
-    if(txn->get_commit_timestamp() >  timestamp_last_write) timestamp_last_write = txn->get_commit_timestamp();
-    uncommitted_writes->erase(txn->get_txn_id());
-    // Apply write to DB
-    write(data);
+// #if WORKLOAD == TPCC
+//     if(txn->get_commit_timestamp() >  timestamp_last_read) timestamp_last_read = txn->get_commit_timestamp();
+//     uncommitted_reads->erase(txn->get_txn_id());
+//     if(txn->get_commit_timestamp() >  timestamp_last_write) timestamp_last_write = txn->get_commit_timestamp();
+//     uncommitted_writes->erase(txn->get_txn_id());
+//     // Apply write to DB
+//     write(data);
 
-    uint64_t txn_commit_ts = txn->get_commit_timestamp();
-    // Forward validation
-    // Check uncommitted writes against this txn's
-        for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
-        if(txn->uncommitted_writes->count(*it) == 0) {
-            // apply timestamps
-            // these write txns need to come AFTER this txn
-            uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
-            if(it_lower <= txn_commit_ts) {
-                time_table.set_lower(txn->get_thd_id(),*it,txn_commit_ts+1);
-                DEBUG("MAAT forward val set lower %ld: %lu\n",*it,txn_commit_ts+1);
-            }
-        }
-    }
+//     uint64_t txn_commit_ts = txn->get_commit_timestamp();
+//     // Forward validation
+//     // Check uncommitted writes against this txn's
+//         for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
+//         if(txn->uncommitted_writes->count(*it) == 0) {
+//             // apply timestamps
+//             // these write txns need to come AFTER this txn
+//             uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
+//             if(it_lower <= txn_commit_ts) {
+//                 time_table.set_lower(txn->get_thd_id(),*it,txn_commit_ts+1);
+//                 DEBUG("MAAT forward val set lower %ld: %lu\n",*it,txn_commit_ts+1);
+//             }
+//         }
+//     }
 
-    uint64_t lower =  time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
-    for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
-        if(txn->uncommitted_writes_y->count(*it) == 0) {
-            // apply timestamps
-            // these write txns need to come BEFORE this txn
-            uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
-            if(it_upper >= txn_commit_ts) {
-                time_table.set_upper(txn->get_thd_id(),*it,txn_commit_ts-1);
-                DEBUG("MAAT forward val set upper %ld: %lu\n",*it,txn_commit_ts-1);
-            }
-        }
-    }
+//     uint64_t lower =  time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
+//     for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
+//         if(txn->uncommitted_writes_y->count(*it) == 0) {
+//             // apply timestamps
+//             // these write txns need to come BEFORE this txn
+//             uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
+//             if(it_upper >= txn_commit_ts) {
+//                 time_table.set_upper(txn->get_thd_id(),*it,txn_commit_ts-1);
+//                 DEBUG("MAAT forward val set upper %ld: %lu\n",*it,txn_commit_ts-1);
+//             }
+//         }
+//     }
 
-    for(auto it = uncommitted_reads->begin(); it != uncommitted_reads->end();it++) {
-        if(txn->uncommitted_reads->count(*it) == 0) {
-            // apply timestamps
-            // these write txns need to come BEFORE this txn
-            uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
-            if(it_upper >= lower) {
-                time_table.set_upper(txn->get_thd_id(),*it,lower-1);
-                DEBUG("MAAT forward val set upper %ld: %lu\n",*it,lower-1);
-            }
-        }
-    }
+//     for(auto it = uncommitted_reads->begin(); it != uncommitted_reads->end();it++) {
+//         if(txn->uncommitted_reads->count(*it) == 0) {
+//             // apply timestamps
+//             // these write txns need to come BEFORE this txn
+//             uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
+//             if(it_upper >= lower) {
+//                 time_table.set_upper(txn->get_thd_id(),*it,lower-1);
+//                 DEBUG("MAAT forward val set upper %ld: %lu\n",*it,lower-1);
+//             }
+//         }
+//     }
 
-#else
+// #else
     uint64_t txn_commit_ts = txn->get_commit_timestamp();
     if (type == RD || type == SCAN) {
         if (txn_commit_ts > timestamp_last_read) timestamp_last_read = txn_commit_ts;
@@ -325,7 +325,7 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
         }
 
     }
-#endif
+// #endif
     INC_STATS(txn->get_thd_id(),maat_commit_time,get_sys_clock() - commit_start);
     ATOM_CAS(maat_avail,false,true);
     return RCOK;
