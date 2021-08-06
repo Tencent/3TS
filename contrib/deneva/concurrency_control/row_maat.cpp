@@ -126,6 +126,7 @@ RC Row_maat::read(TxnManager * txn) {
     uncommitted_reads->insert(txn->get_txn_id());
     INC_STATS(txn->get_thd_id(),maat_read_time,get_sys_clock() - read_start);
     INC_STATS(txn->get_thd_id(),txn_useful_time,get_sys_clock() - read_start);
+    INC_STATS(txn->get_thd_id(),trans_read_time,get_sys_clock() - mtx_wait_starttime);
     ATOM_CAS(maat_avail,false,true);
 
     return rc;
@@ -171,6 +172,7 @@ RC Row_maat::prewrite(TxnManager * txn) {
     uncommitted_writes->insert(txn->get_txn_id());
     INC_STATS(txn->get_thd_id(),maat_write_time,get_sys_clock() - write_start);
     INC_STATS(txn->get_thd_id(),txn_useful_time,get_sys_clock() - write_start);
+    INC_STATS(txn->get_thd_id(),trans_read_time,get_sys_clock() - mtx_wait_starttime);
     ATOM_CAS(maat_avail,false,true);
 
     return rc;
@@ -295,6 +297,7 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
         // Apply write to DB
         write(data);
         INC_STATS(txn->get_thd_id(),trans_access_write_insert_time,get_sys_clock() - start);
+        INC_STATS(txn->get_thd_id(),trans_write_time,get_sys_clock() - start);
         uint64_t lower =  time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
         for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
             if(txn->uncommitted_writes_y->count(*it) == 0) {

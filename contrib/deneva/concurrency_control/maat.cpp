@@ -25,6 +25,7 @@
 void Maat::init() { sem_init(&_semaphore, 0, 1); }
 
 RC Maat::validate(TxnManager * txn) {
+    uint64_t validate_start = get_sys_clock();
     uint64_t start_time = get_sys_clock();
     uint64_t timespan;
     sem_wait(&_semaphore);
@@ -166,6 +167,7 @@ RC Maat::validate(TxnManager * txn) {
     INC_STATS(txn->get_thd_id(),maat_validate_cnt,1);
     timespan = get_sys_clock() - start_time;
     INC_STATS(txn->get_thd_id(),maat_validate_time,timespan);
+    INC_STATS(txn->get_thd_id(),trans_validate_time,get_sys_clock()-validate_start);
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
     DEBUG("MAAT Validate End %ld: %d [%lu,%lu]\n",txn->get_txn_id(),rc==RCOK,lower,upper);
