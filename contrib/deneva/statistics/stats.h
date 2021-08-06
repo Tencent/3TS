@@ -303,6 +303,8 @@ public:
     double maat_write_time;
     double maat_abort_time;
     double maat_commit_time;
+    double maat_abort_wait_time;
+    double maat_commit_wait_time;
     uint64_t maat_case1_cnt;
     uint64_t maat_case2_cnt;
     uint64_t maat_case3_cnt;

@@ -44,6 +44,7 @@ RC Row_maat::access(access_t type, TxnManager * txn) {
     if (type == WR) prewrite(txn);
 #endif
     uint64_t timespan = get_sys_clock() - starttime;
+    INC_STATS(txn->get_thd_id(),txn_useful_time,timespan);
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
     return RCOK;
@@ -125,7 +126,6 @@ RC Row_maat::read(TxnManager * txn) {
     //Add to uncommitted reads (soft lock)
     uncommitted_reads->insert(txn->get_txn_id());
     INC_STATS(txn->get_thd_id(),maat_read_time,get_sys_clock() - read_start);
-    INC_STATS(txn->get_thd_id(),txn_useful_time,get_sys_clock() - read_start);
     INC_STATS(txn->get_thd_id(),trans_read_time,get_sys_clock() - mtx_wait_starttime);
     ATOM_CAS(maat_avail,false,true);
 
@@ -171,7 +171,6 @@ RC Row_maat::prewrite(TxnManager * txn) {
     //Add to uncommitted writes (soft lock)
     uncommitted_writes->insert(txn->get_txn_id());
     INC_STATS(txn->get_thd_id(),maat_write_time,get_sys_clock() - write_start);
-    INC_STATS(txn->get_thd_id(),txn_useful_time,get_sys_clock() - write_start);
     INC_STATS(txn->get_thd_id(),trans_read_time,get_sys_clock() - mtx_wait_starttime);
     ATOM_CAS(maat_avail,false,true);
 
@@ -182,6 +181,7 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     while (!ATOM_CAS(maat_avail, true, false)) {
     }
+    INC_STATS(txn->get_thd_id(),maat_abort_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[32],get_sys_clock() - mtx_wait_starttime);
@@ -208,6 +208,7 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     uint64_t mtx_wait_starttime = get_sys_clock();
     while (!ATOM_CAS(maat_avail, true, false)) {
     }
+    INC_STATS(txn->get_thd_id(),maat_commit_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[33],get_sys_clock() - mtx_wait_starttime);

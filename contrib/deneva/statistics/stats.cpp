@@ -321,6 +321,8 @@ void Stats_thd::clear() {
     maat_write_time=0;
     maat_abort_time=0;
     maat_commit_time=0;
+    maat_abort_wait_time=0;
+    maat_commit_wait_time=0;
     maat_case1_cnt=0;
     maat_case2_cnt=0;
     maat_case3_cnt=0;
@@ -1417,7 +1419,10 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_2pc_time+=stats->txn_2pc_time;
     txn_2pc_time-=stats->txn_validate_time;
     txn_2pc_time-=stats->trans_access_write_insert_time;
+    txn_2pc_time-=stats->maat_commit_wait_time;
+    txn_2pc_time-=stats->maat_abort_wait_time;
     txn_abort_time+=stats->txn_abort_time;
+    txn_abort_time-=stats->maat_abort_wait_time;
     txn_wait_thread_time+=stats->txn_wait_thread_time;
     total_time+=stats->total_time;
 
@@ -1574,6 +1579,8 @@ void Stats_thd::combine(Stats_thd * stats) {
     maat_write_time+=stats->maat_write_time;
     maat_abort_time+=stats->maat_abort_time;
     maat_commit_time+=stats->maat_commit_time;
+    maat_abort_wait_time+=stats->maat_abort_wait_time;
+    maat_commit_wait_time+=stats->maat_commit_wait_time;
     maat_case1_cnt+=stats->maat_case1_cnt;
     maat_case2_cnt+=stats->maat_case2_cnt;
     maat_case3_cnt+=stats->maat_case3_cnt;
