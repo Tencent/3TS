@@ -933,7 +933,8 @@ void TxnManager::cleanup(RC rc) {
     // g_max_items_per_txn*2 + 3));
 
     DEBUG("Cleanup %ld %ld\n",get_txn_id(),row_cnt);
-    for (int rid = row_cnt - 1; rid >= 0; rid --) {
+    // for (int rid = row_cnt - 1; rid >= 0; rid --) {
+    for (uint64_t rid = 0; rid < row_cnt; rid ++) { // avoid dead lock
         cleanup_row(rc,rid);
     }
 

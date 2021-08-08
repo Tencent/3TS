@@ -33,20 +33,30 @@ void Row_maat::init(row_t * row) {
     assert(uncommitted_writes->begin() == uncommitted_writes->end());
     assert(uncommitted_writes->size() == 0);
 
+    // for row lock
+    lock_tid = 0;
+    _latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init( _latch, NULL );
 }
 
 RC Row_maat::access(access_t type, TxnManager * txn) {
     uint64_t starttime = get_sys_clock();
-// #if WORKLOAD == TPCC
-//     read_and_prewrite(txn);
-// #else
+
+    // if (try_lock(txn->get_txn_id()))
+    // {
+    //     return Abort;
+    // }
+    pthread_mutex_lock( _latch );
+
     if (type == RD || type == SCAN) read(txn);
     if (type == WR) prewrite(txn);
-// #endif
+
     uint64_t timespan = get_sys_clock() - starttime;
     INC_STATS(txn->get_thd_id(),txn_useful_time,timespan);
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
+    pthread_mutex_unlock( _latch );
+    // release(txn->get_txn_id());
     return RCOK;
 }
 
@@ -103,8 +113,8 @@ RC Row_maat::read(TxnManager * txn) {
     RC rc = RCOK;
 
     uint64_t mtx_wait_starttime = get_sys_clock();
-    while (!ATOM_CAS(maat_avail, true, false)) {
-    }
+    // while (!ATOM_CAS(maat_avail, true, false)) {
+    // }
     INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[30],get_sys_clock() - mtx_wait_starttime);
@@ -127,8 +137,7 @@ RC Row_maat::read(TxnManager * txn) {
     uncommitted_reads->insert(txn->get_txn_id());
     INC_STATS(txn->get_thd_id(),maat_read_time,get_sys_clock() - read_start);
     INC_STATS(txn->get_thd_id(),trans_read_time,get_sys_clock() - mtx_wait_starttime);
-    ATOM_CAS(maat_avail,false,true);
-
+    // ATOM_CAS(maat_avail,false,true);
     return rc;
 }
 
@@ -137,8 +146,8 @@ RC Row_maat::prewrite(TxnManager * txn) {
     RC rc = RCOK;
 
     uint64_t mtx_wait_starttime = get_sys_clock();
-    while (!ATOM_CAS(maat_avail, true, false)) {
-    }
+    // while (!ATOM_CAS(maat_avail, true, false)) {
+    // }
     INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),mtx[31],get_sys_clock() - mtx_wait_starttime);
@@ -179,7 +188,11 @@ RC Row_maat::prewrite(TxnManager * txn) {
 
 RC Row_maat::abort(access_t type, TxnManager * txn) {
     uint64_t mtx_wait_starttime = get_sys_clock();
-    while (!ATOM_CAS(maat_avail, true, false)) {
+    // while (!ATOM_CAS(maat_avail, true, false)) {
+    // }
+    if (lock_tid != txn->get_txn_id()){
+        assert(lock_tid != txn->get_txn_id());  
+        pthread_mutex_lock( _latch );
     }
     INC_STATS(txn->get_thd_id(),maat_abort_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
@@ -187,10 +200,6 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     INC_STATS(txn->get_thd_id(),mtx[32],get_sys_clock() - mtx_wait_starttime);
     DEBUG("Maat Abort %ld: %d -- %ld\n",txn->get_txn_id(),type,_row->get_primary_key());
     uint64_t abort_start = get_sys_clock();
-// #if WORKLOAD == TPCC
-//     uncommitted_reads->erase(txn->get_txn_id());
-//     uncommitted_writes->erase(txn->get_txn_id());
-// #else
     if(type == RD || type == SCAN) {
         uncommitted_reads->erase(txn->get_txn_id());
     }
@@ -198,16 +207,19 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     if(type == WR) {
         uncommitted_writes->erase(txn->get_txn_id());
     }
-// #endif
     INC_STATS(txn->get_thd_id(),maat_abort_time,get_sys_clock() - abort_start);
-    ATOM_CAS(maat_avail,false,true);
+    // ATOM_CAS(maat_avail,false,true);
+    if (lock_tid != txn->get_txn_id()){
+        assert(lock_tid != txn->get_txn_id());  
+        pthread_mutex_unlock( _latch );
+    }
     return Abort;
 }
 
 RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     uint64_t mtx_wait_starttime = get_sys_clock();
-    while (!ATOM_CAS(maat_avail, true, false)) {
-    }
+    // while (!ATOM_CAS(maat_avail, true, false)) {
+    // }
     INC_STATS(txn->get_thd_id(),maat_commit_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),maat_other_wait_time,get_sys_clock() - mtx_wait_starttime);
@@ -215,55 +227,6 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     DEBUG("Maat Commit %ld: %d,%lu -- %ld\n", txn->get_txn_id(), type, txn->get_commit_timestamp(),
             _row->get_primary_key());
     uint64_t commit_start = get_sys_clock();
-// #if WORKLOAD == TPCC
-//     if(txn->get_commit_timestamp() >  timestamp_last_read) timestamp_last_read = txn->get_commit_timestamp();
-//     uncommitted_reads->erase(txn->get_txn_id());
-//     if(txn->get_commit_timestamp() >  timestamp_last_write) timestamp_last_write = txn->get_commit_timestamp();
-//     uncommitted_writes->erase(txn->get_txn_id());
-//     // Apply write to DB
-//     write(data);
-
-//     uint64_t txn_commit_ts = txn->get_commit_timestamp();
-//     // Forward validation
-//     // Check uncommitted writes against this txn's
-//         for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
-//         if(txn->uncommitted_writes->count(*it) == 0) {
-//             // apply timestamps
-//             // these write txns need to come AFTER this txn
-//             uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
-//             if(it_lower <= txn_commit_ts) {
-//                 time_table.set_lower(txn->get_thd_id(),*it,txn_commit_ts+1);
-//                 DEBUG("MAAT forward val set lower %ld: %lu\n",*it,txn_commit_ts+1);
-//             }
-//         }
-//     }
-
-//     uint64_t lower =  time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
-//     for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
-//         if(txn->uncommitted_writes_y->count(*it) == 0) {
-//             // apply timestamps
-//             // these write txns need to come BEFORE this txn
-//             uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
-//             if(it_upper >= txn_commit_ts) {
-//                 time_table.set_upper(txn->get_thd_id(),*it,txn_commit_ts-1);
-//                 DEBUG("MAAT forward val set upper %ld: %lu\n",*it,txn_commit_ts-1);
-//             }
-//         }
-//     }
-
-//     for(auto it = uncommitted_reads->begin(); it != uncommitted_reads->end();it++) {
-//         if(txn->uncommitted_reads->count(*it) == 0) {
-//             // apply timestamps
-//             // these write txns need to come BEFORE this txn
-//             uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
-//             if(it_upper >= lower) {
-//                 time_table.set_upper(txn->get_thd_id(),*it,lower-1);
-//                 DEBUG("MAAT forward val set upper %ld: %lu\n",*it,lower-1);
-//             }
-//         }
-//     }
-
-// #else
     uint64_t txn_commit_ts = txn->get_commit_timestamp();
     if (type == RD || type == SCAN) {
         if (txn_commit_ts > timestamp_last_read) timestamp_last_read = txn_commit_ts;
@@ -327,8 +290,30 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     }
 // #endif
     INC_STATS(txn->get_thd_id(),maat_commit_time,get_sys_clock() - commit_start);
-    ATOM_CAS(maat_avail,false,true);
+    // ATOM_CAS(maat_avail,false,true);
     return RCOK;
 }
 
 void Row_maat::write(row_t* data) { _row->copy(data); }
+
+bool Row_maat::try_lock(uint64_t tid)
+{
+    bool success = pthread_mutex_trylock( _latch ) != EBUSY;
+    if (success) {
+        assert(lock_tid == 0);
+        lock_tid = tid;
+    }
+    return success;
+}
+
+bool Row_maat::check_lock_id(uint64_t tid) {
+    return lock_tid == tid;
+}
+
+void Row_maat::release(uint64_t tid) {
+    if (lock_tid == tid){
+        assert(lock_tid == tid);
+        lock_tid = 0;
+        pthread_mutex_unlock( _latch );
+    }
+}
