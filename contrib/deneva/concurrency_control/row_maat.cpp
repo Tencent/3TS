@@ -42,11 +42,11 @@ void Row_maat::init(row_t * row) {
 RC Row_maat::access(access_t type, TxnManager * txn) {
     uint64_t starttime = get_sys_clock();
 
-    // if (try_lock(txn->get_txn_id()))
-    // {
-    //     return Abort;
-    // }
-    pthread_mutex_lock( _latch );
+    if (!try_lock(txn->get_txn_id()))
+    {
+        return Abort;
+    }
+    //pthread_mutex_lock( _latch );
 
     if (type == RD || type == SCAN) read(txn);
     if (type == WR) prewrite(txn);
@@ -55,8 +55,8 @@ RC Row_maat::access(access_t type, TxnManager * txn) {
     INC_STATS(txn->get_thd_id(),txn_useful_time,timespan);
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
-    pthread_mutex_unlock( _latch );
-    // release(txn->get_txn_id());
+    //pthread_mutex_unlock( _latch );
+    release(txn->get_txn_id());
     return RCOK;
 }
 
@@ -181,7 +181,7 @@ RC Row_maat::prewrite(TxnManager * txn) {
     uncommitted_writes->insert(txn->get_txn_id());
     INC_STATS(txn->get_thd_id(),maat_write_time,get_sys_clock() - write_start);
     INC_STATS(txn->get_thd_id(),trans_read_time,get_sys_clock() - mtx_wait_starttime);
-    ATOM_CAS(maat_avail,false,true);
+    // ATOM_CAS(maat_avail,false,true);
 
     return rc;
 }
@@ -193,6 +193,7 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     if (lock_tid != txn->get_txn_id()){
         assert(lock_tid != txn->get_txn_id());  
         pthread_mutex_lock( _latch );
+        lock_tid = txn->get_txn_id();
     }
     INC_STATS(txn->get_thd_id(),maat_abort_wait_time,get_sys_clock() - mtx_wait_starttime);
     INC_STATS(txn->get_thd_id(),txn_cc_manager_time,get_sys_clock() - mtx_wait_starttime);
@@ -212,6 +213,7 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     if (lock_tid != txn->get_txn_id()){
         assert(lock_tid != txn->get_txn_id());  
         pthread_mutex_unlock( _latch );
+        lock_tid = 0;
     }
     return Abort;
 }
