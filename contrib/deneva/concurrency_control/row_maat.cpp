@@ -21,7 +21,7 @@
 #include "manager.h"
 #include "helper.h"
 #include "maat.h"
-
+#if CC_ALG==MAAT
 void Row_maat::init(row_t * row) {
     _row = row;
 
@@ -319,3 +319,4 @@ void Row_maat::release(uint64_t tid) {
         pthread_mutex_unlock( _latch );
     }
 }
+#endif

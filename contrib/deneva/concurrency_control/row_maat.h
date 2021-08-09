@@ -16,7 +16,7 @@
 
 #ifndef ROW_MAAT_H
 #define ROW_MAAT_H
-
+#if CC_ALG==MAAT
 class Row_maat {
 public:
     void init(row_t * row);
@@ -46,4 +46,5 @@ private:
     uint64_t timestamp_last_write;
 };
 
+#endif
 #endif

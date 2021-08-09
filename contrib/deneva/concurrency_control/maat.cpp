@@ -21,7 +21,7 @@
 #include "manager.h"
 #include "mem_alloc.h"
 #include "row_maat.h"
-
+#if CC_ALG==MAAT
 void Maat::init() { sem_init(&_semaphore, 0, 1); }
 
 RC Maat::validate(TxnManager * txn) {
@@ -91,6 +91,12 @@ RC Maat::validate(TxnManager * txn) {
                 upper = it_lower;
                 }
             }
+            // abort asap
+            if(lower >= upper) {
+                time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_ABORTED);
+                rc = Abort;
+                return rc;
+            } 
             if(state == MAAT_RUNNING) {
                 after.insert(*it);
             }
@@ -113,6 +119,12 @@ RC Maat::validate(TxnManager * txn) {
                 } else {
                 lower = it_upper;
                 }
+            // abort asap
+            if(lower >= upper) {
+                time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_ABORTED);
+                rc = Abort;
+                return rc;
+            } 
             }
             if(state == MAAT_RUNNING) {
                 before.insert(*it);
@@ -128,14 +140,20 @@ RC Maat::validate(TxnManager * txn) {
         }
         if(state == MAAT_VALIDATED || state == MAAT_COMMITTED) {
             if(lower <= it_upper) {
-            INC_STATS(txn->get_thd_id(),maat_case5_cnt,1);
-            if(it_upper < UINT64_MAX) {
-                lower = it_upper + 1;
-            } else {
-                lower = it_upper;
-            }
+                INC_STATS(txn->get_thd_id(),maat_case5_cnt,1);
+                if(it_upper < UINT64_MAX) {
+                    lower = it_upper + 1;
+                } else {
+                    lower = it_upper;
+                }
             }
         }
+        // abort asap
+        if(lower >= upper) {
+            time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_ABORTED);
+            rc = Abort;
+            return rc;
+        } 
         if(state == MAAT_RUNNING) {
             after.insert(*it);
         }
@@ -215,7 +233,11 @@ RC Maat::find_bound(TxnManager * txn) {
     } else {
         time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_COMMITTED);
         // TODO: can commit_time be selected in a smarter way?
-        txn->commit_timestamp = lower;
+        if(lower + 2 < upper){ // for conflict txn to insert before
+                txn->commit_timestamp = lower + 2;
+        } else {
+                txn->commit_timestamp = lower;
+        }
     }
     DEBUG("MAAT Bound %ld: %d [%lu,%lu] %lu\n", txn->get_txn_id(), rc, lower, upper,
             txn->commit_timestamp);
@@ -351,3 +373,4 @@ void TimeTable::set_state(uint64_t thd_id, uint64_t key, MAATState value) {
     }
     pthread_mutex_unlock(&table[idx].mtx);
 }
+#endif
