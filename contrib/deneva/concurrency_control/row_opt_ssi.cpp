@@ -259,17 +259,36 @@ void Row_opt_ssi::release_lock(ts_t min_ts) {
     }
 }
 
+bool Row_opt_ssi::try_lock()
+{
+    return pthread_mutex_trylock( latch ) != EBUSY;
+}
+
 RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     RC rc = RCOK;
     ts_t ts = txn->get_commit_timestamp();
     ts_t start_ts = txn->get_start_timestamp();
     uint64_t starttime = get_sys_clock();
     txnid_t txnid = txn->get_txn_id();
-    if (g_central_man) {
-        glob_manager.lock_row(_row);
-    } else {
+
+    // if (g_central_man) {
+    //     glob_manager.lock_row(_row);
+    // } else {
+    //     pthread_mutex_lock(latch);
+    // }
+    if(type == XP_REQ){
         pthread_mutex_lock(latch);
     }
+    else if (!try_lock())
+    {   
+        rc = Abort;
+        INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+        INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
+        INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);
+        INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
+        return rc;
+    }
+
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);

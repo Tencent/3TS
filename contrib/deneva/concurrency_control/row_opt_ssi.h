@@ -47,6 +47,8 @@ class Row_opt_ssi {
 public:
     void init(row_t * row);
     RC   access(TxnManager * txn, TsType type, row_t * row);
+    // access lock
+    bool try_lock();
 private:
     pthread_mutex_t * latch;
 
