@@ -59,6 +59,7 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
         }
         row = his->row;
         his->row = NULL;
+#if ISOLATION_LEVEL == SERIALIZABLE
         //clear si_read
         OPT_SSILockEntry * read = his->si_read_lock;
         while (read != NULL) {
@@ -69,6 +70,7 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
             delete_p->next = NULL;
             free(delete_p);
         }
+#endif
         return_his_entry(his);
         his = prev;
         if (type == R_REQ) rhis_len --;
@@ -274,6 +276,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
+#if ISOLATION_LEVEL == SERIALIZABLE
         uint64_t read_start = get_sys_clock();
         // check write his to the read version
         OPT_SSIHisEntry* c_his = writehis;
@@ -342,6 +345,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
         INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - new_start);
+#endif
         
     } else if (type == P_REQ) {
         uint64_t write_start = get_sys_clock();
@@ -364,6 +368,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         get_lock(LOCK_EX, txn);
         uint64_t lock_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_read_time, lock_end - lock_start);
+#if ISOLATION_LEVEL == SERIALIZABLE
         // get si_read from last committed history or row manager(if not write history)
         OPT_SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : si_read_lock;
         while (si_read != NULL) {
@@ -394,6 +399,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             si_read = si_read->next;
         }
         INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - lock_end);
+#endif
         
     } else if (type == W_REQ) {
         uint64_t write_start = get_sys_clock();
@@ -404,7 +410,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());  
     } else if (type == XP_REQ) {
         release_lock(LOCK_EX, txn);
+#if ISOLATION_LEVEL == SERIALIZABLE
         release_lock(LOCK_SH, txn);
+#endif
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
     } else {
         assert(false);
@@ -429,7 +437,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     si_read_lock = NULL; //can not read initial version once we have clear the versions.
                 }
             }
+#if ISOLATION_LEVEL == SERIALIZABLE
             release_lock(t_th);
+#endif
         }
         INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
     }
