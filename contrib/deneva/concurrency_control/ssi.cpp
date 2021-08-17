@@ -108,7 +108,7 @@ RC opt_ssi::validate(TxnManager * txn) {
 
     start_time = get_sys_clock();
     RC rc = RCOK;
-
+#if ISOLATION_LEVEL == SERIALIZABLE
     DEBUG("OPT_SSI Validate Start %ld\n",txn->get_txn_id());
     if (txn->in_rw && txn->out_rw)
     {
@@ -119,6 +119,7 @@ RC opt_ssi::validate(TxnManager * txn) {
         DEBUG("ssi Validate ok %ld\n",txn->get_txn_id());
         rc = RCOK;
     }
+#endif
 
     if (rc != Abort) DEBUG("si Validate ok, %ld\n",txn->get_txn_id());
     txn->txn_stats.cc_time += timespan;

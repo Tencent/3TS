@@ -266,7 +266,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     ts_t ts = txn->get_commit_timestamp();
     ts_t start_ts = txn->get_start_timestamp();
     uint64_t starttime = get_sys_clock();
+#if ISOLATION_LEVEL == SERIALIZABLE
     txnid_t txnid = txn->get_txn_id();
+#endif
     if (g_central_man) {
         glob_manager.lock_row(_row);
     } else {
