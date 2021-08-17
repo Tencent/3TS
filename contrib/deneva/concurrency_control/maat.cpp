@@ -233,11 +233,7 @@ RC Maat::find_bound(TxnManager * txn) {
     } else {
         time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_COMMITTED);
         // TODO: can commit_time be selected in a smarter way?
-        if(lower + 2 < upper){ // for conflict txn to insert before
-                txn->commit_timestamp = lower + 2;
-        } else {
-                txn->commit_timestamp = lower;
-        }
+        txn->commit_timestamp = lower;
     }
     DEBUG("MAAT Bound %ld: %d [%lu,%lu] %lu\n", txn->get_txn_id(), rc, lower, upper,
             txn->commit_timestamp);

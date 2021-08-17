@@ -210,11 +210,12 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     }
     INC_STATS(txn->get_thd_id(),maat_abort_time,get_sys_clock() - abort_start);
     // ATOM_CAS(maat_avail,false,true);
-    if (lock_tid != txn->get_txn_id()){
-        assert(lock_tid != txn->get_txn_id());  
-        pthread_mutex_unlock( _latch );
-        lock_tid = 0;
-    }
+    assert(lock_tid == txn->get_txn_id()); 
+    // if (lock_tid == txn->get_txn_id()){
+    lock_tid = 0; 
+    pthread_mutex_unlock( _latch );   
+    // }
+    // release(txn->get_txn_id());
     return Abort;
 }
 
@@ -293,6 +294,10 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
 // #endif
     INC_STATS(txn->get_thd_id(),maat_commit_time,get_sys_clock() - commit_start);
     // ATOM_CAS(maat_avail,false,true);
+    assert(lock_tid == txn->get_txn_id()); 
+    //release(txn->get_txn_id());
+    lock_tid = 0; 
+    pthread_mutex_unlock( _latch );   
     return RCOK;
 }
 
