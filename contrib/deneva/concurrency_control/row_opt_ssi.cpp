@@ -276,7 +276,6 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
-#if ISOLATION_LEVEL == SERIALIZABLE
         uint64_t read_start = get_sys_clock();
         // check write his to the read version
         OPT_SSIHisEntry* c_his = writehis;
@@ -291,6 +290,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 c_his = p_his;
                 p_his = p_his->next;
             }
+#if ISOLATION_LEVEL == SERIALIZABLE
             //build rw
             if (c_his->txn->out_rw) { // Abort when exists out_rw
                 rc = Abort;
@@ -303,7 +303,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             c_his->txn->in_rw = true;
             txn->out_rw = true;
             DEBUG("ssi read the write_commit in %ld out %ld\n",c_his->txnid, txnid);
-        } else{ 
+#endif
+        } else{
+#if ISOLATION_LEVEL == SERIALIZABLE
             // else if the read is the init version or the last committed version  
             // (c_his == NULL) || (c_his != NULL && p_his == NULL)
             OPT_SSILockEntry * write = write_lock;
@@ -326,6 +328,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 DEBUG("ssi read the write_lock in %ld out %ld\n",write->txnid, txnid);
                 write = write->next;
             }
+#endif
         }
 
         INC_STATS(txn->get_thd_id(), trans_validate_time, get_sys_clock() - read_start);
@@ -335,17 +338,18 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
 
         uint64_t new_start = get_sys_clock();
 
+#if ISOLATION_LEVEL == SERIALIZABLE
         if (p_his != NULL){
             get_lock(LOCK_SH, txn, p_his);  // si_read_lock add to write history
         } else{
             get_lock(LOCK_SH, txn);         // si_read_lock add to row
         }
+#endif
 
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
         INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - new_start);
-#endif
         
     } else if (type == P_REQ) {
         uint64_t write_start = get_sys_clock();
