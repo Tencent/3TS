@@ -44,6 +44,7 @@ RC Row_maat::access(access_t type, TxnManager * txn) {
 
     if (!try_lock(txn->get_txn_id()))
     {
+        time_table.set_state(txn->get_thd_id(),txn->get_txn_id(),MAAT_ABORTED);
         return Abort;
     }
     //pthread_mutex_lock( _latch );
@@ -211,10 +212,6 @@ RC Row_maat::abort(access_t type, TxnManager * txn) {
     INC_STATS(txn->get_thd_id(),maat_abort_time,get_sys_clock() - abort_start);
     // ATOM_CAS(maat_avail,false,true);
     assert(lock_tid == txn->get_txn_id()); 
-    // if (lock_tid == txn->get_txn_id()){
-    lock_tid = 0; 
-    pthread_mutex_unlock( _latch );   
-    // }
     // release(txn->get_txn_id());
     return Abort;
 }
@@ -231,6 +228,11 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
             _row->get_primary_key());
     uint64_t commit_start = get_sys_clock();
     uint64_t txn_commit_ts = txn->get_commit_timestamp();
+
+    // remove aborted txn_ids
+    std::set<uint64_t> read_remove;
+    std::set<uint64_t> write_remove;
+
     if (type == RD || type == SCAN) {
         if (txn_commit_ts > timestamp_last_read) timestamp_last_read = txn_commit_ts;
         uncommitted_reads->erase(txn->get_txn_id());
@@ -238,14 +240,19 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
     // Forward validation
     // Check uncommitted writes against this txn's
         for (auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
-        if (txn->uncommitted_writes->count(*it) == 0) {
-            // apply timestamps
-            // these write txns need to come AFTER this txn
-            uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
-            if(it_lower <= txn_commit_ts) {
-            time_table.set_lower(txn->get_thd_id(),*it,txn_commit_ts+1);
-            DEBUG("MAAT forward val set lower %ld: %lu\n",*it,txn_commit_ts+1);
+            MAATState state = time_table.get_state(txn->get_thd_id(),*it);
+            if(state == MAAT_ABORTED) {
+                read_remove.insert(*it);
+                continue;
             }
+            if (txn->uncommitted_writes->count(*it) == 0) {
+                // apply timestamps
+                // these write txns need to come AFTER this txn
+                uint64_t it_lower = time_table.get_lower(txn->get_thd_id(),*it);
+                if(it_lower <= txn_commit_ts) {
+                time_table.set_lower(txn->get_thd_id(),*it,txn_commit_ts+1);
+                DEBUG("MAAT forward val set lower %ld: %lu\n",*it,txn_commit_ts+1);
+                }
         }
     }
 
@@ -267,6 +274,11 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
         INC_STATS(txn->get_thd_id(),trans_write_time,get_sys_clock() - start);
         uint64_t lower =  time_table.get_lower(txn->get_thd_id(),txn->get_txn_id());
         for(auto it = uncommitted_writes->begin(); it != uncommitted_writes->end();it++) {
+            MAATState state = time_table.get_state(txn->get_thd_id(),*it);
+            if(state == MAAT_ABORTED) {
+                write_remove.insert(*it);
+                continue;
+            }
             if(txn->uncommitted_writes_y->count(*it) == 0) {
                 // apply timestamps
                 // these write txns need to come BEFORE this txn
@@ -280,6 +292,11 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
 
         for(auto it = uncommitted_reads->begin(); it != uncommitted_reads->end();it++) {
             if(txn->uncommitted_reads->count(*it) == 0) {
+                MAATState state = time_table.get_state(txn->get_thd_id(),*it);
+                if(state == MAAT_ABORTED) {
+                    read_remove.insert(*it);   
+                    continue;
+                }
                 // apply timestamps
                 // these write txns need to come BEFORE this txn
                 uint64_t it_upper = time_table.get_upper(txn->get_thd_id(),*it);
@@ -290,14 +307,21 @@ RC Row_maat::commit(access_t type, TxnManager * txn, row_t * data) {
             }
         }
 
+        for(auto it = read_remove.begin(); it != read_remove.end();it++) {
+            uncommitted_reads->erase(*it);
+        }
+
+        for(auto it = write_remove.begin(); it != write_remove.end();it++) {
+            uncommitted_writes->erase(*it);
+        }
+
+
     }
 // #endif
     INC_STATS(txn->get_thd_id(),maat_commit_time,get_sys_clock() - commit_start);
     // ATOM_CAS(maat_avail,false,true);
     assert(lock_tid == txn->get_txn_id()); 
-    //release(txn->get_txn_id());
-    lock_tid = 0; 
-    pthread_mutex_unlock( _latch );   
+    release(txn->get_txn_id());
     return RCOK;
 }
 
