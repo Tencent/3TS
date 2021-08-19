@@ -257,7 +257,11 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
 
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT
     //uint64_t thd_id = txn->get_thd_id();
+#if ISOLATION_LEVEL == SERIALIZABLE
     lock_t lt = (type == RD || type == SCAN) ? LOCK_SH : LOCK_EX; // ! this may be wrong
+#elif ISOLATION_LEVEL == READ_COMMITTED
+    lock_t lt = (type == RD || type == SCAN) ? LOCK_NONE : LOCK_EX;
+#endif
     rc = this->manager->lock_get(lt, txn);
     if (rc == RCOK) {
         access->data = this;

@@ -197,7 +197,7 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
 #endif
         read_start = get_sys_clock();
         if(owner_cnt > 0) {
-            assert(type == LOCK_SH);
+            //assert(type == LOCK_SH);
             INC_STATS(txn->get_thd_id(),twopl_sh_bypass_cnt,1);
         }
         if(txn->get_timestamp() > max_owner_ts) {
