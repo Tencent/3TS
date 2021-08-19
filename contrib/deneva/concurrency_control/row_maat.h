@@ -31,7 +31,9 @@ public:
     bool check_lock_id(uint64_t tid);
     bool try_lock(uint64_t tid);
     void release(uint64_t tid);
-
+    std::set<uint64_t> * uncommitted_reads;
+    std::set<uint64_t> * uncommitted_writes;
+    
 private:
     volatile bool maat_avail;
     row_t * _row;
@@ -40,8 +42,7 @@ private:
     uint64_t            lock_tid;
     pthread_mutex_t *   _latch;
 
-    std::set<uint64_t> * uncommitted_reads;
-    std::set<uint64_t> * uncommitted_writes;
+
     uint64_t timestamp_last_read;
     uint64_t timestamp_last_write;
 };

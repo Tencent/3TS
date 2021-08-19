@@ -510,8 +510,8 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
 #elif CC_ALG == MAAT
     assert (row != NULL);
     if (rc == Abort) {
-        // manager->abort(type,txn);
-        manager->release(txn->get_txn_id());
+        manager->abort(type,txn);
+        //manager->release(txn->get_txn_id());
     } else {
         manager->commit(type,txn,row);
     }

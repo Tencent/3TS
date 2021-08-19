@@ -44,13 +44,18 @@ RC Maat::validate(TxnManager * txn) {
     // sort all rows accessed in primary key order.
     for (uint64_t i = txn->get_access_cnt() - 1; i > 0; i--) {
         for (uint64_t j = 0; j < i; j ++) {
-            int tabcmp = strcmp(txn->get_access_original_row(j)->get_table_name(),
-                txn->get_access_original_row(j+1)->get_table_name());
-      if (tabcmp > 0 ||
-          (tabcmp == 0 && txn->get_access_original_row(j)->get_primary_key() >
-                              txn->get_access_original_row(j + 1)->get_primary_key())) {
+            // int tabcmp = strcmp(txn->get_access_original_row(j)->get_table_name(),
+            //     txn->get_access_original_row(j+1)->get_table_name());
+            // if (tabcmp > 0 ||
+            //     (tabcmp == 0 && txn->get_access_original_row(j)->get_primary_key() >
+            //                     txn->get_access_original_row(j + 1)->get_primary_key())) {
+            //         txn->swap_accesses(j,j+1);
+            //     }
+            // assert(txn->accesses.get_count() == txn->get_access_cnt());
+            if (txn->get_access_original_row(j)->get_primary_key() >
+                                txn->get_access_original_row(j + 1)->get_primary_key())  {
                 txn->swap_accesses(j,j+1);
-            }
+            }  
         }
     }
 
@@ -68,6 +73,47 @@ RC Maat::validate(TxnManager * txn) {
         INC_STATS(txn->get_thd_id(),total_rw_abort_cnt,1); // use this to cnt lock violation
         rc = Abort;
         return rc;
+    }
+
+    // remove aborted txn_ids
+    std::set<uint64_t> read_remove;
+    std::set<uint64_t> write_remove;
+    for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
+        row_t * row = txn->get_access_original_row(i);
+        if (txn->get_access_type(i) == WR){
+            // Copy uncommitted reads
+            for(auto it = row->manager->uncommitted_reads->begin(); it != row->manager->uncommitted_reads->end(); it++) {
+                MAATState state = time_table.get_state(txn->get_thd_id(),*it);
+                if(state == MAAT_ABORTED) {
+                    read_remove.insert(*it);
+                    continue;
+                }
+                uint64_t txn_id = *it;
+                txn->uncommitted_reads->insert(txn_id);
+            }
+
+            // Copy uncommitted writes
+            for(auto it = row->manager->uncommitted_writes->begin(); it != row->manager->uncommitted_writes->end(); it++) {
+                MAATState state = time_table.get_state(txn->get_thd_id(),*it);
+                if(state == MAAT_ABORTED) {
+                    write_remove.insert(*it);
+                    continue;
+                }
+                uint64_t txn_id = *it;
+                txn->uncommitted_writes_y->insert(txn_id);
+            }
+        } else {
+            // Copy uncommitted writes
+            for(auto it = row->manager->uncommitted_writes->begin(); it != row->manager->uncommitted_writes->end(); it++) {
+                MAATState state = time_table.get_state(txn->get_thd_id(),*it);
+                if(state == MAAT_ABORTED) {
+                    write_remove.insert(*it);
+                    continue;
+                }
+                uint64_t txn_id = *it;
+                txn->uncommitted_writes->insert(txn_id);
+            }
+        }
     }
 
     INC_STATS(txn->get_thd_id(),maat_cs_wait_time,get_sys_clock() - start_time);
@@ -219,6 +265,17 @@ RC Maat::validate(TxnManager * txn) {
     txn->txn_stats.cc_time_short += timespan;
     DEBUG("MAAT Validate End %ld: %d [%lu,%lu]\n",txn->get_txn_id(),rc==RCOK,lower,upper);
     // sem_post(&_semaphore);
+    for (uint64_t i = 0; i < txn->get_access_cnt(); i++) {
+        row_t * row = txn->get_access_original_row(i);
+        for(auto it = read_remove.begin(); it != read_remove.end();it++) {
+            row->manager->uncommitted_reads->erase(*it);
+        }
+
+        for(auto it = write_remove.begin(); it != write_remove.end();it++) {
+            row->manager->uncommitted_writes->erase(*it);
+        }
+    }
+
     return rc;
 
 }
