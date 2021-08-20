@@ -180,6 +180,7 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_lock(latch);
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
+    INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
         // Read the row
         rc = RCOK;
@@ -200,9 +201,11 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
             rc = Abort;
         }
     } else if (type == W_REQ) {
+        uint64_t write_start = get_sys_clock();
         rc = RCOK;
         // the corresponding prewrite request is debuffered.
         insert_history(ts, txn, row);
+        INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
         WSIReqEntry * req = debuffer_req(P_REQ, txn);
         assert(req != NULL);
@@ -217,6 +220,7 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
     }
 
     if (rc == RCOK) {
+        uint64_t write_start = get_sys_clock();
         if (whis_len > g_his_recycle_len || rhis_len > g_his_recycle_len) {
             ts_t t_th = glob_manager.get_min_ts(txn->get_thd_id());
             if (readhistail && readhistail->ts < t_th) {
@@ -236,11 +240,14 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
                 }
             }
         }
+        INC_STATS(txn->get_thd_id(), trans_access_clear_time, get_sys_clock() - write_start);
     }
 
     uint64_t timespan = get_sys_clock() - starttime;
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
+
+    INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
 
     if (g_central_man) {
         glob_manager.release_row(_row);
