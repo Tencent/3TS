@@ -221,6 +221,9 @@ extern UInt64 g_max_read_req;
 extern UInt64 g_max_pre_req;
 extern UInt64 g_his_recycle_len;
 
+// distrbute txn rate
+extern double g_distribute_perc;
+
 // YCSB
 extern UInt32 g_cc_alg;
 extern ts_t g_query_intvl;
