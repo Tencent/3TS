@@ -34,6 +34,7 @@
 #include "focc.h"
 #include "bocc.h"
 #include "row_occ.h"
+#include "dli.h"
 #include "dta.h"
 #include "table.h"
 #include "catalog.h"
@@ -301,6 +302,7 @@ void Transaction::release_inserts(uint64_t thd_id) {
     for(uint64_t i = 0; i < insert_rows.size(); i++) {
         row_t * row = insert_rows[i];
 #if CC_ALG != MAAT && CC_ALG != OCC && CC_ALG != SUNDIAL && CC_ALG != BOCC && CC_ALG != FOCC
+// TODO: does DLI need free row->manager?
         DEBUG_M("TxnManager::cleanup row->manager free\n");
         mem_allocator.free(row->manager, 0);
 #endif
@@ -371,6 +373,10 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     num_locks = 0;
     memset(write_set, 0, 100);
   // write_set = (int *) mem_allocator.alloc(sizeof(int) * 100);
+#endif
+
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    history_dli_txn_head = dli_man.validated_txns_.load();
 #endif
 
     registed_ = false;
@@ -522,7 +528,7 @@ RC TxnManager::abort() {
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
 #endif
-#if CC_ALG == DTA
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     dta_time_table.release(get_thd_id(), get_txn_id());
 #endif
     uint64_t timespan = get_sys_clock() - txn_stats.restart_starttime;
@@ -592,8 +598,7 @@ RC TxnManager::start_commit() {
                 send_prepare_messages();
                 rc = WAIT_REM;
             }
-        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI ||
-            CC_ALG == OPT_SSI) {
+        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == DLI_BASE || CC_ALG == DLI_OCC) {
             // send prepare messages
 #if CC_ALG == FOCC
             rc = focc_man.start_critical_section(this);
@@ -869,6 +874,16 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
     }
 #endif
 
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    Dli::RWSet::iterator it;
+    if (type == WR && dli_txn && (it = dli_txn->wset_.find(orig_r)) != dli_txn->wset_.end()) {
+      // We need not lock wset_ because once dli_txn can be visiable to other transactions, the size
+      // of wset will not be changed. We only update the version of each row has been written.
+      // TODO: the value of wset should be atomical
+      it->second = version;
+    }
+#endif
+
 #endif
     if (type == WR) txn->accesses[rid]->version = version;
 #if CC_ALG == SUNDIAL
@@ -896,6 +911,9 @@ void TxnManager::cleanup(RC rc) {
 #endif
 #if (CC_ALG == WSI) && MODE == NORMAL_MODE
     wsi_man.finish(rc,this);
+#endif
+#if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC_BASE) && MODE == NORMAL_MODE
+    dli_man.finish_trans(rc, this);
 #endif
 #if IS_GENERIC_ALG && MODE == NORMAL_MODE
     if (rc == RCOK) {
@@ -1160,6 +1178,16 @@ RC TxnManager::validate() {
         }
     } else if (CC_ALG == SUNDIAL) {
         rc = sundial_man.validate(this);
+    } else if (CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC ||
+          CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC) {
+        rc = dli_man.validate(this);
+        if (IS_LOCAL(get_txn_id()) && rc == RCOK) {
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+            rc = dli_man.find_bound(this);
+#else
+            set_commit_timestamp(glob_manager.get_ts(get_thd_id()));
+#endif
+        }
     } else if (CC_ALG == DTA) {
         rc = dta_man.validate(this);
         // Note: home node must be last to validate

@@ -63,7 +63,7 @@ RC Row_dta::access(TsType type, TxnManager* txn, row_t* row, uint64_t& version) 
 }
 
 RC Row_dta::read_and_write(TsType type, TxnManager* txn, row_t* row, uint64_t& version) {
-  assert(CC_ALG == DTA);
+  assert(CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3);
   RC rc = RCOK;
 
   uint64_t mtx_wait_starttime = get_sys_clock();
@@ -171,7 +171,7 @@ RC Row_dta::read_and_write(TsType type, TxnManager* txn, row_t* row, uint64_t& v
 }
 
 RC Row_dta::prewrite(TxnManager* txn) {
-  assert(CC_ALG == DTA);
+  assert(CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3);
   RC rc = RCOK;
 
   uint64_t mtx_wait_starttime = get_sys_clock();

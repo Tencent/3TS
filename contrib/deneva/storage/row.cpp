@@ -44,7 +44,9 @@
 #include "row_silo.h"
 #include "row_si.h"
 #include "row_dta.h"
+#include "row_dli_based.h"
 #include "row_unified.h"
+#include "dli.h"
 #include "mem_alloc.h"
 #include "manager.h"
 
@@ -97,6 +99,10 @@ void row_t::init_manager(row_t * row) {
     manager = (Row_null *) mem_allocator.align_alloc(sizeof(Row_null));
 #elif CC_ALG == SILO
     manager = (Row_silo *) mem_allocator.align_alloc(sizeof(Row_silo));
+#elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
+    manager = (Row_dli_base *)mem_allocator.align_alloc(sizeof(Row_dli_base));
+#elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
+    manager = (Row_si *)mem_allocator.align_alloc(sizeof(Row_si));
 #elif IS_GENERIC_ALG
     void* const p = mem_allocator.align_alloc(sizeof(Row_unified<CC_ALG>));
     manager = new(p) Row_unified<CC_ALG>();
@@ -332,6 +338,34 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     rc = this->manager->access(txn, R_REQ);
     access->data = txn->cur_row;
     goto end;
+#elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
+    // DLI always make a local copy regardless of read or write
+    DEBUG_M("row_t::get_row DLI alloc \n");
+    txn->cur_row = (row_t *)mem_allocator.alloc(sizeof(row_t));
+    txn->cur_row->init(get_table(), get_part_id());
+    rc = this->manager->access(txn, type == WR ? P_REQ : R_REQ, access->version);
+    access->data = txn->cur_row;
+#if CC_ALG == DLI_BASE
+    if (rc == RCOK) {
+        rc = dli_man.validate(txn, false);
+    }
+#endif
+    goto end;
+#elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
+    rc = this->manager->access(txn, R_REQ, access->version);
+    if (type == WR) {
+        DEBUG_M("row_t::get_row SI alloc \n");
+        row_t *newer = (row_t *)mem_allocator.alloc(sizeof(row_t));
+        newer->init(get_table(), get_part_id());
+        newer->copy(txn->cur_row);
+        txn->cur_row = newer;
+    }
+
+    access->data = txn->cur_row;
+#if CC_ALG == DLI_MVCC
+    rc = dli_man.validate(txn, false);
+#endif
+    goto end;
 #elif CC_ALG == SILO
     // like OCC, sundial also makes a local copy for each read/write
     DEBUG_M("row_t::get_row SILO alloc \n");
@@ -398,7 +432,7 @@ RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
     //ts_t endtime = get_sys_clock();
     row = this;
 
-#elif CC_ALG == MVCC || CC_ALG == TIMESTAMP || CC_ALG == DTA
+#elif CC_ALG == MVCC || CC_ALG == TIMESTAMP || CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     assert(txn->ts_ready);
     //INC_STATS(thd_id, time_wait, t2 - t1);
     row = txn->cur_row;
@@ -407,8 +441,7 @@ RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
     assert(row->get_table() != NULL);
     assert(row->get_schema() == this->get_schema());
     assert(row->get_table_name() != NULL);
-    if (( CC_ALG == MVCC || CC_ALG == SUNDIAL || CC_ALG == SSI || 
-          CC_ALG == OPT_SSI || CC_ALG == WSI) && type == WR) {
+    if (( CC_ALG == MVCC || CC_ALG == SUNDIAL || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3) && type == WR) {
         DEBUG_M("row_t::get_row_post_wait MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
         newr->init(this->get_table(), get_part_id());
@@ -472,6 +505,25 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     mem_allocator.free(row, sizeof(row_t));
     manager->release();
     return 0;
+#elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
+    assert(row != NULL);
+    uint64_t version = 0;
+    version = manager->write(row, txn, type);
+    row->free_row();
+    DEBUG_M("row_t::return_row DLT1 free \n");
+    mem_allocator.free(row, sizeof(row_t));
+    return version;
+#elif CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
+    assert(row != NULL);
+    uint64_t version = 0;
+    if (type == WR) {
+      version = manager->write(row, txn, type);
+    } else if (type == XP) {
+      manager->write(row, txn, type);
+      row->free_row();
+      mem_allocator.free(row, sizeof(row_t));
+    }
+    return version;
 #elif CC_ALG == CNULL
     assert (row != NULL);
     if (rc == Abort) {

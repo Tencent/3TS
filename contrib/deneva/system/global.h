@@ -69,6 +69,7 @@ class wsi;
 class Maat;
 class Sundial;
 class Dta;
+class Dli;
 class Transport;
 class Remote_query;
 class TxnManPool;
@@ -125,6 +126,7 @@ extern wsi wsi_man;
 extern Maat maat_man;
 extern Sundial sundial_man;
 extern Dta dta_man;
+extern Dli dli_man;
 #if IS_GENERIC_ALG
 extern UniAlgManager<CC_ALG> uni_alg_man;
 #endif

@@ -92,7 +92,7 @@
 // # of transactions to run for warmup
 #define WARMUP            0
 // YCSB or TPCC or PPS or DA
-#define WORKLOAD YCSB
+#define WORKLOAD DA
 // print the transaction latency distribution
 #define PRT_LAT_DISTR false
 #define STATS_ENABLE        true
@@ -152,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG OPT_SSI
+#define CC_ALG DLI_DTA
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.
@@ -389,6 +389,13 @@ enum PPSTxnType {
 #define SSI        17
 #define WSI        18
 
+#define DLI_BASE 19
+#define DLI_OCC 20
+#define DLI_MVCC_OCC 21
+#define DLI_DTA 22
+#define DLI_MVCC 23
+#define DLI_DTA2 24
+#define DLI_DTA3 25
 #define DTA 26
 
 #define SILO 27
