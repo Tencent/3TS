@@ -170,7 +170,8 @@ BaseQuery * TPCCQueryGenerator::gen_payment(uint64_t home_partition) {
 #ifdef NO_REMOTE
   if(x >= 0) {
 #else
-    if(x > 0.15) {
+    //if(x > 0.15) {
+    if(x > g_distribute_perc) {
 #endif
         // home warehouse
         query->c_d_id = query->d_id;

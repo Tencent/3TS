@@ -219,6 +219,7 @@
 #define FIRST_PART_LOCAL      true
 #define MAX_TUPLE_SIZE        1024 // in bytes
 #define GEN_BY_MPR false
+#define DISTRIBUTE_PERCENT 1.0 // new added for distributed rate in YCSB and TPCC
 // ==== [YCSB] ====
 // SKEW_METHOD:
 //    ZIPF: use ZIPF_THETA distribution

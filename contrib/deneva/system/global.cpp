@@ -132,6 +132,7 @@ double g_txn_read_perc = 1.0 - TXN_WRITE_PERC;
 double g_txn_write_perc = TXN_WRITE_PERC;
 double g_tup_read_perc = 1.0 - TUP_WRITE_PERC;
 double g_tup_write_perc = TUP_WRITE_PERC;
+double g_distribute_perc = DISTRIBUTE_PERCENT;
 double g_zipf_theta = ZIPF_THETA;
 double g_data_perc = DATA_PERC;
 double g_access_perc = ACCESS_PERC;

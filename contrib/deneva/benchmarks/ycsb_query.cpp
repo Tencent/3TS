@@ -315,6 +315,8 @@ BaseQuery * YCSBQueryGenerator::gen_requests_zipf(uint64_t home_partition_id, Wo
 
     double r_twr = (double)(mrand->next() % 10000) / 10000;
 
+    double if_local = (double)(rand() % 10000) / 10000;
+
     int rid = 0;
     for (UInt32 i = 0; i < g_req_per_query; i ++) {
         double r = (double)(mrand->next() % 10000) / 10000;
@@ -329,7 +331,7 @@ BaseQuery * YCSBQueryGenerator::gen_requests_zipf(uint64_t home_partition_id, Wo
     #ifdef NO_REMOTE
         partition_id = home_partition_id;
     #else
-        if ( FIRST_PART_LOCAL && rid == 0) {
+        if ( if_local > g_distribute_perc) {
             partition_id = home_partition_id;
         } else {
             partition_id = mrand->next() % g_part_cnt;
