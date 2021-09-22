@@ -354,6 +354,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - new_start);
         
     } else if (type == P_REQ) {
+#if ISOLATION_LEVEL != NOLOCK
         uint64_t write_start = get_sys_clock();
         //WW lock conflict
         if (write_lock != NULL && write_lock->txn != txn) {
@@ -374,6 +375,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         get_lock(LOCK_EX, txn);
         uint64_t lock_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_read_time, lock_end - lock_start);
+#endif
 #if ISOLATION_LEVEL == SERIALIZABLE
         // get si_read from last committed history or row manager(if not write history)
         OPT_SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : si_read_lock;

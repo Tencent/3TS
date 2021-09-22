@@ -100,7 +100,7 @@ RC OptCC::per_row_validate(TxnManager *txn) {
 RC OptCC::central_validate(TxnManager * txn) {
 #if ISOLATION_LEVEL == NOLOCK
     return RCOK;
-#endif
+#else
     RC rc;
     uint64_t starttime = get_sys_clock();
     uint64_t total_starttime = starttime;
@@ -249,6 +249,7 @@ final:
         hist_checked);
     INC_STATS(txn->get_thd_id(),occ_validate_time,get_sys_clock() - total_starttime);
     return rc;
+#endif
 }
 
 void OptCC::per_row_finish(RC rc, TxnManager * txn) {
@@ -280,7 +281,7 @@ void OptCC::central_finish(RC rc, TxnManager * txn) {
             act = act->next;
         }
         if(act == NULL) {
-            assert(rc == Abort);
+            //assert(rc == Abort);
             //pthread_mutex_unlock( &latch );
             INC_STATS(txn->get_thd_id(),occ_rm_active_time,get_sys_clock() - rm_start);
             sem_post(&_semaphore);
