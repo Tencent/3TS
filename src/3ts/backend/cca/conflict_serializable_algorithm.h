@@ -36,6 +36,8 @@ class DAPreceInfo {
   bool operator>(const DAPreceInfo& p) const { return order_ > p.order_; }
   bool operator<(const DAPreceInfo& p) const { return order_ < p.order_; }
 
+  uint64_t pre_txns_id() const { return pre_trans_id_; }
+  uint64_t trans_id() const { return trans_id_; }
   uint64_t item_id() const { return item_id_; }
   PreceType type() const { return type_; }
 
@@ -356,43 +358,91 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
 
   static AnomalyType IdentifyAnomaly_(const std::vector<DAPreceInfo>& preces) {
     assert(preces.size() >= 2);
-    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
+    //std::cout<<preces<<std::endl;
+    //vector<DAPreceInfo>::iterator prece;
+    // for (vector<DAPreceInfo>::iterator& prece = preces.begin(); prece != preces.end(); ++prece){
+    //     std::cout<<prece.type()<<"===";
+    // }
+
+    // if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+    //   std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+    //   return false; })) {
+    //   // WA and WC precedence han only appear
+    //   //return AnomalyType::WAT_1_DIRTY_WRITE;
+    // }
+
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+      // std::cout<<prece.type()<<std::endl;
+      return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
       // WA and WC precedence han only appear
-      return AnomalyType::WAT_1_DIRTY_WRITE;
+      // if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+      //   std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+      //   return false; })) {
+      // }
+      //std::cout<<"WAT_1_DIRTY_WRITE"<<std::endl;
+      return AnomalyType::WAT_SDA_DIRTY_WRITE;
     } else if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
-      return AnomalyType::RAT_1_DIRTY_READ;
+      // if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+      //   std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+      //   return false; })) {
+      // }
+      //std::cout<<"RAT_SDA_DIRTY_READ"<<std::endl;
+      return AnomalyType::RAT_SDA_DIRTY_READ;
     } else if (preces.size() >= 3) {
       return IdentifyAnomalyMultiple_(preces);
     // when build path, later happened precedence is sorted to front
     } else if (preces.back().item_id() != preces.front().item_id()) {
-      return IdentifyAnomalyDouble_(preces.back().type(), preces.front().type());
+      return IdentifyAnomalyDouble_(preces);
     } else {
-      return IdentifyAnomalySingle_(preces.back().type(), preces.front().type());
+      return IdentifyAnomalySingle_(preces);
     }
   }
 
   // require type1 precedence happens before type2 precedence
-  static AnomalyType IdentifyAnomalySingle_(const PreceType early_type, const PreceType later_type) {
-    if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
-      return AnomalyType::WAT_1_FULL_WRITE; // WW-WW | WR-WW = WWW
-    } else if (early_type == PreceType::WR && early_type == PreceType::WW) {
-      return AnomalyType::WAT_1_FULL_WRITE; // WR-WW = WWW
-    } else if ((early_type == PreceType::WW || early_type == PreceType::WR) && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-      return AnomalyType::WAT_1_LOST_SELF_UPDATE; // WW-WR = WWR
+  static AnomalyType IdentifyAnomalySingle_(const std::vector<DAPreceInfo>& preces) {
+    const PreceType early_type = preces.back().type();
+    const PreceType later_type = preces.front().type();
+    if ((early_type == PreceType::WR && later_type == PreceType::WCW) || (early_type == PreceType::WW && later_type == PreceType::WCW)) {
+      // std::cout<<"WAT_SDA_FULL_WRITE_COMMITTED"<<std::endl;
+      return AnomalyType::WAT_SDA_FULL_WRITE_COMMITTED; // WW-WW | WR-WW = WWW
+    } else if ((early_type == PreceType::WR && later_type == PreceType::WW) || (early_type == PreceType::WW && early_type == PreceType::WW)) {
+      // std::cout<<"WAT_SDA_FULL_WRITE"<<std::endl;
+      return AnomalyType::WAT_SDA_FULL_WRITE; // WR-WW = WWW
+    } else if ( (early_type == PreceType::WR && later_type == PreceType::WR) || (early_type == PreceType::WW && later_type == PreceType::WR)) {
+      // std::cout<<"WAT_SDA_LOST_SELF_UPDATE"<<std::endl;
+      return AnomalyType::WAT_SDA_LOST_SELF_UPDATE; // WW-WR = WWR
+    } else if ((early_type == PreceType::WR && later_type == PreceType::WCR) || (early_type == PreceType::WW  && later_type == PreceType::WCR)) {
+      // std::cout<<"WAT_SDA_LOST_SELF_UPDATE_COMMITTED"<<std::endl;
+      return AnomalyType::WAT_SDA_LOST_SELF_UPDATE_COMMITTED; // WW-WR = WWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
-      return AnomalyType::WAT_1_LOST_UPDATE; // RW-WW | RW-RW = RWW
+      // std::cout<<"WAT_SDA_LOST_UPDATE"<<std::endl;
+      return AnomalyType::WAT_SDA_LOST_UPDATE; // RW-WW | RW-RW = RWW
     } else if (early_type == PreceType::WR && later_type == PreceType::RW) {
-      return AnomalyType::RAT_1_INTERMEDIATE_READ; // WR-RW = WRW
-    } else if (early_type == PreceType::RW && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-      return AnomalyType::RAT_1_NON_REPEATABLE_READ; // RW-WR = RWR
+      //std::cout<<"RAT_SDA_INTERMEDIATE_READ"<<std::endl;
+      return AnomalyType::RAT_SDA_INTERMEDIATE_READ; // WR-RW = WRW
+    } else if (early_type == PreceType::RW && later_type == PreceType::WR) {
+      //std::cout<<"RAT_SDA_NON_REPEATABLE_READ"<<std::endl;
+      return AnomalyType::RAT_SDA_NON_REPEATABLE_READ; // RW-WR = RWR
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCR) {
+      //std::cout<<"IAT_SDA_NON_REPEATABLE_READ_COMMITTED"<<std::endl;
+      return AnomalyType::IAT_SDA_NON_REPEATABLE_READ_COMMITTED; // RW-WR = RWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
-      return AnomalyType::IAT_1_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
+      //std::cout<<"IAT_SDA_LOST_UPDATE_COMMITTED"<<std::endl;
+      return AnomalyType::IAT_SDA_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
     } else {
+      std::cout<<preces.size()<<' ';
+      if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+        std::cout<<prece.item_id()<<':'<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+        return false; })) {
+      } 
+      std::cout<<"UKNOWN_1"<<std::endl;
       return AnomalyType::UNKNOWN_1;
     }
   }
 
-  static AnomalyType IdentifyAnomalyDouble_(const PreceType early_type, const PreceType later_type) {
+  static AnomalyType IdentifyAnomalyDouble_(const std::vector<DAPreceInfo>& preces) {
+    const PreceType early_type = preces.back().type();
+    const PreceType later_type = preces.front().type();
     const auto any_order = [early_type, later_type](const PreceType type1, const PreceType type2) -> std::optional<bool> {
       if (early_type == type1 && later_type == type2) {
         return true;
@@ -403,38 +453,64 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       }
     };
     if (const auto order = any_order(PreceType::WR, PreceType::WW); order.has_value()) {
-      return *order ? AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_1 : AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_2;
+      // if(*order){std::cout<<"WAT_DDA_DOUBLE_WRITE_SKEW_1"<<std::endl;}
+      // else {std::cout<<"WAT_DDA_DOUBLE_WRITE_SKEW_2"<<std::endl;}  
+      return *order ? AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_1 : AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_2;
     } else if (early_type == PreceType::WW && later_type == PreceType::WCR) {
-      return AnomalyType::WAT_2_DOUBLE_WRITE_SKEW_2;
+      // std::cout<<"WAT_DDA_DOUBLE_WRITE_SKEW_2_COMMITTED"<<std::endl;
+      return AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_2_COMMITTED;
     } else if (const auto order = any_order(PreceType::RW, PreceType::WW); order.has_value()) {
-      return *order ? AnomalyType::WAT_2_READ_WRITE_SKEW_1 : AnomalyType::WAT_2_READ_WRITE_SKEW_2;
-    } else if (early_type == PreceType::WW && (later_type == PreceType::WW || later_type == PreceType::WCW)) {
-      return AnomalyType::WAT_2_FULL_WRITE_SKEW;
-    } else if (early_type == PreceType::WR && (later_type == PreceType::WR || later_type == PreceType::WCR)) {
-      return AnomalyType::RAT_2_WRITE_READ_SKEW;
-    } else if (early_type == PreceType::WR && later_type == PreceType::WCW) {
-      return AnomalyType::RAT_2_DOUBLE_WRITE_SKEW_COMMITTED;
-    } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {
-      return *order ? AnomalyType::RAT_2_READ_SKEW : AnomalyType::RAT_2_READ_SKEW_2;
+      // std::cout<<preces.size()<<' ';
+      // if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+      //   std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+      //   return false; })) {
+      // } 
+      // if(*order){std::cout<<"WAT_DDA_READ_WRITE_SKEW_1"<<std::endl;}
+      // else {std::cout<<"WAT_DDA_READ_WRITE_SKEW_2"<<std::endl;}
+      return *order ? AnomalyType::WAT_DDA_READ_WRITE_SKEW_1 : AnomalyType::WAT_DDA_READ_WRITE_SKEW_2;
+    } else if (early_type == PreceType::WW && later_type == PreceType::WW ) {
+      // std::cout<<"WAT_DDA_FULL_WRITE_SKEW"<<std::endl;
+      return AnomalyType::WAT_DDA_FULL_WRITE_SKEW;
+    } else if (early_type == PreceType::WW &&  later_type == PreceType::WCW) {
+      // std::cout<<"WAT_DDA_FULL_WRITE_SKEW_COMMITTED"<<std::endl;
+      return AnomalyType::WAT_DDA_FULL_WRITE_SKEW_COMMITTED;
+    } else if (early_type == PreceType::WR && later_type == PreceType::WR) {
+      // std::cout<<"RAT_DDA_WRITE_READ_SKEW"<<std::endl;
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW;
+    } else if (early_type == PreceType::WR && later_type == PreceType::WCR) {
+      // std::cout<<"RAT_DDA_WRITE_READ_SKEW_COMMITTED"<<std::endl;
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW_COMMITTED;
+    }
+    else if (early_type == PreceType::WR && later_type == PreceType::WCW) {
+      // std::cout<<"RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED"<<std::endl;
+      return AnomalyType::RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED;
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {  
+      // if(*order){std::cout<<"RAT_DDA_READ_SKEW"<<std::endl;}
+      // else {std::cout<<"RAT_DDA_READ_SKEW_2"<<std::endl;} 
+      return *order ? AnomalyType::RAT_DDA_READ_SKEW : AnomalyType::RAT_DDA_READ_SKEW_2;
     } else if (early_type == PreceType::RW && later_type == PreceType::WCR) {
-      return AnomalyType::RAT_2_READ_SKEW;
+      //std::cout<<"IAT_DDA_READ_SKEW_COMMITTED"<<std::endl;
+      return AnomalyType::IAT_DDA_READ_SKEW_COMMITTED;
     } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
-      return AnomalyType::IAT_2_READ_WRITE_SKEW_COMMITTED;
+      //std::cout<<"IAT_DDA_READ_WRITE_SKEW_1_COMMITTED"<<std::endl;
+      return AnomalyType::IAT_DDA_READ_WRITE_SKEW_1_COMMITTED;
     } else if (early_type == PreceType::RW && later_type == PreceType::RW) {
-      return AnomalyType::IAT_2_WRITE_SKEW;
+      //std::cout<<"IAT_DDA_WRITE_SKEW"<<std::endl;
+      return AnomalyType::IAT_DDA_WRITE_SKEW;
     } else {
+      //std::cout<<"UNKNOWN_2"<<std::endl;
       return AnomalyType::UNKNOWN_2;
     }
   }
 
   static AnomalyType IdentifyAnomalyMultiple_(const std::vector<DAPreceInfo>& preces) {
     if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WW; })) {
-      return AnomalyType::WAT_STEP;
+      return AnomalyType::WAT_MDA_STEP_WAT;
     }
     if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WR || prece.type() == PreceType::WCR; })) {
-      return AnomalyType::RAT_STEP;
+      return AnomalyType::RAT_MDA_STEP_RAT;
     }
-    return AnomalyType::IAT_STEP;
+    return AnomalyType::IAT_MDA_STEP_IAT;
   }
 
   mutable std::array<std::atomic<uint64_t>, Count<AnomalyType>()> anomaly_counts_;
