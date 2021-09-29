@@ -371,7 +371,14 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     //   //return AnomalyType::WAT_1_DIRTY_WRITE;
     // }
 
-    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
+      // if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+      //   std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+      //   return false; })) {
+      // }
+      //std::cout<<"RAT_SDA_DIRTY_READ"<<std::endl;
+      return AnomalyType::RAT_SDA_DIRTY_READ;
+    } else if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
       // std::cout<<prece.type()<<std::endl;
       return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
       // WA and WC precedence han only appear
@@ -381,13 +388,6 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       // }
       //std::cout<<"WAT_1_DIRTY_WRITE"<<std::endl;
       return AnomalyType::WAT_SDA_DIRTY_WRITE;
-    } else if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
-      // if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
-      //   std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
-      //   return false; })) {
-      // }
-      //std::cout<<"RAT_SDA_DIRTY_READ"<<std::endl;
-      return AnomalyType::RAT_SDA_DIRTY_READ;
     } else if (preces.size() >= 3) {
       return IdentifyAnomalyMultiple_(preces);
     // when build path, later happened precedence is sorted to front
@@ -402,7 +402,13 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   static AnomalyType IdentifyAnomalySingle_(const std::vector<DAPreceInfo>& preces) {
     const PreceType early_type = preces.back().type();
     const PreceType later_type = preces.front().type();
-    if ((early_type == PreceType::WR && later_type == PreceType::WCW) || (early_type == PreceType::WW && later_type == PreceType::WCW)) {
+    if (early_type == PreceType::RW && later_type == PreceType::WR) {
+      //std::cout<<"RAT_SDA_NON_REPEATABLE_READ"<<std::endl;
+      return AnomalyType::RAT_SDA_NON_REPEATABLE_READ; // RW-WR = RWR
+    } else if (early_type == PreceType::WR && later_type == PreceType::RW) {
+      //std::cout<<"RAT_SDA_INTERMEDIATE_READ"<<std::endl;
+      return AnomalyType::RAT_SDA_INTERMEDIATE_READ; // WR-RW = WRW
+    } else if ((early_type == PreceType::WR && later_type == PreceType::WCW) || (early_type == PreceType::WW && later_type == PreceType::WCW)) {
       // std::cout<<"WAT_SDA_FULL_WRITE_COMMITTED"<<std::endl;
       return AnomalyType::WAT_SDA_FULL_WRITE_COMMITTED; // WW-WW | WR-WW = WWW
     } else if ((early_type == PreceType::WR && later_type == PreceType::WW) || (early_type == PreceType::WW && early_type == PreceType::WW)) {
@@ -417,12 +423,6 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
       // std::cout<<"WAT_SDA_LOST_UPDATE"<<std::endl;
       return AnomalyType::WAT_SDA_LOST_UPDATE; // RW-WW | RW-RW = RWW
-    } else if (early_type == PreceType::WR && later_type == PreceType::RW) {
-      //std::cout<<"RAT_SDA_INTERMEDIATE_READ"<<std::endl;
-      return AnomalyType::RAT_SDA_INTERMEDIATE_READ; // WR-RW = WRW
-    } else if (early_type == PreceType::RW && later_type == PreceType::WR) {
-      //std::cout<<"RAT_SDA_NON_REPEATABLE_READ"<<std::endl;
-      return AnomalyType::RAT_SDA_NON_REPEATABLE_READ; // RW-WR = RWR
     } else if (early_type == PreceType::RW && later_type == PreceType::WCR) {
       //std::cout<<"IAT_SDA_NON_REPEATABLE_READ_COMMITTED"<<std::endl;
       return AnomalyType::IAT_SDA_NON_REPEATABLE_READ_COMMITTED; // RW-WR = RWR
@@ -452,7 +452,20 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
         return {};
       }
     };
-    if (const auto order = any_order(PreceType::WR, PreceType::WW); order.has_value()) {
+    if (early_type == PreceType::WR && later_type == PreceType::WCR) {
+      // std::cout<<"RAT_DDA_WRITE_READ_SKEW_COMMITTED"<<std::endl;
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW_COMMITTED;
+    } else if (early_type == PreceType::WR && later_type == PreceType::WCW) {
+      // std::cout<<"RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED"<<std::endl;
+      return AnomalyType::RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED;
+    } else if (early_type == PreceType::WR && later_type == PreceType::WR) {
+      // std::cout<<"RAT_DDA_WRITE_READ_SKEW"<<std::endl;
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW;
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {  
+      // if(*order){std::cout<<"RAT_DDA_READ_SKEW"<<std::endl;}
+      // else {std::cout<<"RAT_DDA_READ_SKEW_2"<<std::endl;} 
+      return *order ? AnomalyType::RAT_DDA_READ_SKEW : AnomalyType::RAT_DDA_READ_SKEW_2;
+    } else if (const auto order = any_order(PreceType::WR, PreceType::WW); order.has_value()) {
       // if(*order){std::cout<<"WAT_DDA_DOUBLE_WRITE_SKEW_1"<<std::endl;}
       // else {std::cout<<"WAT_DDA_DOUBLE_WRITE_SKEW_2"<<std::endl;}  
       return *order ? AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_1 : AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_2;
@@ -474,20 +487,6 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     } else if (early_type == PreceType::WW &&  later_type == PreceType::WCW) {
       // std::cout<<"WAT_DDA_FULL_WRITE_SKEW_COMMITTED"<<std::endl;
       return AnomalyType::WAT_DDA_FULL_WRITE_SKEW_COMMITTED;
-    } else if (early_type == PreceType::WR && later_type == PreceType::WR) {
-      // std::cout<<"RAT_DDA_WRITE_READ_SKEW"<<std::endl;
-      return AnomalyType::RAT_DDA_WRITE_READ_SKEW;
-    } else if (early_type == PreceType::WR && later_type == PreceType::WCR) {
-      // std::cout<<"RAT_DDA_WRITE_READ_SKEW_COMMITTED"<<std::endl;
-      return AnomalyType::RAT_DDA_WRITE_READ_SKEW_COMMITTED;
-    }
-    else if (early_type == PreceType::WR && later_type == PreceType::WCW) {
-      // std::cout<<"RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED"<<std::endl;
-      return AnomalyType::RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED;
-    } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {  
-      // if(*order){std::cout<<"RAT_DDA_READ_SKEW"<<std::endl;}
-      // else {std::cout<<"RAT_DDA_READ_SKEW_2"<<std::endl;} 
-      return *order ? AnomalyType::RAT_DDA_READ_SKEW : AnomalyType::RAT_DDA_READ_SKEW_2;
     } else if (early_type == PreceType::RW && later_type == PreceType::WCR) {
       //std::cout<<"IAT_DDA_READ_SKEW_COMMITTED"<<std::endl;
       return AnomalyType::IAT_DDA_READ_SKEW_COMMITTED;
@@ -504,12 +503,12 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   }
 
   static AnomalyType IdentifyAnomalyMultiple_(const std::vector<DAPreceInfo>& preces) {
-    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WW; })) {
-      return AnomalyType::WAT_MDA_STEP_WAT;
-    }
     if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WR || prece.type() == PreceType::WCR; })) {
       return AnomalyType::RAT_MDA_STEP_RAT;
     }
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::WW; })) {
+      return AnomalyType::WAT_MDA_STEP_WAT;
+    } 
     return AnomalyType::IAT_MDA_STEP_IAT;
   }
 
