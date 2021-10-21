@@ -101,8 +101,8 @@ RC Row_lock::lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txn
             for(uint64_t i = 0; i < owners_size; i++) {
                 en = owners[i];
                 while (en != NULL) {
-                    assert(txn->get_txn_id() != en->txn->get_txn_id());
-                    assert(txn->get_timestamp() != en->txn->get_timestamp());
+                    // assert(txn->get_txn_id() != en->txn->get_txn_id());
+                    // assert(txn->get_timestamp() != en->txn->get_timestamp());
                     if (txn->get_timestamp() > en->txn->get_timestamp()) {
                         // printf("abort %ld %ld -- %ld --
                         // %f\n",txn->get_txn_id(),en->txn->get_txn_id(),_row->get_primary_key(),(float)(txn->get_timestamp()

@@ -20,6 +20,7 @@
 #include "algorithm.h"
 #include "unified_history_algorithm/util/anomaly_type.h"
 #include "unified_history_algorithm/util/prece_type.h"
+#include <fstream>
 
 namespace ttts {
 
@@ -364,8 +365,26 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
     //     std::cout<<prece.type()<<"===";
     // }
 
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+      //std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+      if (prece.type() == PreceType::WA)
+      std::cout<<prece.type()<<' '<<std::endl;
+      return false; })) {
+      // WA and WC precedence han only appear
+      //return AnomalyType::WAT_1_DIRTY_WRITE;
+    }
+
+    // // write into files
     // if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
-    //   std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+    //   //std::cout<<prece.type()<<prece.pre_txns_id()<<':'<<prece.trans_id()<<'='<<' ';
+      
+    //   if (prece.type() == PreceType::WW){
+    //     ofstream myfile;
+    //     myfile.open ("result_edge/326-WW.out");
+    //     std::cout<<prece.type()<<' '<<std::endl;
+    //     myfile << "WW \n";
+    //     myfile.close();
+    //   }
     //   return false; })) {
     //   // WA and WC precedence han only appear
     //   //return AnomalyType::WAT_1_DIRTY_WRITE;
