@@ -92,7 +92,7 @@
 // # of transactions to run for warmup
 #define WARMUP            0
 // YCSB or TPCC or PPS or DA
-#define WORKLOAD TPCC
+#define WORKLOAD DA
 // print the transaction latency distribution
 #define PRT_LAT_DISTR false
 #define STATS_ENABLE        true
@@ -152,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG DLI_IDENTIFY_CHAIN
+#define CC_ALG DLI_DTA
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.
@@ -219,6 +219,7 @@
 #define FIRST_PART_LOCAL      true
 #define MAX_TUPLE_SIZE        1024 // in bytes
 #define GEN_BY_MPR false
+#define DISTRIBUTE_PERCENT 1.0 // new added for distributed rate in YCSB and TPCC
 // ==== [YCSB] ====
 // SKEW_METHOD:
 //    ZIPF: use ZIPF_THETA distribution
@@ -227,10 +228,10 @@
 #define DATA_PERC 100
 #define ACCESS_PERC 0.03
 #define INIT_PARALLELISM 8
-#define SYNTH_TABLE_SIZE 16777216
+#define SYNTH_TABLE_SIZE 2097152
 #define ZIPF_THETA 0.3
-#define TXN_WRITE_PERC 0.0
-#define TUP_WRITE_PERC 0.0
+#define TXN_WRITE_PERC 0.9
+#define TUP_WRITE_PERC 0.9
 #define SCAN_PERC           0
 #define SCAN_LEN          20
 #define PART_PER_TXN 2
@@ -388,14 +389,23 @@ enum PPSTxnType {
 #define SSI        17
 #define WSI        18
 
+#define DLI_BASE 19
+#define DLI_OCC 20
+#define DLI_MVCC_OCC 21
+#define DLI_DTA 22
+#define DLI_MVCC 23
+#define DLI_DTA2 24
+#define DLI_DTA3 25
 #define DTA 26
 
 #define SILO 27
 #define CNULL 28
 #define DLI_IDENTIFY_CYCLE 29
 #define DLI_IDENTIFY_CHAIN 30
+#define DLI_IDENTIFY_SSI 31
+#define OPT_SSI          32
 
-#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY_CYCLE || CC_ALG == DLI_IDENTIFY_CHAIN)
+#define IS_GENERIC_ALG (CC_ALG == DLI_IDENTIFY_CYCLE || CC_ALG == DLI_IDENTIFY_CHAIN || CC_ALG == DLI_IDENTIFY_SSI)
 
 // TIMESTAMP allocation method.
 #define TS_MUTEX          1

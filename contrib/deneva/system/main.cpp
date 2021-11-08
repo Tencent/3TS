@@ -53,6 +53,7 @@
 #include "focc.h"
 #include "bocc.h"
 #include "dta.h"
+#include "dli.h"
 #include "client_query.h"
 #include "sundial.h"
 #include "http.h"
@@ -212,6 +213,13 @@ int main(int argc, char *argv[]) {
     ssi_man.init();
     printf("Done\n");
 #endif
+#if CC_ALG == OPT_SSI
+    printf("Initializing OPT_SSI manager... ");
+    fflush(stdout);
+    opt_ssi_man.init();
+    printf("Done\n");
+#endif
+
 #if CC_ALG == WSI
     printf("Initializing WSI manager... ");
     fflush(stdout);
@@ -306,7 +314,7 @@ int main(int argc, char *argv[]) {
     printf("Done\n");
 #endif
 
-#if CC_ALG == DTA
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     printf("Initializing DTA Time Table... ");
     fflush(stdout);
     dta_time_table.init();

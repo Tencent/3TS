@@ -27,6 +27,7 @@
 #include "ssi.h"
 #include "wsi.h"
 #include "dta.h"
+#include "dli.h"
 #include "transport.h"
 #include "work_queue.h"
 #include "abort_queue.h"
@@ -68,9 +69,11 @@ Focc focc_man;
 Bocc bocc_man;
 Maat maat_man;
 ssi ssi_man;
+opt_ssi opt_ssi_man;
 wsi wsi_man;
 Sundial sundial_man;
 Dta dta_man;
+Dli dli_man;
 #if IS_GENERIC_ALG
 UniAlgManager<CC_ALG> uni_alg_man;
 #endif
@@ -131,6 +134,7 @@ double g_txn_read_perc = 1.0 - TXN_WRITE_PERC;
 double g_txn_write_perc = TXN_WRITE_PERC;
 double g_tup_read_perc = 1.0 - TUP_WRITE_PERC;
 double g_tup_write_perc = TUP_WRITE_PERC;
+double g_distribute_perc = DISTRIBUTE_PERCENT;
 double g_zipf_theta = ZIPF_THETA;
 double g_data_perc = DATA_PERC;
 double g_access_perc = ACCESS_PERC;

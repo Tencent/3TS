@@ -46,10 +46,12 @@
 #include "ssi.h"
 #include "focc.h"
 #include "bocc.h"
+#include "dli.h"
 #include "dta.h"
 #include "da.h"
+#include "../../../src/3ts/backend/cca/unified_history_algorithm/util/util.h"
 
-#define SUPPORT_ANOMALY_IDENTIFY (CC_ALG == DLI_IDENTIFY || CC_ALG == DLI_IDENTIFY_2)
+#define SUPPORT_ANOMALY_IDENTIFY (CC_ALG == DLI_IDENTIFY_CHAIN || CC_ALG == DLI_IDENTIFY_CYCLE)
 
 #if SUPPORT_ANOMALY_IDENTIFY && WORKLOAD == DA
 static std::array<std::atomic<uint64_t>, ttts::Count<ttts::AnomalyType>()> g_anomaly_counts = {0};
@@ -97,7 +99,8 @@ void WorkerThread::fakeprocess(Message * msg) {
         case RFIN:
             rc = RCOK;
             txn_man->set_rc(rc);
-            if(!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL || CC_ALG == BOCC || CC_ALG == SSI)
+            if(!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL 
+                  || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI)
 
             msg_queue.enqueue(get_thd_id(),Message::create_message(txn_man,RACK_FIN),GET_NODE_ID(msg->get_txn_id()));
             break;
@@ -504,11 +507,11 @@ RC WorkerThread::process_rfin(Message * msg) {
     txn_man->commit();
 
     if (!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL ||
-        CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == SILO)
+        CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == SILO)
         msg_queue.enqueue(get_thd_id(), Message::create_message(txn_man, RACK_FIN),
                         GET_NODE_ID(msg->get_txn_id()));
     release_txn_man();
-
+ 
     return RCOK;
 }
 
@@ -536,7 +539,7 @@ RC WorkerThread::process_rack_prep(Message * msg) {
         time_table.set_state(get_thd_id(),msg->get_txn_id(),MAAT_ABORTED);
     }
 #endif
-#if CC_ALG == DTA
+#if CC_ALG == DTA || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     // Integrate bounds
     uint64_t lower = ((AckMessage*)msg)->lower;
     uint64_t upper = ((AckMessage*)msg)->upper;
@@ -576,6 +579,9 @@ RC WorkerThread::process_rack_prep(Message * msg) {
     }
     if(CC_ALG == SSI) {
         ssi_man.gene_finish_ts(txn_man);
+    }
+    if(CC_ALG == OPT_SSI) {
+        opt_ssi_man.gene_finish_ts(txn_man);
     }
     if(CC_ALG == WSI) {
         wsi_man.gene_finish_ts(txn_man);
@@ -649,7 +655,7 @@ RC WorkerThread::process_rqry(Message * msg) {
 #if CC_ALG == MVCC
     txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
 #endif
-#if CC_ALG == WSI || CC_ALG == SSI
+#if CC_ALG == WSI || CC_ALG == SSI || CC_ALG == OPT_SSI
     txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
 #if CC_ALG == MAAT
@@ -658,6 +664,10 @@ RC WorkerThread::process_rqry(Message * msg) {
 #if CC_ALG == DTA
     txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_timestamp());
     dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_timestamp());
+#endif
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_start_timestamp());
+    dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
 #endif
     rc = txn_man->run_txn();
 
@@ -810,14 +820,26 @@ RC WorkerThread::process_rtxn(Message * msg) {
             txn_man->set_timestamp(get_next_ts());
 #endif
         }
-
-#if CC_ALG == MVCC
-        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
+#if IS_GENERIC_ALG
+#if WORKLOAD == DA //mvcc use timestamp
+        if (da_stamp_tab.count(txn_man->get_txn_id()) == 0) {
+            da_stamp_tab[txn_man->get_txn_id()] = get_next_ts();
+        }
+        const uint64_t start_ts = da_stamp_tab[txn_man->get_txn_id()];
+#else
+        const uint64_t start_ts = get_next_ts();
 #endif
-#if CC_ALG == WSI || CC_ALG == SSI
+        txn_man->set_timestamp(start_ts);
+        txn_man->uni_txn_man_ = UniTxnManager<CC_ALG>::Construct(txn_id, start_ts);
+        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,start_ts);
+#elif CC_ALG == MVCC
+        txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_timestamp());
+#elif CC_ALG == WSI || CC_ALG == SSI || CC_ALG == OPT_SSI
         txn_table.update_min_ts(get_thd_id(),txn_man->get_txn_id(),0,txn_man->get_start_timestamp());
 #endif
-#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == WSI
+#if CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI ||\
+        CC_ALG == DLI_BASE || CC_ALG == DLI_OCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_DTA ||\
+        CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3 || CC_ALG == DLI_MVCC
 #if WORKLOAD==DA
         if(da_start_stamp_tab.count(txn_man->get_txn_id())==0)
         {
@@ -853,6 +875,10 @@ RC WorkerThread::process_rtxn(Message * msg) {
         // assert(dta_time_table.get_lower(get_thd_id(),txn_man->get_txn_id()) == 0);
         assert(dta_time_table.get_upper(get_thd_id(), txn_man->get_txn_id()) == UINT64_MAX);
         assert(dta_time_table.get_state(get_thd_id(), txn_man->get_txn_id()) == DTA_RUNNING);
+#endif
+#if CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+        txn_table.update_min_ts(get_thd_id(), txn_man->get_txn_id(), 0, txn_man->get_start_timestamp());
+        dta_time_table.init(get_thd_id(), txn_man->get_txn_id(), txn_man->get_start_timestamp());
 #endif
         rc = init_phase();
         if (rc != RCOK) return rc;

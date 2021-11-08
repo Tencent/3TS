@@ -13,9 +13,9 @@
 #include <unordered_map>
 #include "util/generic.h"
 #include "cca/conflict_serializable_algorithm.h"
-#include "cca/unified_history_algorithm.h"
+#include "cca/unified_history_algorithm/unified_history_algorithm.h"
 #include "shape.h"
-#include "../../../contrib/deneva/unified_concurrency_control/util.h"
+#include "cca/unified_history_algorithm/util/util.h"
 
 class Printer {
 public:

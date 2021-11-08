@@ -191,7 +191,7 @@ void TxnTable::release_transaction_manager(uint64_t thd_id, uint64_t txn_id, uin
 
     txn_node_t t_node = pool[pool_id]->head;
 
-#if CC_ALG == MVCC
+#if CC_ALG == MVCC || IS_GENERIC_ALG
     uint64_t min_ts = UINT64_MAX;
     txn_node_t saved_t_node = NULL;
 #endif
@@ -201,7 +201,7 @@ void TxnTable::release_transaction_manager(uint64_t thd_id, uint64_t txn_id, uin
         if(is_matching_txn_node(t_node,txn_id,batch_id)) {
             LIST_REMOVE_HT(t_node,pool[txn_id % pool_size]->head,pool[txn_id % pool_size]->tail);
             --pool[pool_id]->cnt;
-#if CC_ALG == MVCC
+#if CC_ALG == MVCC || IS_GENERIC_ALG
             saved_t_node = t_node;
             t_node = t_node->next;
             continue;
@@ -209,7 +209,7 @@ void TxnTable::release_transaction_manager(uint64_t thd_id, uint64_t txn_id, uin
             break;
 #endif
         }
-#if CC_ALG == MVCC
+#if CC_ALG == MVCC || IS_GENERIC_ALG
         if (t_node->txn_man->get_timestamp() < min_ts) min_ts = t_node->txn_man->get_timestamp();
 #endif
         t_node = t_node->next;
@@ -217,7 +217,7 @@ void TxnTable::release_transaction_manager(uint64_t thd_id, uint64_t txn_id, uin
     INC_STATS(thd_id,mtx[25],get_sys_clock()-prof_starttime);
     prof_starttime = get_sys_clock();
 
-#if CC_ALG == MVCC
+#if CC_ALG == MVCC || IS_GENERIC_ALG
     t_node = saved_t_node;
     pool[pool_id]->min_ts = min_ts;
 #endif

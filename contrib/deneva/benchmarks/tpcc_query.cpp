@@ -170,7 +170,8 @@ BaseQuery * TPCCQueryGenerator::gen_payment(uint64_t home_partition) {
 #ifdef NO_REMOTE
   if(x >= 0) {
 #else
-    if(x > 0.15) {
+    //if(x > 0.15) {
+    if(x > g_distribute_perc) {
 #endif
         // home warehouse
         query->c_d_id = query->d_id;
@@ -246,7 +247,8 @@ BaseQuery * TPCCQueryGenerator::gen_new_order(uint64_t home_partition) {
     ol_i_ids.insert(item->ol_i_id);
     item->ol_quantity = URand(1, 10);
     double r_rem = (double)(rand() % 100000) / 100000;
-        if (r_rem > 0.01 || r_mpr > g_mpr || g_num_wh == 1) {
+        // if(x > g_distribute_perc) { 
+        if (r_rem > 0.01 || r_mpr > g_mpr || g_num_wh == 1) { // keep new order mostly local
             // home warehouse
             item->ol_supply_w_id = query->w_id;
     } else {

@@ -5,7 +5,7 @@
     in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
     Tencent Modifications are Copyright (C) THL A29 Limited.
 
-    Author: hongyaozhao@ruc.edu.cn
+    Author: anduinzhu@tencent.com hongyaozhao@ruc.edu.cn
 
      Copyright 2016 Massachusetts Institute of Technology
 
@@ -47,6 +47,7 @@ class DliValidatedTxn;
 //class r_query;
 
 enum TxnState {START,INIT,EXEC,PREP,FIN,DONE};
+enum TxnStatus {ACTIVE = 0, COMMITTED, ABORTED};
 
 class Access {
 public:
@@ -204,6 +205,9 @@ public:
     // [HSTORE, HSTORE_SPEC]
     int volatile    ready_part;
     int volatile    ready_ulk;
+    bool in_rw, out_rw;
+    TxnStatus txn_status;
+    
 
 #if CC_ALG == SILO
     ts_t             last_tid;
@@ -300,8 +304,13 @@ public:
     int last_txn_id;
     Message* last_msg;
 
+#if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
+    DliValidatedTxn* dli_txn = nullptr;
+    DliValidatedTxn* history_dli_txn_head = nullptr;
+#endif
+
 #if IS_GENERIC_ALG
-    std::unique_ptr<ttts::TxnManager<uni_alg<CC_ALG>, row_t*>> uni_txn_man_;
+    std::shared_ptr<ttts::TxnManager<uni_alg<CC_ALG>, row_t*>> uni_txn_man_;
 #endif
 
 protected:

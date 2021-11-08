@@ -64,10 +64,12 @@ class OptCC;
 class Focc;
 class Bocc;
 class ssi;
+class opt_ssi;
 class wsi;
 class Maat;
 class Sundial;
 class Dta;
+class Dli;
 class Transport;
 class Remote_query;
 class TxnManPool;
@@ -119,10 +121,12 @@ extern OptCC occ_man;
 extern Focc focc_man;
 extern Bocc bocc_man;
 extern ssi ssi_man;
+extern opt_ssi opt_ssi_man;
 extern wsi wsi_man;
 extern Maat maat_man;
 extern Sundial sundial_man;
 extern Dta dta_man;
+extern Dli dli_man;
 #if IS_GENERIC_ALG
 extern UniAlgManager<CC_ALG> uni_alg_man;
 #endif
@@ -218,6 +222,9 @@ extern UInt64 g_msg_time_limit;
 extern UInt64 g_max_read_req;
 extern UInt64 g_max_pre_req;
 extern UInt64 g_his_recycle_len;
+
+// distrbute txn rate
+extern double g_distribute_perc;
 
 // YCSB
 extern UInt32 g_cc_alg;
