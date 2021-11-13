@@ -56,15 +56,23 @@ RC wsi::central_validate(TxnManager * txn) {
             }
         }
     }
-    sem_post(&_semaphore);
+    // sem_post(&_semaphore);
     mem_allocator.free(rset->rows, sizeof(row_t *) * rset->set_size);
     mem_allocator.free(rset, sizeof(wsi_set_ent));
 
     if (valid) {
         rc = RCOK;
+        row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
+        newr->init(this->get_table(), get_part_id());
+        newr->copy(access->data);
+        access->data = newr;
+        for (UInt32 i = 0; i < rset->set_size; i++) {
+            rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
+        }
     } else {
         rc = Abort;
     }
+    sem_post(&_semaphore);
     DEBUG("End Validation %ld\n",txn->get_txn_id());
     return rc;
 }
@@ -74,13 +82,13 @@ void wsi::finish(RC rc, TxnManager * txn) {
 }
 
 void wsi::central_finish(RC rc, TxnManager * txn) {
-    wsi_set_ent * wset;
-    wsi_set_ent * rset;
-    get_rw_set(txn, rset, wset);
+    // wsi_set_ent * wset;
+    // wsi_set_ent * rset;
+    // get_rw_set(txn, rset, wset);
 
-    for (UInt32 i = 0; i < rset->set_size; i++) {
-        rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
-    }
+    // for (UInt32 i = 0; i < rset->set_size; i++) {
+    //     rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
+    // }
 }
 
 void wsi::gene_finish_ts(TxnManager * txn) {

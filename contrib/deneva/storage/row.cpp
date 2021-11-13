@@ -305,7 +305,8 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
             assert(access->data->get_table_name() != NULL);
         }
     }
-    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI) 
+    // if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI) 
+    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == OPT_SSI) 
         && type == WR) {
         DEBUG_M("row_t::get_row MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
