@@ -62,10 +62,10 @@ RC wsi::central_validate(TxnManager * txn) {
 
     if (valid) {
         rc = RCOK;
-        row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
-        newr->init(this->get_table(), get_part_id());
-        newr->copy(access->data);
-        access->data = newr;
+        // row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
+        // newr->init(this->get_table(), get_part_id());
+        // newr->copy(access->data);
+        // access->data = newr;
         for (UInt32 i = 0; i < rset->set_size; i++) {
             rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
         }
