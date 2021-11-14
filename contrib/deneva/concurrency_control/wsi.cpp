@@ -67,9 +67,9 @@ RC wsi::central_validate(TxnManager * txn) {
         // newr->copy(access->data);
         // access->data = newr;
         txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
-        for (UInt32 i = 0; i < rset->set_size; i++) {
-            rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
-        }
+        // for (UInt32 i = 0; i < rset->set_size; i++) {
+        //     rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
+        // }
     } else {
         rc = Abort;
     }
@@ -83,13 +83,13 @@ void wsi::finish(RC rc, TxnManager * txn) {
 }
 
 void wsi::central_finish(RC rc, TxnManager * txn) {
-    // wsi_set_ent * wset;
-    // wsi_set_ent * rset;
-    // get_rw_set(txn, rset, wset);
+    wsi_set_ent * wset;
+    wsi_set_ent * rset;
+    get_rw_set(txn, rset, wset);
 
-    // for (UInt32 i = 0; i < rset->set_size; i++) {
-    //     rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
-    // }
+    for (UInt32 i = 0; i < rset->set_size; i++) {
+        rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
+    }
 }
 
 void wsi::gene_finish_ts(TxnManager * txn) {
