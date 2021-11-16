@@ -39,6 +39,8 @@ public:
     RC validate(TxnManager * txn);
     void gene_finish_ts(TxnManager * txn);
     void finish(RC rc, TxnManager * txn);
+    void lock();
+    void unlock();
 private:
     // parallel validation in the original OCC paper.
     RC central_validate(TxnManager * txn);

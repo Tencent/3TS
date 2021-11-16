@@ -34,6 +34,14 @@ RC wsi::validate(TxnManager * txn) {
     return rc;
 }
 
+void wsi::lock() {
+    sem_wait(&_semaphore);
+}
+
+void wsi::unlock() {
+    sem_wait(&_semaphore);
+}
+
 RC wsi::central_validate(TxnManager * txn) {
     RC rc;
     uint64_t start_tn = txn->get_start_timestamp();
@@ -46,7 +54,7 @@ RC wsi::central_validate(TxnManager * txn) {
 
     int stop __attribute__((unused));
     uint64_t checked = 0;
-    sem_wait(&_semaphore);
+    lock();
 
     if (!readonly) {
         for (UInt32 i = 0; i < rset->set_size; i++) {
@@ -66,14 +74,13 @@ RC wsi::central_validate(TxnManager * txn) {
         // newr->init(this->get_table(), get_part_id());
         // newr->copy(access->data);
         // access->data = newr;
-        txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
+        // txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
         // for (UInt32 i = 0; i < rset->set_size; i++) {
         //     rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
         // }
     } else {
         rc = Abort;
     }
-    sem_post(&_semaphore);
     DEBUG("End Validation %ld\n",txn->get_txn_id());
     return rc;
 }
@@ -93,7 +100,7 @@ void wsi::central_finish(RC rc, TxnManager * txn) {
 }
 
 void wsi::gene_finish_ts(TxnManager * txn) {
-    // txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
+    txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
 }
 
 RC wsi::get_rw_set(TxnManager * txn, wsi_set_ent * &rset, wsi_set_ent *& wset) {

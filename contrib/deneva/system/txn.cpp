@@ -856,6 +856,9 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
         }
 #else
         version = orig_r->return_row(rc, type, this, txn->accesses[rid]->data);
+#if CC_ALG == WSI
+        wsi_man.unlock();
+#endif
 #endif
     }
 #endif
