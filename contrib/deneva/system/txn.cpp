@@ -856,9 +856,6 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
         }
 #else
         version = orig_r->return_row(rc, type, this, txn->accesses[rid]->data);
-#if CC_ALG == WSI
-        wsi_man.unlock();
-#endif
 #endif
     }
 #endif
@@ -1259,6 +1256,10 @@ void TxnManager::release_locks(RC rc) {
     uint64_t starttime = get_sys_clock();
 
     cleanup(rc);
+
+#if CC_ALG == WSI
+    wsi_man.unlock();
+#endif
 
     uint64_t timespan = (get_sys_clock() - starttime);
     INC_STATS(get_thd_id(), txn_cleanup_time,  timespan);

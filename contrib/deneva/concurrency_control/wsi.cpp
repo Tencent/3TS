@@ -39,7 +39,7 @@ void wsi::lock() {
 }
 
 void wsi::unlock() {
-    sem_wait(&_semaphore);
+    sem_post(&_semaphore);
 }
 
 RC wsi::central_validate(TxnManager * txn) {
