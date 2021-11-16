@@ -28,7 +28,7 @@
 #include <cassert>
 
 #include "../concurrency_control/row_si.h"
-#include "global.h"
+#include "../system/global.h"
 
 
 #define DECL_SET_VALUE(type) void set_value(int col_id, type value);
@@ -63,6 +63,7 @@ class Row_null;
 class Row_silo;
 class Row_dli_base;
 template <int ALG> class Row_unified;
+class Row_sgraph;
 
 class row_t {
 public:
@@ -137,6 +138,8 @@ public:
     Row_ssi * manager;
     #elif CC_ALG == OPT_SSI
     Row_opt_ssi * manager;
+    #elif CC_ALG == SGraph
+    Row_SGraph * manager;
     #elif CC_ALG == WSI
     Row_wsi * manager;
     #elif CC_ALG == CNULL

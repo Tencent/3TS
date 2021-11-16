@@ -30,8 +30,15 @@
 #include "helper.h"
 #include "semaphore.h"
 #include "array.h"
-#include "transport/message.h"
+#include "../transport/message.h"
 #include "../concurrency_control/unified_util.h"
+#include "atomic_singly_linked_list.hpp"
+#include "chunk_allocator.hpp"
+#include "epoch_manager.hpp"
+#include "global_logger.hpp"
+#include "shared_spin_mutex.hpp"
+#include "atomic_unordered_map.hpp"
+#include "atomic_unordered_set.hpp"
 //#include "wl.h"
 
 class Workload;
@@ -148,12 +155,13 @@ class VersionInfo;
      Execution of transactions
      Manipulates/manages Transaction (contains txn-specific data)
      Maintains BaseQuery (contains input args, info about query)
-     */
+*/
 class TxnManager {
 public:
     virtual ~TxnManager() {}
     virtual void init(uint64_t thd_id,Workload * h_wl);
     virtual void reset();
+    
     void clear();
     void reset_query();
     void release();
@@ -208,9 +216,24 @@ public:
     bool in_rw, out_rw;
     TxnStatus txn_status;
     
+//#if CC_ALG == SGRAPH
+    using NodeSet = atom::AtomicUnorderedSet<TxnManager*, atom::AtomicUnorderedSetBucket<TxnManager*>,
+                                             common::ChunkAllocator>;
+    NodeSet* outgoing_nodes_;
+    NodeSet* incoming_nodes_;
+
+    std::atomic<uint64_t> transaction_;
+    std::atomic<bool> abort_;
+    std::atomic<bool> cascading_abort_;
+    std::atomic<bool> commited_;
+    std::atomic<bool> cleaned_;
+    std::atomic<bool> checked_;
+    std::atomic<uint64_t> abort_through_;
+    common::SharedSpinMutex mut_;
+//#endif
 
 #if CC_ALG == SILO
-    ts_t             last_tid;
+    ts_t            last_tid;
     ts_t            max_tid;
     uint64_t        num_locks;
     // int*            write_set;
@@ -219,6 +242,8 @@ public:
     RC              find_tid_silo(ts_t max_tid);
     RC              finish(RC rc);
 #endif
+
+
 
     bool aborted;
     uint64_t return_id;

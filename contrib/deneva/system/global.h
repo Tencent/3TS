@@ -40,8 +40,8 @@
 #include <math.h>
 
 #include "pthread.h"
-#include "config.h"
-#include "stats.h"
+#include "../config.h"
+#include "../statistics/stats.h"
 //#include "work_queue.h"
 #include "pool.h"
 #include "txn_table.h"
@@ -49,7 +49,7 @@
 #include "sim_manager.h"
 
 #include <boost/lockfree/queue.hpp>
-#include "da_block_queue.h"
+#include "../benchmarks/da_block_queue.h"
 //#include "maat.h"
 #include "../concurrency_control/unified_util.h"
 

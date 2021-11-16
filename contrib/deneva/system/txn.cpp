@@ -498,11 +498,17 @@ RC TxnManager::commit() {
     logger.enqueueRecord(record);
     return WAIT;
 #endif
+    commited_ = true;
     return Commit;
 }
 
 RC TxnManager::abort() {
-    if (aborted) return Abort;
+    
+    if (aborted) {
+      abort_ = true;
+      return Abort;
+    } 
+
 #if CC_ALG == SSI
     inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
     inout_table.clear_Conflict(get_thd_id(), get_txn_id());
@@ -523,6 +529,7 @@ RC TxnManager::abort() {
     }
 
     aborted = true;
+    abort_ = true;
     release_locks(Abort);
 #if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
@@ -598,7 +605,8 @@ RC TxnManager::start_commit() {
                 send_prepare_messages();
                 rc = WAIT_REM;
             }
-        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == DLI_BASE || CC_ALG == DLI_OCC) {
+        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI ||
+            CC_ALG == OPT_SSI || CC_ALG == DLI_BASE || CC_ALG == DLI_OCC) {
             // send prepare messages
 #if CC_ALG == FOCC
             rc = focc_man.start_critical_section(this);

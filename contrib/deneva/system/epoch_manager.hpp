@@ -32,6 +32,7 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+#include <type_traits>
 #include <tbb/spin_mutex.h>
 
 namespace atom {

@@ -17,10 +17,10 @@
 #ifndef _MESSAGE_H_
 #define _MESSAGE_H_
 
-#include "global.h"
-#include "helper.h"
-#include "logger.h"
-#include "array.h"
+#include "../system/global.h"
+#include "../system/helper.h"
+#include "../system/logger.h"
+#include "../system/array.h"
 
 class ycsb_request;
 class LogRecord;

@@ -149,7 +149,7 @@ RC OptCC::central_validate(TxnManager * txn) {
     uint64_t hist_checked = 0;
     stop = 0;
     if (finish_tn > start_tn) {
-    while (his && his->tn > finish_tn) his = his->next;
+        while (his && his->tn > finish_tn) his = his->next;
         while (his && his->tn > start_tn) {
               ++hist_checked;
               ++checked;
@@ -195,7 +195,6 @@ final:
     mem_allocator.free(rset, sizeof(set_ent));
     //mem_allocator.free(finish_active, sizeof(set_ent*)* f_active_len);
 
-
     if (valid) {
         rc = RCOK;
         INC_STATS(txn->get_thd_id(),occ_check_cnt,checked);
@@ -204,7 +203,7 @@ final:
         INC_STATS(txn->get_thd_id(),occ_abort_check_cnt,checked);
         rc = Abort;
     // Optimization: If this is aborting, remove from active set now
-          sem_wait(&_semaphore);
+        sem_wait(&_semaphore);
         set_ent * act = active;
         set_ent * prev = NULL;
         while (act != NULL && act->txn != txn) {

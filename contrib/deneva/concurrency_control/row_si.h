@@ -5,8 +5,8 @@
 #include <vector>
 #include <mutex>
 
-#include "storage/row.h"
-#include "system/global.h"
+#include "../storage/row.h"
+#include "../system/global.h"
 
 class TxnManager;
 class row_t;

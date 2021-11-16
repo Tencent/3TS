@@ -1,3 +1,2 @@
-g++ $1 -lpthread -lgtest -std=c++11 -lconfig++  
-./a.out 
-rm ./a.out 
+g++ $1 $2 $3 $4 -g -lpthread -lgtest -ltbb -std=c++2a -lconfig++  
+

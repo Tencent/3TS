@@ -11,7 +11,7 @@
 #ifndef _SSI_H_
 #define _SSI_H_
 
-#include "row.h"
+#include "../storage/row.h"
 #include "semaphore.h"
 
 class TxnManager;
