@@ -277,7 +277,8 @@ void Transaction::init() {
     insert_rows.init(g_max_items_per_txn + 10);
     DEBUG_M("Transaction::reset array accesses\n");
     accesses.init(MAX_ROW_PER_TXN);
-
+    //for graphcc
+    accessesInfo.init(MAX_ROW_PER_TXN);
     reset(0);
 }
 
@@ -317,6 +318,7 @@ void Transaction::release(uint64_t thd_id) {
     release_accesses(thd_id);
     DEBUG_M("Transaction::release array accesses free\n")
     accesses.release();
+    accessesInfo.release();
     release_inserts(thd_id);
     DEBUG_M("Transaction::release array insert_rows free\n")
     insert_rows.release();

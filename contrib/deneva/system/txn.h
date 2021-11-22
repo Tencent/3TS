@@ -26,6 +26,7 @@
 #define _TXN_H_
 
 #include <mutex>
+#include <atomic>
 #include "global.h"
 #include "helper.h"
 #include "semaphore.h"
@@ -75,6 +76,11 @@ public:
     void cleanup();
 };
 
+struct AccessInfo {
+   atom::AtomicSinglyLinkedList<uint64_t> *which_rw_his;
+   uint64_t lsn;
+};
+
 class Transaction {
 public:
     void init();
@@ -84,6 +90,8 @@ public:
     void release(uint64_t thd_id);
     //vector<Access*> accesses;
     Array<Access*> accesses;
+    //for graphcc
+    Array<AccessInfo*> accessesInfo;
     uint64_t timestamp;
     // For OCC and SSI
     uint64_t start_timestamp;
@@ -230,6 +238,8 @@ public:
     std::atomic<bool> checked_;
     std::atomic<uint64_t> abort_through_;
     common::SharedSpinMutex mut_;
+
+    
 //#endif
 
 #if CC_ALG == SILO

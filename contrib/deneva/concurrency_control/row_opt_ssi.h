@@ -15,6 +15,7 @@
 
 #include "../system/txn.h"
 #include <unordered_set>
+#include <atomic>
 
 class table_t;
 class Catalog;
@@ -77,7 +78,7 @@ class Row_opt_ssi {
 public:
    
     void init(row_t * row);
-    // RC   access(TxnManager * txn, TsType type, row_t * row);
+    RC   access(TxnManager * txn, TsType type, row_t * row);
    
     const uint64_t size() const;
     uintptr_t createNode();
@@ -113,17 +114,19 @@ private:
 
     OPT_SSILockEntry * si_read_lock;
     OPT_SSILockEntry * write_lock;
-    atom::AtomicSinglyLinkedList<uint64_t> rw_history;
+    atom::AtomicSinglyLinkedList<uint64_t> *rw_history;
 
     bool blatch;
 
     row_t * _row;
+    static thread_local std::atomic<uint64_t> lsn;
+
     void get_lock(lock_t type, TxnManager * txn);
     void get_lock(lock_t type, TxnManager * txn, OPT_SSIHisEntry * whis);
-    //void release_lock(lock_t type, TxnManager * txn);
-    //void release_lock(ts_t min_ts);
+    void release_lock(lock_t type, TxnManager * txn);
+    void release_lock(ts_t min_ts);
 
-    // void insert_history(ts_t ts, TxnManager * txn, row_t * row);
+    void insert_history(ts_t ts, TxnManager * txn, row_t * row);
 
     OPT_SSIReqEntry * get_req_entry();
     void return_req_entry(OPT_SSIReqEntry * entry);
@@ -132,6 +135,15 @@ private:
 
     OPT_SSILockEntry * get_entry();
     row_t * clear_history(TsType type, ts_t ts);
+
+    inline static constexpr uint64_t encode_txnid(const uint64_t txnid, const bool rw) {
+        return rw ? 0x8000000000000000 | txnid : 0x7FFFFFFFFFFFFFFF & txnid;
+    }
+
+    /* Returns the transaction and the used transaction given an encoded bitstring */
+    inline static constexpr std::tuple<uint64_t, bool> find(const uint64_t encoded_id) {
+      return std::make_tuple(0x7FFFFFFFFFFFFFFF & encoded_id, encoded_id >> 63);
+    }
 
     OPT_SSIReqEntry * prereq_mvcc;
     OPT_SSIHisEntry * readhis;
@@ -159,8 +171,9 @@ private:
     static thread_local std::unordered_set<TxnManager*> visited;
     static thread_local std::unordered_set<TxnManager*> visit_path;
     static thread_local RecycledTxnManagerSets empty_sets;
-    static thread_local TxnManager* this_node;
+    TxnManager* cur_node;
     static thread_local atom::EpochGuard<NEMB, NEM>* neg_;
+    
     
 
     std::vector<std::pair<uint64_t, uint64_t>> dF;
