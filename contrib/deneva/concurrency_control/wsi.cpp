@@ -66,6 +66,11 @@ RC wsi::central_validate(TxnManager * txn) {
 
     txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
     for (UInt32 i = 0; i < wset->set_size; i++) {
+        uint64_t insert_start = get_sys_clock();
+        assert (txn->get_access_original_row(i) != NULL);
+        wset->rows[i]->manager->access(txn, W_REQ, txn->get_access_original_row(i));
+        uint64_t insert_end = get_sys_clock();
+        INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - insert_start);
         wset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
     }
     sem_post(&_semaphore);

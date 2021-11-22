@@ -480,11 +480,13 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     } else if (type == WR) {
         assert (type == WR && row != NULL);
         assert (row->get_schema() == this->get_schema());
+        #if CC_ALG != WSI
         uint64_t insert_start = get_sys_clock();
         RC rc = this->manager->access(txn, W_REQ, row);
         uint64_t insert_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, insert_end - insert_start);
         assert(rc == RCOK);
+        #endif
     }
     return 0;
 #elif CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC

@@ -193,13 +193,13 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
         insert_history(start_ts, txn, NULL);
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
     } else if (type == P_REQ) {
-        if (preq_len < g_max_pre_req){
-            DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-            buffer_req(P_REQ, txn);
-            rc = RCOK;
-        } else  {
-            rc = Abort;
-        }
+        // if (preq_len < g_max_pre_req){
+        //     DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
+        //     buffer_req(P_REQ, txn);
+        //     rc = RCOK;
+        // } else  {
+        //     rc = Abort;
+        // }
     } else if (type == W_REQ) {
         uint64_t write_start = get_sys_clock();
         rc = RCOK;
@@ -207,14 +207,14 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
         insert_history(ts, txn, row);
         INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-        WSIReqEntry * req = debuffer_req(P_REQ, txn);
-        assert(req != NULL);
-        return_req_entry(req);
+        // WSIReqEntry * req = debuffer_req(P_REQ, txn);
+        // assert(req != NULL);
+        // return_req_entry(req);
     } else if (type == XP_REQ) {
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-        WSIReqEntry * req = debuffer_req(P_REQ, txn);
-        assert (req != NULL);
-        return_req_entry(req);
+        // WSIReqEntry * req = debuffer_req(P_REQ, txn);
+        // assert (req != NULL);
+        // return_req_entry(req);
     } else {
         assert(false);
     }
