@@ -189,7 +189,9 @@ void row_t::set_data(char * data) {
 }
 // copy from the src to this
 void row_t::copy(row_t * src) {
+    #if CC_ALG != WSI
     assert(src->get_schema() == this->get_schema());
+    #endif
 #if SIM_FULL_ROW
     set_data(src->get_data());
 #else
@@ -298,12 +300,14 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
             goto end;
         } else if (rc == Abort) {
         }
+        #if CC_ALG != WSI
         if (rc != Abort) {
             assert(access->data->get_data() != NULL);
             assert(access->data->get_table() != NULL);
             assert(access->data->get_schema() == this->get_schema());
             assert(access->data->get_table_name() != NULL);
         }
+        #endif
     }
     if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI) 
         && type == WR) {
@@ -477,10 +481,10 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
         this->manager->access(txn, XP_REQ, NULL);
         uint64_t xp_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_access_xp_time, xp_end - xp_start);
-    } else if (type == WR) {
+    } else if (type == WR) {     
+        #if CC_ALG != WSI
         assert (type == WR && row != NULL);
         assert (row->get_schema() == this->get_schema());
-        #if CC_ALG != WSI
         uint64_t insert_start = get_sys_clock();
         RC rc = this->manager->access(txn, W_REQ, row);
         uint64_t insert_end = get_sys_clock();

@@ -44,10 +44,10 @@ RC wsi::central_validate(TxnManager * txn) {
     get_rw_set(txn, rset, wset);
     bool readonly = (wset->set_size == 0);
 
+#if LOCK_CS
     int stop __attribute__((unused));
     uint64_t checked = 0;
     sem_wait(&_semaphore);
-
     if (!readonly) {
         for (UInt32 i = 0; i < rset->set_size; i++) {
             checked++;
@@ -74,7 +74,60 @@ RC wsi::central_validate(TxnManager * txn) {
         wset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
     }
     sem_post(&_semaphore);
+#elif  LOCK_NW
+    // TODO 
+    if (!readonly) {
+        for (uint64_t i = txn->get_access_cnt() - 1; i > 0; i--) {
+            for (uint64_t j = 0; j < i; j ++) {
+                int tabcmp = strcmp(txn->get_access_original_row(j)->get_table_name(),
+                    txn->get_access_original_row(j+1)->get_table_name());
+        if (tabcmp > 0 ||
+            (tabcmp == 0 && txn->get_access_original_row(j)->get_primary_key() >
+                                txn->get_access_original_row(j + 1)->get_primary_key())) {
+                    txn->swap_accesses(j,j+1);
+                }
+            }
+        }
 
+        // lock all rows in the  writeset.
+        bool ok = true;
+        int lock_cnt = 0;
+        for (uint64_t i = 0; i < txn->get_access_cnt() && ok; i++) {
+            if(txn->get_access_type(i) == WR){  
+                if (!txn->get_access_original_row(i)->manager->try_lock()) {
+                    ok = false;
+                } else{
+                    lock_cnt ++;
+                }             
+            }   
+        }
+
+        // Validate each read access
+        if (ok){     
+            txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));  
+            for (uint64_t i = 0; i < txn->get_access_cnt() && ok; i++) {
+                if(txn->get_access_type(i) == RD){
+                    if(txn->get_access_original_row(i)->manager->get_last_commit() > start_tn){
+                        ok = false;
+                    }
+                }   
+            }
+        }
+        // write timestamp, write into database, and release lock
+        if (ok){
+            for (uint64_t i = 0; i < txn->get_access_cnt() && lock_cnt; i++) {
+                if(txn->get_access_type(i) == WR){
+                    lock_cnt -- ;
+                    txn->get_access_original_row(i)->manager->update_last_commit(txn->get_commit_timestamp());
+                    txn->get_access_original_row(i)->manager->access(txn, W_REQ, txn->get_access_original_row(i));
+                    txn->get_access_original_row(i)->manager->release();
+                }   
+            }
+        }
+
+        rc = ok ? RCOK : Abort;    
+    }
+#endif
     // if (valid) {
     //     rc = RCOK;
     // } else {

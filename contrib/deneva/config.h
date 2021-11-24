@@ -152,7 +152,10 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG OPT_SSI
+#define CC_ALG WSI
+#define LOCK_CS false   // CS: critical section, NW: no wait, WD: wait_die
+#define LOCK_NW true   // CS: critical section, NW: no wait, WD: wait_die
+#define LOCK_WD false   // CS: critical section, NW: no wait, WD: wait_die
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.

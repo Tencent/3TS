@@ -174,11 +174,26 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
     ts_t start_ts = txn->get_start_timestamp();
     uint64_t starttime = get_sys_clock();
 
+#if LOCK_CS
     if (g_central_man) {
         glob_manager.lock_row(_row);
     } else {
         pthread_mutex_lock(latch);
     }
+    int a;
+#elif LOCK_NW
+    if (!try_lock())
+    {
+        return Abort;
+        // break;
+    }
+#elif LOCK_WD
+    if (!try_lock_wait())
+    {
+        return Abort;
+        // break;
+    }
+#endif
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
@@ -191,7 +206,7 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
         row_t * ret = (whis == NULL) ? _row : whis->row;
         txn->cur_row = ret;
         insert_history(start_ts, txn, NULL);
-        assert(strstr(_row->get_table_name(), ret->get_table_name()));
+        // assert(strstr(_row->get_table_name(), ret->get_table_name()));
     } else if (type == P_REQ) {
         // if (preq_len < g_max_pre_req){
         //     DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
@@ -249,11 +264,32 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
 
     INC_STATS(txn->get_thd_id(), txn_useful_time, timespan);
 
+#if  LOCK_CS
     if (g_central_man) {
         glob_manager.release_row(_row);
     } else {
         pthread_mutex_unlock( latch );
     }
+#elif LOCK_NW
+        release();
+#else 
+
+#endif
 
     return rc;
+}
+
+bool Row_wsi::try_lock()
+{
+    return pthread_mutex_trylock( latch ) != EBUSY;
+}
+
+bool Row_wsi::try_lock_wait()
+{
+    return pthread_mutex_trylock( latch ) != EBUSY;
+}
+
+void Row_wsi::release() {
+    pthread_mutex_unlock( latch );
+
 }

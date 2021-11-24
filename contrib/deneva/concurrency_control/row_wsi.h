@@ -38,7 +38,9 @@ public:
     void init(row_t * row);
     RC access(TxnManager * txn, TsType type, row_t * row);
     void update_last_commit(uint64_t ts);
-
+    bool try_lock();
+    bool try_lock_wait();
+    void release();
     uint64_t get_last_commit() { return lastCommit; }
 private:
     pthread_mutex_t * latch;
