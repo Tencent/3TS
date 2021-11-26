@@ -74,7 +74,7 @@ RC wsi::central_validate(TxnManager * txn) {
         wset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
     }
     sem_post(&_semaphore);
-#elif  LOCK_NW
+#elif  LOCK_NW || LOCK_WD
     // TODO 
     if (!readonly) {
         for (uint64_t i = txn->get_access_cnt() - 1; i > 0; i--) {
@@ -92,9 +92,16 @@ RC wsi::central_validate(TxnManager * txn) {
         // lock all rows in the  writeset.
         bool ok = true;
         int lock_cnt = 0;
+        float wait_second = 1;
+        float wait_nanosecond = 0;
         for (uint64_t i = 0; i < txn->get_access_cnt() && ok; i++) {
             if(txn->get_access_type(i) == WR){  
+                #if  LOCK_NW 
                 if (!txn->get_access_original_row(i)->manager->try_lock()) {
+                #endif
+                #if  LOCK_WD 
+                if (!txn->get_access_original_row(i)->manager->try_lock_wait(wait_second,wait_nanosecond)) {
+                #endif
                     ok = false;
                 } else{
                     lock_cnt ++;
@@ -113,13 +120,22 @@ RC wsi::central_validate(TxnManager * txn) {
                 }   
             }
         }
-        // write timestamp, write into database, and release lock
+        // write timestamp, write into database, and release lock when validate succeeded
         if (ok){
             for (uint64_t i = 0; i < txn->get_access_cnt() && lock_cnt; i++) {
                 if(txn->get_access_type(i) == WR){
                     lock_cnt -- ;
                     txn->get_access_original_row(i)->manager->update_last_commit(txn->get_commit_timestamp());
-                    txn->get_access_original_row(i)->manager->access(txn, W_REQ, txn->get_access_original_row(i));
+                    txn->get_access_original_row(i)->manager->access(txn, W_REQ, txn->get_access_data(i));
+                    txn->get_access_original_row(i)->manager->release();
+                }   
+            }
+        }
+        // release lock when validate failed
+        else {
+            for (uint64_t i = 0; i < txn->get_access_cnt() && lock_cnt; i++) {
+                if(txn->get_access_type(i) == WR){
+                    lock_cnt -- ;
                     txn->get_access_original_row(i)->manager->release();
                 }   
             }

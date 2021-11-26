@@ -235,6 +235,7 @@ public:
     access_t get_access_type(uint64_t access_id) {return txn->accesses[access_id]->type;}
     uint64_t get_access_version(uint64_t access_id) { return txn->accesses[access_id]->version; }
     row_t * get_access_original_row(uint64_t access_id) {return txn->accesses[access_id]->orig_row;}
+    row_t * get_access_data(uint64_t access_id) {return txn->accesses[access_id]->data;}
     void swap_accesses(uint64_t a, uint64_t b) { txn->accesses.swap(a, b); }
     uint64_t get_batch_id() {return txn->batch_id;}
     void set_batch_id(uint64_t batch_id) {txn->batch_id = batch_id;}

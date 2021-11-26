@@ -188,7 +188,9 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
         // break;
     }
 #elif LOCK_WD
-    if (!try_lock_wait())
+    float wait_second = 1;
+    float wait_nanosecond = 0;
+    if (!try_lock_wait(wait_second, wait_nanosecond))
     {
         return Abort;
         // break;
@@ -271,9 +273,9 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
         pthread_mutex_unlock( latch );
     }
 #elif LOCK_NW
-        release();
-#else 
-
+    release();
+#elif LOCK_WD
+    release();
 #endif
 
     return rc;
@@ -284,9 +286,12 @@ bool Row_wsi::try_lock()
     return pthread_mutex_trylock( latch ) != EBUSY;
 }
 
-bool Row_wsi::try_lock_wait()
+bool Row_wsi::try_lock_wait(float wait_second, float wait_nanosecond)
 {
-    return pthread_mutex_trylock( latch ) != EBUSY;
+    struct timespec timeoutTime;
+    timeoutTime.tv_nsec = wait_nanosecond;
+    timeoutTime.tv_sec = wait_second;
+    return pthread_mutex_timedlock( latch, &timeoutTime ) == 0; // == 0 locked else no lock
 }
 
 void Row_wsi::release() {

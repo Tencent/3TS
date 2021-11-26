@@ -39,7 +39,7 @@ public:
     RC access(TxnManager * txn, TsType type, row_t * row);
     void update_last_commit(uint64_t ts);
     bool try_lock();
-    bool try_lock_wait();
+    bool try_lock_wait(float wait_second, float wait_nanosecond);
     void release();
     uint64_t get_last_commit() { return lastCommit; }
 private:
