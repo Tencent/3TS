@@ -180,59 +180,57 @@ void YCSBTxnManager::copy_remote_requests(YCSBQueryMessage * msg) {
 }
 
 RC YCSBTxnManager::run_txn_state() {
-  YCSBQuery* ycsb_query = (YCSBQuery*) query;
+    YCSBQuery* ycsb_query = (YCSBQuery*) query;
     ycsb_request * req = ycsb_query->requests[next_record_id];
     uint64_t part_id = _wl->key_to_part( req->key );
-  bool loc = GET_NODE_ID(part_id) == g_node_id;
+    bool loc = GET_NODE_ID(part_id) == g_node_id;
 
     RC rc = RCOK;
 
     switch (state) {
-        case YCSB_0 :
-      if(loc) {
-        rc = run_ycsb_0(req,row);
-      } else {
-        rc = send_remote_request();
+      case YCSB_0:
+        if (loc) {
+          rc = run_ycsb_0(req, row);
+        } else {
+          rc = send_remote_request();
+        }
 
-      }
+        break;
+      case YCSB_1:
+        rc = run_ycsb_1(req->acctype, row);
+        break;
+      case YCSB_FIN:
+        state = YCSB_FIN;
+        break;
+      default:
+        assert(false);
+    }
 
-      break;
-        case YCSB_1 :
-      rc = run_ycsb_1(req->acctype,row);
-      break;
-    case YCSB_FIN :
-      state = YCSB_FIN;
-      break;
-    default:
-            assert(false);
-  }
+    if (rc == RCOK) next_ycsb_state();
 
-  if (rc == RCOK) next_ycsb_state();
-
-  return rc;
+    return rc;
 }
 
 RC YCSBTxnManager::run_ycsb_0(ycsb_request * req,row_t *& row_local) {
-    RC rc = RCOK;
-        int part_id = _wl->key_to_part( req->key );
-        access_t type = req->acctype;
-      itemid_t * m_item;
+  RC rc = RCOK;
+  int part_id = _wl->key_to_part(req->key);
+  access_t type = req->acctype;
+  itemid_t* m_item;
 
-        m_item = index_read(_wl->the_index, req->key, part_id);
+  m_item = index_read(_wl->the_index, req->key, part_id);
 
-        row_t * row = ((row_t *)m_item->location);
+  row_t* row = ((row_t*)m_item->location);
 
-        rc = get_row(row, type,row_local);
+  rc = get_row(row, type, row_local);
 
-    return rc;
-
+  return rc;
 }
 
 RC YCSBTxnManager::run_ycsb_1(access_t acctype, row_t * row_local) {
   if (acctype == RD || acctype == SCAN) {
     int fid = 0;
-        char * data = row_local->get_data();
-        uint64_t fval __attribute__ ((unused));
+    char * data = row_local->get_data();
+    uint64_t fval __attribute__ ((unused));
     fval = *(uint64_t *)(&data[fid * 100]);
 #if ISOLATION_LEVEL == READ_COMMITTED || ISOLATION_LEVEL == READ_UNCOMMITTED
     // Release lock after read
@@ -241,9 +239,9 @@ RC YCSBTxnManager::run_ycsb_1(access_t acctype, row_t * row_local) {
 
   } else {
     assert(acctype == WR);
-        int fid = 0;
-      char * data = row_local->get_data();
-      *(uint64_t *)(&data[fid * 100]) = 0;
+    int fid = 0;
+    char * data = row_local->get_data();
+    *(uint64_t *)(&data[fid * 100]) = 0;
 #if YCSB_ABORT_MODE
     if (data[0] == 'a') return RCOK;
 #endif

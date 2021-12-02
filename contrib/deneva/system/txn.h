@@ -27,6 +27,7 @@
 
 #include <mutex>
 #include <atomic>
+#include <unordered_set>
 #include "global.h"
 #include "helper.h"
 #include "semaphore.h"
@@ -54,8 +55,11 @@ class TPCCQuery;
 class DliValidatedTxn;
 //class r_query;
 
+
 enum TxnState {START,INIT,EXEC,PREP,FIN,DONE};
 enum TxnStatus {ACTIVE = 0, COMMITTED, ABORTED};
+
+
 
 class Access {
 public:
@@ -227,8 +231,13 @@ public:
 //#if CC_ALG == SGRAPH
     using NodeSet = atom::AtomicUnorderedSet<TxnManager*, atom::AtomicUnorderedSetBucket<TxnManager*>,
                                              common::ChunkAllocator>;
+    using Allocator = common::ChunkAllocator;
+    using EMB = atom::EpochManagerBase<Allocator>;
+    
     NodeSet* outgoing_nodes_;
     NodeSet* incoming_nodes_;
+    Allocator* alloc_;
+    EMB* em_;
 
     std::atomic<uint64_t> transaction_;
     std::atomic<bool> abort_;
@@ -238,6 +247,8 @@ public:
     std::atomic<bool> checked_;
     std::atomic<uint64_t> abort_through_;
     common::SharedSpinMutex mut_;
+    static thread_local std::unordered_set<TxnManager*> visited;
+    static thread_local std::unordered_set<TxnManager*> visit_path;
 
     
 //#endif
@@ -253,26 +264,45 @@ public:
     RC              finish(RC rc);
 #endif
 
+    //the following is for graphcc
+    void cleanup1();
+    bool cycleCheckNaive1();
+    bool cycleCheckNaive1(TxnManager* cur) const;
+    bool erase_graph_constraints1();
+    bool checkCommited1();
 
+    inline static std::tuple<TxnManager*, bool> findEdge1(const TxnManager* encoded_id) {
+      constexpr uint64_t lowestSet = 1;
+      constexpr uint64_t lowestNotSet = ~(lowestSet);
+      return std::make_tuple(reinterpret_cast<TxnManager*>(lowestNotSet & reinterpret_cast<uintptr_t>(encoded_id)),
+                         reinterpret_cast<uintptr_t>(encoded_id) & lowestSet);
+    };
 
-    bool aborted;
-    uint64_t return_id;
+    inline static TxnManager* accessEdge1(const TxnManager* node, const bool rw) {
+      constexpr uint64_t lowestSet = 1;
+      constexpr uint64_t lowestNotSet = ~(lowestSet);
+      return reinterpret_cast<TxnManager*>(rw ? lowestSet | reinterpret_cast<uintptr_t>(node)
+                                              : lowestNotSet & reinterpret_cast<uintptr_t>(node));
+    };
+
+    bool      aborted;
+    uint64_t  return_id;
     RC        validate();
-    void            cleanup(RC rc);
-    void            cleanup_row(RC rc,uint64_t rid);
-    void release_last_row_lock();
-    RC send_remote_reads();
-    void set_end_timestamp(uint64_t timestamp) {txn->end_timestamp = timestamp;}
-    uint64_t get_end_timestamp() {return txn->end_timestamp;}
-    uint64_t get_access_cnt() {return txn->row_cnt;}
-    uint64_t get_write_set_size() {return txn->write_cnt;}
-    uint64_t get_read_set_size() {return txn->row_cnt - txn->write_cnt;}
-    access_t get_access_type(uint64_t access_id) {return txn->accesses[access_id]->type;}
-    uint64_t get_access_version(uint64_t access_id) { return txn->accesses[access_id]->version; }
-    row_t * get_access_original_row(uint64_t access_id) {return txn->accesses[access_id]->orig_row;}
-    void swap_accesses(uint64_t a, uint64_t b) { txn->accesses.swap(a, b); }
-    uint64_t get_batch_id() {return txn->batch_id;}
-    void set_batch_id(uint64_t batch_id) {txn->batch_id = batch_id;}
+    void      cleanup(RC rc);
+    void      cleanup_row(RC rc,uint64_t rid);
+    void      release_last_row_lock();
+    RC        send_remote_reads();
+    void      set_end_timestamp(uint64_t timestamp) {txn->end_timestamp = timestamp;}
+    uint64_t  get_end_timestamp() {return txn->end_timestamp;}
+    uint64_t  get_access_cnt() {return txn->row_cnt;}
+    uint64_t  get_write_set_size() {return txn->write_cnt;}
+    uint64_t  get_read_set_size() {return txn->row_cnt - txn->write_cnt;}
+    access_t  get_access_type(uint64_t access_id) {return txn->accesses[access_id]->type;}
+    uint64_t  get_access_version(uint64_t access_id) { return txn->accesses[access_id]->version; }
+    row_t *   get_access_original_row(uint64_t access_id) {return txn->accesses[access_id]->orig_row;}
+    void      swap_accesses(uint64_t a, uint64_t b) { txn->accesses.swap(a, b); }
+    uint64_t  get_batch_id() {return txn->batch_id;}
+    void      set_batch_id(uint64_t batch_id) {txn->batch_id = batch_id;}
 
         // For MaaT
     uint64_t commit_timestamp;

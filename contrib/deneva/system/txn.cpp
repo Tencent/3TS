@@ -64,6 +64,11 @@ template <typename Txn>
 extern std::optional<ttts::Path<Txn>> g_da_cycle;
 #endif
 
+thread_local std::unordered_set<TxnManager*> TxnManager::visited{std::thread::hardware_concurrency()};
+thread_local std::unordered_set<TxnManager*> TxnManager::visit_path{std::thread::hardware_concurrency() >= 32
+                                                                          ? std::thread::hardware_concurrency() >> 4
+                                                                          : std::thread::hardware_concurrency()};
+
 void TxnStats::init() {
     starttime=0;
     wait_starttime=get_sys_clock();
@@ -278,13 +283,14 @@ void Transaction::init() {
     DEBUG_M("Transaction::reset array accesses\n");
     accesses.init(MAX_ROW_PER_TXN);
     //for graphcc
-    accessesInfo.init(MAX_ROW_PER_TXN);
+    accessesInfo.init(MAX_ROW_PER_TXN * 5);
     reset(0);
 }
 
 void Transaction::reset(uint64_t thd_id) {
     release_accesses(thd_id);
     accesses.clear();
+    accessesInfo.clear();
     //release_inserts(thd_id);
     insert_rows.clear();
     write_cnt = 0;
@@ -379,6 +385,21 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
 
 #if CC_ALG == DLI_BASE || CC_ALG == DLI_MVCC || CC_ALG == DLI_MVCC_OCC || CC_ALG == DLI_OCC || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3
     history_dli_txn_head = dli_man.validated_txns_.load();
+#endif
+
+#if CC_ALG == OPT_SSI
+    NodeSet* sets[2];
+    alloc_ = new common::ChunkAllocator{};
+    em_    = new atom::EpochManagerBase<common::ChunkAllocator>{alloc_};
+    uint8_t i = 0;
+    for (; i < 2; i++) {
+      //created_sets_++;
+      sets[i] = new NodeSet{std::thread::hardware_concurrency() >= 32 ? std::thread::hardware_concurrency() >> 4
+                                                                          : std::thread::hardware_concurrency(),
+                                alloc_, em_};
+    }
+    outgoing_nodes_ = sets[0];
+    incoming_nodes_ = sets[1];
 #endif
 
     registed_ = false;
@@ -489,6 +510,43 @@ RC TxnManager::commit() {
 #endif
 #if CC_ALG == OPT_SSI
     txn_status = TxnStatus::COMMITTED;
+    bool all_pending_transactions_commited = false;
+    while (!all_pending_transactions_commited) {
+    //   auto not_alive = not_alive_.find(transaction);
+    //   if (not_alive != not_alive_.end()) {
+    //     not_alive_.erase(transaction);
+    //     abort_transaction = abort_transaction_;
+    //     return false;
+    //   }
+
+      if (abort_ || cascading_abort_) {
+        abort();
+        return Abort;
+      }
+
+      all_pending_transactions_commited = checkCommited1();
+
+      if (all_pending_transactions_commited) {
+        // eg_->commit();
+        // for (auto t : *atom_info_) {
+        //   t->removeChain(*this);
+        // }
+        // for (auto t : *atom_info_) {
+        //   t->deleteEntry();
+        //   t->deallocate(alloc_);
+        // }
+        
+        for (uint64_t i = 0; i < txn->accessesInfo.size(); i++) {
+          uint64_t lsn = txn->accessesInfo[i]->lsn;
+          txn->accessesInfo[i]->which_rw_his->erase(lsn);
+        }
+        //txn->accessesInfo.release();
+      }
+    }
+
+    // alloc_->tidyUp();
+    // atom_info_->~list();
+    // eg_->~EpochGuard();
 #endif
     commit_stats();
 #if LOGGING
@@ -518,6 +576,14 @@ RC TxnManager::abort() {
 #if CC_ALG == OPT_SSI
     txn_status = TxnStatus::ABORTED;
     in_rw = false, out_rw = false;
+    uint64_t lsn;
+    
+    for (uint64_t i = 0; i < txn->accessesInfo.size(); i++) {
+       lsn = txn->accessesInfo[i]->lsn;
+       txn->accessesInfo[i]->which_rw_his->erase(lsn);
+    }
+    txn->accessesInfo.release();
+ 
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
     txn->rc = Abort;
@@ -533,6 +599,8 @@ RC TxnManager::abort() {
     aborted = true;
     abort_ = true;
     release_locks(Abort);
+
+
 #if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
     time_table.release(get_thd_id(),get_txn_id());
@@ -857,7 +925,7 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
     row_t * orig_r = txn->accesses[rid]->orig_row;
     if (ROLL_BACK && type == XP &&
             (CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == HSTORE ||
-             CC_ALG == HSTORE_SPEC)) {
+             CC_ALG == HSTORE_SPEC || CC_ALG == OPT_SSI)) {
         orig_r->return_row(rc,type, this, txn->accesses[rid]->orig_data);
     } else {
 #if ISOLATION_LEVEL == READ_COMMITTED
@@ -1052,7 +1120,7 @@ RC TxnManager::get_row(row_t * row, access_t type, row_t *& row_rtn) {
 #endif
 
 #if ROLL_BACK && (CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || \
-                                    CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC)
+                        CC_ALG == OPT_SSI || CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC)
     if (type == WR) {
 
     uint64_t part_id = row->get_part_id();
@@ -1270,3 +1338,151 @@ void TxnManager::release_locks(RC rc) {
     uint64_t timespan = (get_sys_clock() - starttime);
     INC_STATS(get_thd_id(), txn_cleanup_time,  timespan);
 }
+
+void TxnManager::cleanup1() 
+{
+  mut_.lock_shared();
+  cleaned_ = true;
+  mut_.unlock_shared();
+
+  // barrier for inserts
+  mut_.lock();
+  mut_.unlock();
+
+  auto it = outgoing_nodes_->begin();
+  while (it != outgoing_nodes_->end()) {
+    auto that_node = std::get<0>(findEdge1(*it));
+    if (abort_ && !std::get<1>(findEdge1(*it))) {
+      that_node->cascading_abort_ = true;
+      that_node->abort_through_ = reinterpret_cast<uintptr_t>(this);
+    } else {
+      that_node->mut_.lock_shared();
+      if (!that_node->cleaned_)
+        that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))));
+      that_node->mut_.unlock_shared();
+    }
+    outgoing_nodes_->erase(*it);
+    ++it;
+  }
+
+  if (abort_) {
+    auto it_out = this->incoming_nodes_->begin();
+    while (it_out != this->incoming_nodes_->end()) {
+      this->incoming_nodes_->erase(*it_out);
+      ++it_out;
+    }
+  }
+
+  //atom::EpochGuard<EMB, EM> eg{em_};
+
+  this->mut_.lock();
+  //empty_sets.rns->emplace_back(cur_node->outgoing_nodes_);
+  // empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
+
+  if (this->outgoing_nodes_->size() > 0 || this->incoming_nodes_->size() > 0) {
+    std::cout << "BROKEN" << std::endl;
+  }
+
+  this->outgoing_nodes_ = nullptr;
+  this->incoming_nodes_ = nullptr;
+
+//   if (online_) {
+//     order_map_.erase(reinterpret_cast<uintptr_t>(this));
+//   }
+  this->mut_.unlock();
+
+  // delete node;
+  // eg.add(this);
+  // alloc_->deallocate(node, 1);
+}
+
+bool TxnManager::checkCommited1() {
+  if (this->abort_ || this->cascading_abort_) {
+    return false;
+  }
+
+  this->mut_.lock_shared();
+  this->checked_ = true;
+  this->mut_.unlock_shared();
+
+  // barrier for inserts
+  this->mut_.lock();
+  this->mut_.unlock();
+
+  this->mut_.lock_shared();
+  if (this->incoming_nodes_->size() != 0) {
+    this->checked_ = false;
+    this->mut_.unlock_shared();
+    return false;
+  }
+  this->mut_.unlock_shared();
+
+  if (this->abort_ || this->cascading_abort_) {
+    return false;
+  }
+
+  bool success = erase_graph_constraints1();
+
+  if (success) {
+    cleanup1();
+  }
+  return success;
+}
+
+
+bool TxnManager::erase_graph_constraints1() {
+  if (cycleCheckNaive1()) {
+    this->abort_ = true;
+    return false;
+  }
+
+  this->commited_ = true;
+
+// #ifdef 0
+//   // logger.log(generateString());
+//   logger.log(common::LogInfo{reinterpret_cast<uintptr_t>(cur_node), 0, 0, 0, 'c'});
+// #endif
+  return true;
+}
+
+bool TxnManager::cycleCheckNaive1() {
+  visited.clear();
+  visit_path.clear();
+  bool check = false;
+  if (std::end(visited) == std::find(std::begin(visited), std::end(visited), this)) {
+    check |= cycleCheckNaive1(this);
+  }
+  return check;
+}
+
+bool TxnManager::cycleCheckNaive1(TxnManager* cur) const {
+ 
+  visited.insert(cur);
+  visit_path.insert(cur);
+
+  cur->mut_.lock_shared();
+  if (!cur->cleaned_) {
+    auto it = cur->incoming_nodes_->begin();
+    while (it != cur->incoming_nodes_->end()) {
+      auto node = std::get<0>(findEdge1(*it));
+      if (std::end(visit_path) != std::find(std::begin(visit_path), std::end(visit_path), node)) {
+        cur->mut_.unlock_shared();
+        return true;
+      } else {
+        if (cycleCheckNaive1(node)) {
+          cur->mut_.unlock_shared();
+          return true;
+        }
+      }
+      ++it;
+    }
+  }
+
+  cur->mut_.unlock_shared();
+  visit_path.erase(cur);
+  return false;
+}
+
+
+
+

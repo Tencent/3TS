@@ -119,6 +119,7 @@ public:
     uint64_t size() {return count;}
     bool is_full() { return count == capacity;}
     bool is_empty() { return count == 0;}
+    uint64_t get_capacity() {return capacity;}
 private:
     T * items;
     uint64_t capacity;

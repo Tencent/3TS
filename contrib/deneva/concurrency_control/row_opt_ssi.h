@@ -114,12 +114,11 @@ private:
 
     OPT_SSILockEntry * si_read_lock;
     OPT_SSILockEntry * write_lock;
-    atom::AtomicSinglyLinkedList<uint64_t> *rw_history;
+    atom::AtomicSinglyLinkedList<uint64_t> *rw_history, tmp_hisotry;
 
     bool blatch;
 
     row_t * _row;
-    static thread_local std::atomic<uint64_t> lsn;
 
     void get_lock(lock_t type, TxnManager * txn);
     void get_lock(lock_t type, TxnManager * txn, OPT_SSIHisEntry * whis);
@@ -173,9 +172,9 @@ private:
     static thread_local RecycledTxnManagerSets empty_sets;
     TxnManager* cur_node;
     static thread_local atom::EpochGuard<NEMB, NEM>* neg_;
+    std::atomic<uint64_t> lsn;
     
     
-
     std::vector<std::pair<uint64_t, uint64_t>> dF;
     std::vector<std::pair<uint64_t, uint64_t>> dB;
 

@@ -93,6 +93,8 @@ void row_t::init_manager(row_t * row) {
     manager = (Row_ssi *) mem_allocator.align_alloc(sizeof(Row_ssi));
 #elif CC_ALG == OPT_SSI
     manager = (Row_opt_ssi *) mem_allocator.align_alloc(sizeof(Row_opt_ssi));
+#elif CC_ALG == SGRAPH
+    manager = (Row_SGraph *) mem_allocator.align_alloc(sizeof(Row_SGraph));
 #elif CC_ALG == WSI
     manager = (Row_wsi *) mem_allocator.align_alloc(sizeof(Row_wsi));
 #elif CC_ALG == CNULL
@@ -243,6 +245,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     assert(rc == RCOK);
     goto end;
 #endif
+
 #if CC_ALG == MAAT
 
     DEBUG_M("row_t::get_row MAAT alloc \n");
@@ -272,7 +275,18 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
     goto end;
-#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
+#elif CC_ALG == OPT_SSI
+    TsType my_type = (type == WR ? P_REQ : R_REQ);
+
+    rc = this->manager->access(txn, my_type, NULL);
+    if (rc == RCOK) {
+      access->data = this;
+    } else if (rc == Abort) {
+    } else if (rc == WAIT) {  // will not happen
+      ASSERT(CC_ALG == WAIT_DIE);
+    }
+    goto end;
+#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI 
     //uint64_t thd_id = txn->get_thd_id();
 // For TIMESTAMP RD, a new copy of the access->data will be returned.
 
@@ -305,7 +319,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
             assert(access->data->get_table_name() != NULL);
         }
     }
-    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI) 
+    if (rc != Abort && (CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI) 
         && type == WR) {
         DEBUG_M("row_t::get_row MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
@@ -441,7 +455,9 @@ RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
     assert(row->get_table() != NULL);
     assert(row->get_schema() == this->get_schema());
     assert(row->get_table_name() != NULL);
-    if (( CC_ALG == MVCC || CC_ALG == SUNDIAL || CC_ALG == SSI || CC_ALG == OPT_SSI || CC_ALG == WSI || CC_ALG == DLI_DTA || CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3) && type == WR) {
+    if (( CC_ALG == MVCC || CC_ALG == SUNDIAL || CC_ALG == SSI || 
+          CC_ALG == OPT_SSI || CC_ALG == WSI || | CC_ALG == DLI_DTA || 
+          CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3) && type == WR) {
         DEBUG_M("row_t::get_row_post_wait MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));
         newr->init(this->get_table(), get_part_id());
@@ -464,11 +480,20 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
 #if MODE==NOCC_MODE || MODE==QRY_ONLY_MODE
     return 0;
 #endif
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == NOLOCK 
     return 0;
 #endif
 
-#if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == CALVIN
+#if CC_ALG == OPT_SSI
+    assert (row == NULL || row == this || type == XP);
+    if (CC_ALG != CALVIN && ROLL_BACK &&
+            type == XP) {  // recover from previous writes. should not happen w/ Calvin
+        this->copy(row);
+    }
+    return 0;
+#endif
+
+#if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == CALVIN 
     assert (row == NULL || row == this || type == XP);
     if (CC_ALG != CALVIN && ROLL_BACK &&
             type == XP) {  // recover from previous writes. should not happen w/ Calvin
@@ -476,7 +501,7 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     }
     this->manager->lock_release(txn);
     return 0;
-#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
+#elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI 
     // for RD or SCAN or XP, the row should be deleted.
     // because all WR should be companied by a RD
     // for MVCC RD, the row is not copied, so no need to free.
