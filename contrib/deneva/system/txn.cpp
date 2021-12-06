@@ -394,7 +394,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     uint8_t i = 0;
     for (; i < 2; i++) {
       //created_sets_++;
-      sets[i] = new NodeSet{std::thread::hardware_concurrency() >= 32 ? std::thread::hardware_concurrency() >> 4
+      sets[i] = new NodeSet{std::thread::hardware_concurrency() >= 32 ? std::thread::hardware_concurrency() << 1
                                                                           : std::thread::hardware_concurrency(),
                                 alloc_, em_};
     }
@@ -582,7 +582,7 @@ RC TxnManager::abort() {
        lsn = txn->accessesInfo[i]->lsn;
        txn->accessesInfo[i]->which_rw_his->erase(lsn);
     }
-    txn->accessesInfo.release();
+    txn->accessesInfo.clear();
  
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
@@ -715,9 +715,9 @@ RC TxnManager::start_commit() {
         if(CC_ALG == SSI) {
             ssi_man.gene_finish_ts(this);
         }
-        if(CC_ALG == OPT_SSI) {
-            opt_ssi_man.gene_finish_ts(this);
-        }
+        // if(CC_ALG == OPT_SSI) {
+        //     opt_ssi_man.gene_finish_ts(this);
+        // }
         if(CC_ALG == WSI) {
             wsi_man.gene_finish_ts(this);
         }
@@ -1348,8 +1348,10 @@ void TxnManager::cleanup1()
   // barrier for inserts
   mut_.lock();
   mut_.unlock();
-
+  
+  assert(outgoing_nodes_ != nullptr);
   auto it = outgoing_nodes_->begin();
+
   while (it != outgoing_nodes_->end()) {
     auto that_node = std::get<0>(findEdge1(*it));
     if (abort_ && !std::get<1>(findEdge1(*it))) {
@@ -1383,8 +1385,8 @@ void TxnManager::cleanup1()
     std::cout << "BROKEN" << std::endl;
   }
 
-  this->outgoing_nodes_ = nullptr;
-  this->incoming_nodes_ = nullptr;
+  //this->outgoing_nodes_ = nullptr;
+  //this->incoming_nodes_ = nullptr;
 
 //   if (online_) {
 //     order_map_.erase(reinterpret_cast<uintptr_t>(this));
