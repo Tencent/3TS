@@ -167,8 +167,7 @@ bool InputThread::fakeprocess(Message * msg) {
         case RFIN:
             rc = RCOK;
             txn_man->set_rc(rc);
-            if(!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL || CC_ALG == BOCC || CC_ALG == SSI ||
-                CC_ALG == OPT_SSI)
+            if(!((FinishMessage*)msg)->readonly || CC_ALG == MAAT || CC_ALG == OCC || CC_ALG == SUNDIAL || CC_ALG == BOCC || CC_ALG == SSI)
                 msg_queue.enqueue(get_thd_id(),Message::create_message(txn_man,RACK_FIN),GET_NODE_ID(msg->get_txn_id()));
             // rc = process_rfin(msg);
             break;
