@@ -180,7 +180,6 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
     } else {
         pthread_mutex_lock(latch);
     }
-    int a;
 #elif LOCK_NW
     if (!try_lock())
     {
