@@ -663,7 +663,7 @@ bool Row_opt_ssi::needsAbort(uintptr_t cur) {
 }
 
 bool Row_opt_ssi::isCommited(uintptr_t cur) {
-  return reinterpret_cast<TxnManager*>(cur)->commit();
+  return reinterpret_cast<TxnManager*>(cur)->commited_;
 }
 
 void Row_opt_ssi::abort(std::unordered_set<uint64_t>& oset) {
