@@ -294,6 +294,8 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     }
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
 
+    if (type == W_REQ) 
+       printf("----->W\n");
     bool wrt_op = (type == R_REQ ? false : true);
     uint64_t prv;
     AccessInfo* accessInfo = (AccessInfo*)malloc(sizeof(AccessInfo));

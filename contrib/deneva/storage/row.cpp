@@ -276,9 +276,9 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     }
     goto end;
 #elif CC_ALG == OPT_SSI
-    TsType my_type = (type == WR ? P_REQ : R_REQ);
+    TsType ts_type = (type == RD || type == SCAN)? R_REQ : P_REQ;
 
-    rc = this->manager->access(txn, my_type, NULL);
+    rc = this->manager->access(txn, ts_type, NULL);
     if (rc == RCOK) {
       access->data = this;
     } else if (rc == Abort) {
@@ -456,7 +456,7 @@ RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
     assert(row->get_schema() == this->get_schema());
     assert(row->get_table_name() != NULL);
     if (( CC_ALG == MVCC || CC_ALG == SUNDIAL || CC_ALG == SSI || 
-          CC_ALG == OPT_SSI || CC_ALG == WSI || | CC_ALG == DLI_DTA || 
+          CC_ALG == WSI || CC_ALG == DLI_DTA || 
           CC_ALG == DLI_DTA2 || CC_ALG == DLI_DTA3) && type == WR) {
         DEBUG_M("row_t::get_row_post_wait MVCC alloc \n");
         row_t * newr = (row_t *) mem_allocator.alloc(sizeof(row_t));

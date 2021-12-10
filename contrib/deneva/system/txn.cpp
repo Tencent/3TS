@@ -283,7 +283,7 @@ void Transaction::init() {
     DEBUG_M("Transaction::reset array accesses\n");
     accesses.init(MAX_ROW_PER_TXN);
     //for graphcc
-    accessesInfo.init(MAX_ROW_PER_TXN * 5);
+    accessesInfo.init(MAX_ROW_PER_TXN);
     reset(0);
 }
 
@@ -541,6 +541,8 @@ RC TxnManager::commit() {
           txn->accessesInfo[i]->which_rw_his->erase(lsn);
         }
         //txn->accessesInfo.release();
+      } else {
+        printf ("oh, no commited\n");
       }
     }
 
@@ -646,9 +648,9 @@ RC TxnManager::start_commit() {
     if(CC_ALG == SSI) {
         ssi_man.gene_finish_ts(this);
     }
-    if(CC_ALG == OPT_SSI) {
-        opt_ssi_man.gene_finish_ts(this);
-    }
+    // if(CC_ALG == OPT_SSI) {
+    //     opt_ssi_man.gene_finish_ts(this);
+    // }
     if(CC_ALG == WSI) {
         wsi_man.gene_finish_ts(this);
     }
@@ -675,8 +677,7 @@ RC TxnManager::start_commit() {
                 send_prepare_messages();
                 rc = WAIT_REM;
             }
-        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI ||
-            CC_ALG == OPT_SSI || CC_ALG == DLI_BASE || CC_ALG == DLI_OCC) {
+        } else if (!query->readonly() || CC_ALG == OCC || CC_ALG == MAAT || CC_ALG == SILO || CC_ALG == BOCC || CC_ALG == SSI || CC_ALG == DLI_BASE || CC_ALG == DLI_OCC) {
             // send prepare messages
 #if CC_ALG == FOCC
             rc = focc_man.start_critical_section(this);
@@ -808,6 +809,9 @@ void TxnManager::commit_stats() {
     INC_STATS(get_thd_id(),txn_cnt,1);
     INC_STATS(get_thd_id(),local_txn_commit_cnt,1);
     INC_STATS(get_thd_id(), txn_run_time, timespan_long);
+    assert(this != nullptr);
+    assert(query != nullptr);
+    assert(query->partitions_touched.get_base() != nullptr);
     if(query->partitions_touched.size() > 1) {
         INC_STATS(get_thd_id(),multi_part_txn_cnt,1);
         INC_STATS(get_thd_id(),multi_part_txn_run_time,timespan_long);
@@ -939,7 +943,8 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
 #endif
 
 #if ROLL_BACK && \
-        (CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC)
+        (CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == HSTORE || \
+        CC_ALG == OPT_SSI || CC_ALG == HSTORE_SPEC)
     if (type == WR) {
         //printf("free 10 %ld\n",get_txn_id());
                 txn->accesses[rid]->orig_data->free_row();
@@ -1244,8 +1249,8 @@ RC TxnManager::validate() {
         rc = focc_man.validate(this);
     } else if (CC_ALG == SSI) {
         rc = ssi_man.validate(this);
-    } else if (CC_ALG == OPT_SSI) {
-        rc = opt_ssi_man.validate(this);
+    // } else if (CC_ALG == OPT_SSI) {
+    //     rc = opt_ssi_man.validate(this);
     } else if (CC_ALG == WSI) {
         rc = wsi_man.validate(this);
     } else if (CC_ALG == MAAT) {
