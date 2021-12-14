@@ -541,9 +541,7 @@ RC TxnManager::commit() {
           txn->accessesInfo[i]->which_rw_his->erase(lsn);
         }
         //txn->accessesInfo.release();
-      } else {
-        printf ("oh, no commited\n");
-      }
+      } 
     }
 
     // alloc_->tidyUp();
@@ -805,13 +803,12 @@ void TxnManager::commit_stats() {
         return;
     }
 
-
     INC_STATS(get_thd_id(),txn_cnt,1);
     INC_STATS(get_thd_id(),local_txn_commit_cnt,1);
     INC_STATS(get_thd_id(), txn_run_time, timespan_long);
     assert(this != nullptr);
     assert(query != nullptr);
-    assert(query->partitions_touched.get_base() != nullptr);
+   
     if(query->partitions_touched.size() > 1) {
         INC_STATS(get_thd_id(),multi_part_txn_cnt,1);
         INC_STATS(get_thd_id(),multi_part_txn_run_time,timespan_long);
