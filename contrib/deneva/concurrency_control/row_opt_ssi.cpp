@@ -283,6 +283,11 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         OPT_SSIHisEntry* c_his = writehis;
         OPT_SSIHisEntry* p_his = writehis;
 
+#if ISOLATION_LEVEL == NOLOCK
+        row_t * ret = (p_his == NULL) ? _row : p_his->row;
+        txn->cur_row = ret;
+#endif
+
         // To build rw, find the correct W which is from the next version of R version
         // if the read version is not the init data or last committed version
         if (c_his != NULL && c_his->ts > start_ts){
@@ -348,13 +353,15 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         }
 #endif
 
+#if ISOLATION_LEVEL != NOLOCK
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
+#endif
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
         INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - new_start);
         
     } else if (type == P_REQ) {
-#if ISOLATION_LEVEL != NOLOCK
+// #if ISOLATION_LEVEL != NOLOCK
         uint64_t write_start = get_sys_clock();
         //WW lock conflict
         if (write_lock != NULL && write_lock->txn != txn) {
@@ -375,7 +382,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         get_lock(LOCK_EX, txn);
         uint64_t lock_end = get_sys_clock();
         INC_STATS(txn->get_thd_id(), trans_read_time, lock_end - lock_start);
-#endif
+// #endif
 #if ISOLATION_LEVEL == SERIALIZABLE
         // get si_read from last committed history or row manager(if not write history)
         OPT_SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : si_read_lock;
