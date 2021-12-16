@@ -272,10 +272,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
 #if ISOLATION_LEVEL == NOLOCK
-    if(lt == LOCK_NONE) access_t lock_type = LOCK_NONE;
-    else if(lt == LOCK_EX) access_t lock_type = LOCK_EX;
-    else access_t lock_type = LOCK_SH;
-    rc = this->manager->lock_release(txn, lock_type);
+    rc = this->manager->lock_release(txn, type);
 #endif
     goto end;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
