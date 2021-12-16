@@ -262,7 +262,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
 #elif ISOLATION_LEVEL == READ_COMMITTED
     lock_t lt = (type == RD || type == SCAN) ? LOCK_NONE : LOCK_EX;
 #elif ISOLATION_LEVEL == NOLOCK
-    lock_t lt = LOCK_NONE;
+    lock_t lt = (type == RD || type == SCAN) ? LOCK_NONE : LOCK_EX;
 #endif
     rc = this->manager->lock_get(lt, txn);
     if (rc == RCOK) {
@@ -271,6 +271,9 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     } else if (rc == WAIT) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
+#if ISOLATION_LEVEL == NOLOCK
+    rc = this->manager->lock_release(txn, lt);
+#endif
     goto end;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     //uint64_t thd_id = txn->get_thd_id();
@@ -461,7 +464,9 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
     }
     INC_STATS(txn->get_thd_id(), trans_write_time, get_sys_clock() - write_start);
     INC_STATS(txn->get_thd_id(), trans_access_write_insert_time, get_sys_clock() - write_start);
+#if ISOLATION_LEVEL != NOLOCK
     this->manager->lock_release(txn, type);
+#endif
     return 0;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     // for RD or SCAN or XP, the row should be deleted.
