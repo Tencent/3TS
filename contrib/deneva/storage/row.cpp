@@ -336,6 +336,9 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
     txn->cur_row->init(get_table(), get_part_id());
     uint64_t read_start = get_sys_clock();
+#if ISOLATION_LEVEL == NOLOCK
+    if(type == WR) rc = this->manager->access(txn, P_REQ);
+#endif
     rc = this->manager->access(txn, R_REQ);
     access->data = txn->cur_row;
     INC_STATS(txn->get_thd_id(), trans_read_time, get_sys_clock() - read_start);

@@ -45,6 +45,10 @@ private:
     bool                blatch;
 
     row_t *             _row;
+
+#if ISOLATION_LEVEL == NOLOCK
+    row_t *             tmp_row;
+#endif
     // the last update time
     ts_t                wts;
 

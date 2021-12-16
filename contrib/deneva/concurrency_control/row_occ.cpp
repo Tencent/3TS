@@ -22,6 +22,9 @@
 
 void Row_occ::init(row_t *row) {
     _row = row;
+#if ISOLATION_LEVEL == NOLOCK
+    tmp_row = row;
+#endif
     //_latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
     _latch = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(_latch, NULL);
@@ -39,6 +42,12 @@ RC Row_occ::access(TxnManager *txn, TsType type) {
     sem_wait(&_semaphore);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     INC_STATS(txn->get_thd_id(), txn_cc_manager_time, get_sys_clock() - starttime);
+#if ISOLATION_LEVEL == NOLOCK
+    if(type == P_REQ) {
+        tmp_row = row;
+        rc = RCOK;
+    }
+#endif
     if (type == R_REQ) {
 #if CC_ALG == FOCC
         if (lock_tid != 0 && lock_tid != txn->get_txn_id()) {
@@ -50,7 +59,11 @@ RC Row_occ::access(TxnManager *txn, TsType type) {
             INC_STATS(txn->get_thd_id(),occ_ts_abort_cnt,1);
             rc = Abort;
         } else {
+#if ISOLATION_LEVEL == NOLOCK
+            txn->cur_row->copy(tmp_row);
+#else
             txn->cur_row->copy(_row);
+#endif
             rc = RCOK;
         }
     } else assert(false);
