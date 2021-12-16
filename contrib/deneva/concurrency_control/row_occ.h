@@ -26,7 +26,7 @@ struct TsReqEntry;
 class Row_occ {
 public:
     void                init(row_t * row);
-    RC                  access(TxnManager * txn, TsType type);
+    RC                  access(TxnManager * txn, TsType type, row_t *row);
     void                latch();
     // ts is the start_ts of the validating txn
     bool                validate(uint64_t ts);
