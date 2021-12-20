@@ -360,11 +360,19 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
 
   static AnomalyType IdentifyAnomaly_(const std::vector<DAPreceInfo>& preces) {
     assert(preces.size() >= 2);
+#if AnomalyRank1 == RAT_WAT_IAT
     if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
       return AnomalyType::RAT_SDA_DIRTY_READ;
     } else if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
       return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
       return AnomalyType::WAT_SDA_DIRTY_WRITE;
+#elif AnomalyRank2 == WAT_RAT_IAT
+    if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { 
+      return prece.type() == PreceType::WA || prece.type() == PreceType::WC; })) {
+      return AnomalyType::WAT_SDA_DIRTY_WRITE;
+    } else if (std::any_of(preces.begin(), preces.end(), [](const DAPreceInfo& prece) { return prece.type() == PreceType::RA; })) {
+      return AnomalyType::RAT_SDA_DIRTY_READ;
+#endif
     } else if (preces.size() >= 3) {
       return IdentifyAnomalyMultiple_(preces);
     } else if (preces.back().item_id() != preces.front().item_id()) {
@@ -378,6 +386,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
   static AnomalyType IdentifyAnomalySingle_(const std::vector<DAPreceInfo>& preces) {
     const PreceType early_type = preces.back().type();
     const PreceType later_type = preces.front().type();
+#if AnomalyRank1 == RAT_WAT_IAT
     if (early_type == PreceType::RW && later_type == PreceType::WR) {
       return AnomalyType::RAT_SDA_NON_REPEATABLE_READ; // RW-WR = RWR 
     } else if ((early_type == PreceType::WR && later_type == PreceType::RW) || (early_type == PreceType::WR && later_type == PreceType::WCW)) {
@@ -396,6 +405,45 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       return AnomalyType::IAT_SDA_NON_REPEATABLE_READ_COMMITTED; // RW-WCR = RWCR
     } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
       return AnomalyType::IAT_SDA_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
+#elif AnomalyRank2 == WAT_RAT_IAT
+    if ((early_type == PreceType::WR && later_type == PreceType::WW) || (early_type == PreceType::WW && early_type == PreceType::WW)) {
+      return AnomalyType::WAT_SDA_FULL_WRITE; // WR-WW = WWW
+    } else if (early_type == PreceType::WW && later_type == PreceType::WCW) {
+      return AnomalyType::WAT_SDA_FULL_WRITE_COMMITTED; // WW-WCW 
+    } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
+      return AnomalyType::WAT_SDA_LOST_UPDATE; // RW-WW
+    } else if ((early_type == PreceType::WW  && later_type == PreceType::WCR) || (early_type == PreceType::WR  && later_type == PreceType::WCR)) {
+      return AnomalyType::WAT_SDA_LOST_SELF_UPDATE_COMMITTED; // WW-WCR = WWCR WR-WCR = WWCR 
+    } else if (early_type == PreceType::RW && later_type == PreceType::WR) {
+      return AnomalyType::RAT_SDA_NON_REPEATABLE_READ; // RW-WR = RWR 
+    } else if ((early_type == PreceType::WR && later_type == PreceType::RW) || (early_type == PreceType::WR && later_type == PreceType::WCW)) {
+      return AnomalyType::RAT_SDA_INTERMEDIATE_READ; // WR-RW = WRW | WR-RCW
+    } else if ( (early_type == PreceType::WR && later_type == PreceType::WR) || (early_type == PreceType::WW && later_type == PreceType::WR)) {
+      return AnomalyType::RAT_SDA_LOST_SELF_UPDATE; // WW-WR = WWR
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCR) {
+      return AnomalyType::IAT_SDA_NON_REPEATABLE_READ_COMMITTED; // RW-WCR = RWCR
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
+      return AnomalyType::IAT_SDA_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
+#elif AnomalyRank3 == IAT_RAT_WAT
+    if (early_type == PreceType::RW && later_type == PreceType::WCR) {
+      return AnomalyType::IAT_SDA_NON_REPEATABLE_READ_COMMITTED; // RW-WCR = RWCR
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
+      return AnomalyType::IAT_SDA_LOST_UPDATE_COMMITTED; // RW-WW(WCW) = RWW
+    } else if (early_type == PreceType::RW && later_type == PreceType::WR) {
+      return AnomalyType::RAT_SDA_NON_REPEATABLE_READ; // RW-WR = RWR 
+    } else if ((early_type == PreceType::WR && later_type == PreceType::RW) || (early_type == PreceType::WR && later_type == PreceType::WCW)) {
+      return AnomalyType::RAT_SDA_INTERMEDIATE_READ; // WR-RW = WRW | WR-RCW
+    } else if ( (early_type == PreceType::WR && later_type == PreceType::WR) || (early_type == PreceType::WW && later_type == PreceType::WR)) {
+      return AnomalyType::RAT_SDA_LOST_SELF_UPDATE; // WW-WR = WWR
+    } else if ((early_type == PreceType::WR && later_type == PreceType::WW) || (early_type == PreceType::WW && early_type == PreceType::WW)) {
+      return AnomalyType::WAT_SDA_FULL_WRITE; // WR-WW = WWW
+    } else if (early_type == PreceType::WW && later_type == PreceType::WCW) {
+      return AnomalyType::WAT_SDA_FULL_WRITE_COMMITTED; // WW-WCW 
+    } else if (early_type == PreceType::RW && later_type == PreceType::WW) {
+      return AnomalyType::WAT_SDA_LOST_UPDATE; // RW-WW
+    } else if ((early_type == PreceType::WW  && later_type == PreceType::WCR) || (early_type == PreceType::WR  && later_type == PreceType::WCR)) {
+      return AnomalyType::WAT_SDA_LOST_SELF_UPDATE_COMMITTED; // WW-WCR = WWCR WR-WCR = WWCR 
+#endif
     } else {
       // will print unknown anoamlies if not classified
       std::cout<<preces.size()<<' ';
@@ -406,6 +454,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       std::cout<<"UKNOWN_1_1"<<std::endl;
       return AnomalyType::UNKNOWN_1;
     }
+
   }
 
   static AnomalyType IdentifyAnomalyDouble_(const std::vector<DAPreceInfo>& preces) {
@@ -420,6 +469,7 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
         return {};
       }
     };
+#if AnomalyRank1 == RAT_WAT_IAT
     if (early_type == PreceType::WR && later_type == PreceType::WR) {
       return AnomalyType::RAT_DDA_WRITE_READ_SKEW; // WR-WR
     } else if (early_type == PreceType::WR && later_type == PreceType::WCR) {
@@ -444,6 +494,57 @@ class ConflictSerializableAlgorithm : public HistoryAlgorithm {
       return AnomalyType::IAT_DDA_READ_WRITE_SKEW_1_COMMITTED; //RW WCW
     } else if (early_type == PreceType::RW && later_type == PreceType::RW)  {
       return AnomalyType::IAT_DDA_WRITE_SKEW; //RW RW | RW RCW
+#elif AnomalyRank2 == WAT_RAT_IAT
+    if (early_type == PreceType::WW && later_type == PreceType::WCR) {
+      return AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_2_COMMITTED; // WW-WCR
+    } else if (early_type == PreceType::WW && later_type == PreceType::WW ) {
+      return AnomalyType::WAT_DDA_FULL_WRITE_SKEW; // WW-WW
+    } else if (early_type == PreceType::WW &&  later_type == PreceType::WCW) {
+      return AnomalyType::WAT_DDA_FULL_WRITE_SKEW_COMMITTED; // WW-WCW
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WW); order.has_value()) {
+      return *order ? AnomalyType::WAT_DDA_READ_WRITE_SKEW_1 : AnomalyType::WAT_DDA_READ_WRITE_SKEW_2; // RW-WW WW-RW
+    } else if (early_type == PreceType::WR && later_type == PreceType::WR) {
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW; // WR-WR
+    } else if (early_type == PreceType::WR && later_type == PreceType::WCR) {
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW_COMMITTED; // WR-WCR
+    } else if (const auto order = any_order(PreceType::WR, PreceType::WW); order.has_value()) {
+      return *order ? AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_1 : AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_2; // WR-WW WW-WR
+    } else if (early_type == PreceType::WR && later_type == PreceType::WCW) {
+      return AnomalyType::RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED; // WR-WCW
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {  
+      return *order ? AnomalyType::RAT_DDA_READ_SKEW : AnomalyType::RAT_DDA_READ_SKEW_2; // RW-WR WR-RW
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCR) {
+      return AnomalyType::IAT_DDA_READ_SKEW_COMMITTED; //RW WCR
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
+      return AnomalyType::IAT_DDA_READ_WRITE_SKEW_1_COMMITTED; //RW WCW
+    } else if (early_type == PreceType::RW && later_type == PreceType::RW)  {
+      return AnomalyType::IAT_DDA_WRITE_SKEW; //RW RW | RW RCW
+#elif AnomalyRank3 == IAT_RAT_WAT
+    if (early_type == PreceType::RW && later_type == PreceType::WCR) {
+      return AnomalyType::IAT_DDA_READ_SKEW_COMMITTED; //RW WCR
+    } else if (early_type == PreceType::RW && later_type == PreceType::WCW) {
+      return AnomalyType::IAT_DDA_READ_WRITE_SKEW_1_COMMITTED; //RW WCW
+    } else if (early_type == PreceType::RW && later_type == PreceType::RW)  {
+      return AnomalyType::IAT_DDA_WRITE_SKEW; //RW RW | RW RCW
+    } else if (early_type == PreceType::WR && later_type == PreceType::WR) {
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW; // WR-WR
+    } else if (early_type == PreceType::WR && later_type == PreceType::WCR) {
+      return AnomalyType::RAT_DDA_WRITE_READ_SKEW_COMMITTED; // WR-WCR
+    } else if (const auto order = any_order(PreceType::WR, PreceType::WW); order.has_value()) {
+      return *order ? AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_1 : AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_2; // WR-WW WW-WR
+    } else if (early_type == PreceType::WR && later_type == PreceType::WCW) {
+      return AnomalyType::RAT_DDA_DOUBLE_WRITE_SKEW_1_COMMITTED; // WR-WCW
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WR); order.has_value()) {  
+      return *order ? AnomalyType::RAT_DDA_READ_SKEW : AnomalyType::RAT_DDA_READ_SKEW_2; // RW-WR WR-RW
+    } else if (early_type == PreceType::WW && later_type == PreceType::WCR) {
+      return AnomalyType::WAT_DDA_DOUBLE_WRITE_SKEW_2_COMMITTED; // WW-WCR
+    } else if (early_type == PreceType::WW && later_type == PreceType::WW ) {
+      return AnomalyType::WAT_DDA_FULL_WRITE_SKEW; // WW-WW
+    } else if (early_type == PreceType::WW &&  later_type == PreceType::WCW) {
+      return AnomalyType::WAT_DDA_FULL_WRITE_SKEW_COMMITTED; // WW-WCW
+    } else if (const auto order = any_order(PreceType::RW, PreceType::WW); order.has_value()) {
+      return *order ? AnomalyType::WAT_DDA_READ_WRITE_SKEW_1 : AnomalyType::WAT_DDA_READ_WRITE_SKEW_2; // RW-WW WW-RW 
+#endif
     } else {
       // will print unknown anoamlies if not classified
       std::cout<<preces.size()<<' ';
