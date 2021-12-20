@@ -222,10 +222,6 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     access->data = this;
     return rc;
 #endif
-#if ISOLATION_LEVEL == NOLOCK
-    access->data = this;
-    return rc;
-#endif
 
 #if CC_ALG == CNULL
 
@@ -449,9 +445,6 @@ RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
 // (c.f. row_ts.cpp)
 uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
 #if MODE==NOCC_MODE || MODE==QRY_ONLY_MODE
-    return 0;
-#endif
-#if ISOLATION_LEVEL == NOLOCK
     return 0;
 #endif
 
