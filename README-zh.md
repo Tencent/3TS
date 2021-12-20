@@ -29,12 +29,19 @@
 - curl 7.29.0
 - nanomsg 5.1.0
 
+更详细的的安装文档，请参考[3TS环境搭建](doc/zh/3TS_setup.md)。
+
 ## 使用方法
 
-- 执行`make.sh`编译代码，编译成功后会生成`3ts`二进制文件
+- 执行`make.sh`编译代码，编译成功后会生成`3TS`二进制文件
 - 执行`cp config/config.cfg.template config.cfg`，复制一份配置文件
 - 执行`vi config.cfg`，填写配置，决定测试的行为
-- 执行`./t3s --conf_path=config.cfg`，即可执行测试，测试完成后会在本地生成测试结果文件
+- 执行`./3TS --conf_path=config.cfg`，即可执行测试，测试完成后会在本地生成测试结果文件
+
+更详细的性能测试文档，请参考[3TS性能测试](doc/zh/3TS_performance_test.md)。
+
+更详细的一致性测试文档，请参考[3TS一致性测试](doc/zh/3TS_consistency_test.md)。
+
 
 ## 基本原理
 
