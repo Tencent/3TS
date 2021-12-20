@@ -66,7 +66,7 @@ RC Row_occ::access(TxnManager *txn, TsType type, row_t *row) {
 #endif
             rc = RCOK;
         }
-    } else assert(false);
+    } //else assert(false);
     // pthread_mutex_unlock( _latch );
     INC_STATS(txn->get_thd_id(), txn_useful_time, get_sys_clock()-starttime);
     sem_post(&_semaphore);
