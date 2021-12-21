@@ -236,8 +236,8 @@ final:
 
 RC Row_lock::lock_release(TxnManager * txn, access_t type) {
 
-#if ISOLATION_LEVEL == NOLOCK
-    if(type == RD || type == SCAN)
+#if ISOLATION_LEVEL == READ_COMMITTED
+    if(type != RD && type != SCAN)
         return RCOK;
 #endif
 

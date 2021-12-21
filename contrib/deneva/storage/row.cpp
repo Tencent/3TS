@@ -256,7 +256,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
 #if ISOLATION_LEVEL == SERIALIZABLE
     lock_t lt = (type == RD || type == SCAN) ? LOCK_SH : LOCK_EX; // ! this may be wrong
 #elif ISOLATION_LEVEL == READ_COMMITTED
-    lock_t lt = (type == RD || type == SCAN) ? LOCK_NONE : LOCK_EX;
+    lock_t lt = (type == RD || type == SCAN) ? LOCK_SH : LOCK_EX;
 #elif ISOLATION_LEVEL == NOLOCK
     lock_t lt = (type == RD || type == SCAN) ? LOCK_NONE : LOCK_EX;
 #endif
@@ -267,7 +267,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     } else if (rc == WAIT) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == READ_COMMITTED
     rc = this->manager->lock_release(txn, type);
 #endif
     goto end;
