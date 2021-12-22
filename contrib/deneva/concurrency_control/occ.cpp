@@ -191,7 +191,6 @@ RC OptCC::central_validate(TxnManager * txn) {
         INC_STATS(txn->get_thd_id(),occ_valiadate_rw_time,get_sys_clock() - starttime);
         if(!valid) INC_STATS(txn->get_thd_id(),occ_rw_abort_cnt,1);
 #endif
-#if ISOLATION_LEVEL == SERIALIZABLE || ISOLATION_LEVEL == READ_COMMITTED
         if (valid) {
             ++checked;
             ++active_checked;
@@ -204,7 +203,6 @@ RC OptCC::central_validate(TxnManager * txn) {
             INC_STATS(txn->get_thd_id(),occ_act_validate_fail_time,get_sys_clock() - starttime);
             goto final;
         }
-#endif
     }
     INC_STATS(txn->get_thd_id(),occ_act_validate_time,get_sys_clock() - starttime);
     starttime = get_sys_clock();

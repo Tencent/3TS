@@ -235,12 +235,6 @@ final:
 
 
 RC Row_lock::lock_release(TxnManager * txn, access_t type) {
-
-#if ISOLATION_LEVEL == READ_COMMITTED
-    if(type != RD && type != SCAN)
-        return RCOK;
-#endif
-
 #if CC_ALG == CALVIN
     if (txn->isRecon()) {
         return RCOK;
@@ -314,6 +308,7 @@ RC Row_lock::lock_release(TxnManager * txn, access_t type) {
         }
 
     } else {
+#if ISOLATION_LEVEL != READ_COMMITTED
         assert(false);
         en = waiters_head;
         while (en != NULL && en->txn != txn) en = en->next;
@@ -324,6 +319,7 @@ RC Row_lock::lock_release(TxnManager * txn, access_t type) {
         if (en == waiters_tail) waiters_tail = en->prev;
         return_entry(en);
         waiter_cnt --;
+#endif
     }
 #endif
 
