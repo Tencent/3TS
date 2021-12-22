@@ -111,7 +111,5 @@ Then run the deneva:
     ./runcl -nid1    # client side
 ```
 
-A more detailed document for the consistency test, please view [3TS consistency test](doc/en/3TS_consistency_test.md).
-
 Finally, check the results, which are output in the `commit_histroy.txt` file.
 Compare whether the actual execution results in the file meet the logic of your concurrency control algorithm. If so, it is proved that the algorithm is implemented correctly.

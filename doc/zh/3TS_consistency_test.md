@@ -104,8 +104,6 @@ Check it out an example configuration in config.cfg
     ./runcl -nid1    # client side
 ```
 
-更详细的一致性测试文档，请参考[3TS一致性测试](doc/zh/3TS_consistency_test.md)。
-
 程序结束后，我们可以在 'commit_histroy.txt' 查看结果。通过对比正式的执行情况，我们可以分析算法是否按设定逻辑执行。如果执行有异常的数据都回滚了，则表示算法运行正确。
 
 
