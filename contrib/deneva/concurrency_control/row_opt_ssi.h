@@ -43,31 +43,6 @@ struct RecycledTxnManagerSets {
   RecycledTxnManagerSets() : rns(new std::vector<std::unique_ptr<TxnManager::NodeSet>>{}) {}
 };
 
-struct OPT_SSIReqEntry {
-    TxnManager * txn;
-    ts_t ts;
-    ts_t starttime;
-    OPT_SSIReqEntry * next;
-};
-
-struct OPT_SSILockEntry {
-    lock_t type;
-    ts_t   start_ts;
-    TxnManager * txn;
-    txnid_t txnid;
-    OPT_SSILockEntry * next;
-    OPT_SSILockEntry * prev;
-};
-
-struct OPT_SSIHisEntry {
-    TxnManager *txn;
-    txnid_t txnid;
-    ts_t ts;
-    row_t *row;
-    OPT_SSIHisEntry *next;
-    OPT_SSIHisEntry *prev;
-    OPT_SSILockEntry * si_read_lock;
-};
 
 class Row_opt_ssi {
     using Allocator = common::ChunkAllocator;
@@ -81,22 +56,23 @@ public:
     RC   access(TxnManager * txn, TsType type, row_t * row);
    
     const uint64_t size() const;
-    uintptr_t createNode();
+    uintptr_t createNode(TxnManager* cur_node);
     void setInactive();
     void waitAndTidy();
-    void cleanup();
-    bool insert_and_check(uintptr_t from_node, bool read_write_edge);
+    void cleanup(TxnManager* cur_node);
+    //bool insert_and_check(uintptr_t from_node, bool read_write_edge);
+    bool insert_and_check1(TxnManager* cur_node, uintptr_t from_node, bool readwrite);
     bool lookupEdge(uintptr_t from_node) const;
     void removeEdge(uintptr_t from_node);
 
     bool find(TxnManager::NodeSet& nodes, TxnManager* txn) const;
-    bool cycleCheckNaive();
+    bool cycleCheckNaiveWrapper(TxnManager* cur_node);
     bool cycleCheckNaive(TxnManager* cur) const;
     bool needsAbort(uintptr_t node);
     bool isCommited(uintptr_t node);
-    void abort(std::unordered_set<uint64_t>& uset);
-    bool checkCommited();
-    bool erase_graph_constraints();
+    void abort(TxnManager* cur_node, std::unordered_set<uint64_t>& uset);
+    bool checkCommited(TxnManager* cur_node);
+    bool erase_graph_constraints(TxnManager* cur_node);
     std::string generateString();
     void print();
     void log(const common::LogInfo log_info);
@@ -111,29 +87,10 @@ public:
 
 private:
     pthread_mutex_t * latch;
-
-    OPT_SSILockEntry * si_read_lock;
-    OPT_SSILockEntry * write_lock;
     atom::AtomicSinglyLinkedList<uint64_t> *rw_history, tmp_hisotry;
-
     bool blatch;
 
     row_t * _row;
-
-    void get_lock(lock_t type, TxnManager * txn);
-    void get_lock(lock_t type, TxnManager * txn, OPT_SSIHisEntry * whis);
-    void release_lock(lock_t type, TxnManager * txn);
-    void release_lock(ts_t min_ts);
-
-    void insert_history(ts_t ts, TxnManager * txn, row_t * row);
-
-    OPT_SSIReqEntry * get_req_entry();
-    void return_req_entry(OPT_SSIReqEntry * entry);
-    OPT_SSIHisEntry * get_his_entry();
-    void return_his_entry(OPT_SSIHisEntry * entry);
-
-    OPT_SSILockEntry * get_entry();
-    row_t * clear_history(TsType type, ts_t ts);
 
     inline static constexpr uint64_t encode_txnid(const uint64_t txnid, const bool rw) {
         return rw ? 0x8000000000000000 | txnid : 0x7FFFFFFFFFFFFFFF & txnid;
@@ -144,15 +101,7 @@ private:
       return std::make_tuple(0x7FFFFFFFFFFFFFFF & encoded_id, encoded_id >> 63);
     }
 
-    OPT_SSIReqEntry * prereq_mvcc;
-    OPT_SSIHisEntry * readhis;
-    OPT_SSIHisEntry * writehis;
-    OPT_SSIHisEntry * readhistail;
-    OPT_SSIHisEntry * writehistail;
-
-    uint64_t whis_len;
-    uint64_t rhis_len;
-    uint64_t preq_len;
+   
     //the following is used for graphcc
     tbb::spin_mutex mut;
     common::GlobalLogger logger;

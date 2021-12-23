@@ -400,6 +400,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     }
     outgoing_nodes_ = sets[0];
     incoming_nodes_ = sets[1];
+   
 #endif
 
     registed_ = false;
@@ -410,11 +411,19 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     //for ssi 
     in_rw = false;
     out_rw = false;
+    cleaned_ = false;
+    checked_ = false;
+    cascading_abort_ = false;
+    abort_ = false;
+    commited_ = false;
+    abort_through_ = 0;
     txn_status = TxnStatus::ACTIVE;
+    aborted = false;
 }
 
 // reset after abort
 void TxnManager::reset() {
+    
     lock_ready = false;
     lock_ready_cnt = 0;
     locking_done = true;
@@ -453,6 +462,11 @@ void TxnManager::reset() {
   
     //for ssi
     in_rw = false; out_rw = false;
+    cleaned_ = false; checked_ = false;
+    cascading_abort_ = false; abort_ = false;
+    commited_ = false;
+    visited.clear();
+    visit_path.clear();
 
 }
 
@@ -509,7 +523,7 @@ RC TxnManager::commit() {
     inout_table.set_state(get_thd_id(), get_txn_id(), SSI_COMMITTED);
 #endif
 #if CC_ALG == OPT_SSI
-    txn_status = TxnStatus::COMMITTED;
+    
     bool all_pending_transactions_commited = false;
     while (!all_pending_transactions_commited) {
     //   auto not_alive = not_alive_.find(transaction);
@@ -540,10 +554,43 @@ RC TxnManager::commit() {
           uint64_t lsn = txn->accessesInfo[i]->lsn;
           txn->accessesInfo[i]->which_rw_his->erase(lsn);
         }
-        //txn->accessesInfo.release();
-      } 
-    }
+        txn->accessesInfo.clear();
+        
+        //printf("the txn %ld commited\n", get_txn_id());
+      } else {
+        
+        auto it = incoming_nodes_->begin();
+      
+        while (it != incoming_nodes_->end()) {
+            
+            auto that_node = std::get<0>(findEdge1(*it)); 
+            if (that_node != nullptr)
+               that_node->mut_.lock_shared();
+            else { 
+               it++;
+               continue;
+            }
+            
+            printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
+                get_txn_id(), incoming_nodes_->size(), 
+                outgoing_nodes_->size(), that_node->get_txn_id());
+            printf("waited incoming %ld, outgonig %ld\n", 
+                    that_node->get_txn_id(), that_node->outgoing_nodes_->size());
+            printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
+                    txn_status, cascading_abort_.load());
+            sleep(1);
+           
+            that_node->mut_.unlock_shared();
+            it++;
 
+        }
+        
+        
+      }
+     
+    }//end while
+    
+    txn_status = TxnStatus::COMMITTED;
     // alloc_->tidyUp();
     // atom_info_->~list();
     // eg_->~EpochGuard();
@@ -558,7 +605,7 @@ RC TxnManager::commit() {
     logger.enqueueRecord(record);
     return WAIT;
 #endif
-    commited_ = true;
+    
     return Commit;
 }
 
@@ -575,6 +622,7 @@ RC TxnManager::abort() {
 #endif
 #if CC_ALG == OPT_SSI
     txn_status = TxnStatus::ABORTED;
+    abort_ = true;
     in_rw = false, out_rw = false;
     uint64_t lsn;
     
@@ -583,6 +631,7 @@ RC TxnManager::abort() {
        txn->accessesInfo[i]->which_rw_his->erase(lsn);
     }
     txn->accessesInfo.clear();
+    cleanup1();
  
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
@@ -596,10 +645,7 @@ RC TxnManager::abort() {
         txn_stats.abort_stats(get_thd_id());
     }
 
-    aborted = true;
-    abort_ = true;
     release_locks(Abort);
-
 
 #if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
@@ -612,6 +658,7 @@ RC TxnManager::abort() {
     if (IS_LOCAL(get_txn_id()) && warmup_done) {
         INC_STATS_ARR(get_thd_id(),start_abort_commit_latency, timespan);
     }
+    aborted = true;
     return Abort;
 }
 
@@ -1341,12 +1388,13 @@ void TxnManager::release_locks(RC rc) {
     INC_STATS(get_thd_id(), txn_cleanup_time,  timespan);
 }
 
+// incoming is always passive, but outgoing is initiative
 void TxnManager::cleanup1() 
 {
   mut_.lock_shared();
   cleaned_ = true;
   mut_.unlock_shared();
-
+  
   // barrier for inserts
   mut_.lock();
   mut_.unlock();
@@ -1361,27 +1409,34 @@ void TxnManager::cleanup1()
       that_node->abort_through_ = reinterpret_cast<uintptr_t>(this);
     } else {
       that_node->mut_.lock_shared();
-      if (!that_node->cleaned_)
+      //printf("that node status: %d ", that_node->cleaned_.load());
+      if (!that_node->cleaned_) {
         that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))));
+        printf("commited, and erase the txn %ld\n", that_node->get_txn_id());
+      }
       that_node->mut_.unlock_shared();
     }
     outgoing_nodes_->erase(*it);
     ++it;
   }
 
-  if (abort_) {
+  if (abort_.load()) {
     auto it_out = this->incoming_nodes_->begin();
     while (it_out != this->incoming_nodes_->end()) {
       this->incoming_nodes_->erase(*it_out);
       ++it_out;
     }
+    printf("now the aborted txn %ld has incoming count %ld\n", 
+         this->get_txn_id(), this->incoming_nodes_->size());
   }
 
   //atom::EpochGuard<EMB, EM> eg{em_};
-
-  this->mut_.lock();
+   
+   this->mut_.lock();
   //empty_sets.rns->emplace_back(cur_node->outgoing_nodes_);
   // empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
+   assert(this->outgoing_nodes_->size() == 0);
+   assert(this->incoming_nodes_->size() == 0);
 
   if (this->outgoing_nodes_->size() > 0 || this->incoming_nodes_->size() > 0) {
     std::cout << "BROKEN" << std::endl;
@@ -1401,7 +1456,7 @@ void TxnManager::cleanup1()
 }
 
 bool TxnManager::checkCommited1() {
-  if (this->abort_ || this->cascading_abort_) {
+  if (this->abort_.load() || this->cascading_abort_.load()) {
     return false;
   }
 
@@ -1421,10 +1476,10 @@ bool TxnManager::checkCommited1() {
   }
   this->mut_.unlock_shared();
 
-  if (this->abort_ || this->cascading_abort_) {
+  if (this->abort_.load() || this->cascading_abort_.load()) {
     return false;
   }
-
+  
   bool success = erase_graph_constraints1();
 
   if (success) {
@@ -1436,12 +1491,12 @@ bool TxnManager::checkCommited1() {
 
 bool TxnManager::erase_graph_constraints1() {
   if (cycleCheckNaive1()) {
-    this->abort_ = true;
+    printf("cycle found\n");
+    this->abort_.store(true);
     return false;
   }
-
-  this->commited_ = true;
-
+  
+  this->commited_.store(true);
 // #ifdef 0
 //   // logger.log(generateString());
 //   logger.log(common::LogInfo{reinterpret_cast<uintptr_t>(cur_node), 0, 0, 0, 'c'});
