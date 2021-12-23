@@ -559,31 +559,31 @@ RC TxnManager::commit() {
         //printf("the txn %ld commited\n", get_txn_id());
       } else {
         
-        auto it = incoming_nodes_->begin();
+        // auto it = incoming_nodes_->begin();
       
-        while (it != incoming_nodes_->end()) {
+        // while (it != incoming_nodes_->end()) {
             
-            auto that_node = std::get<0>(findEdge1(*it)); 
-            if (that_node != nullptr)
-               that_node->mut_.lock_shared();
-            else { 
-               it++;
-               continue;
-            }
+        //     auto that_node = std::get<0>(findEdge1(*it)); 
+        //     if (that_node != nullptr)
+        //        that_node->mut_.lock_shared();
+        //     else { 
+        //        it++;
+        //        continue;
+        //     }
             
-            printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
-                get_txn_id(), incoming_nodes_->size(), 
-                outgoing_nodes_->size(), that_node->get_txn_id());
-            printf("waited incoming %ld, outgonig %ld\n", 
-                    that_node->get_txn_id(), that_node->outgoing_nodes_->size());
-            printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
-                    txn_status, cascading_abort_.load());
-            sleep(1);
+        //     printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
+        //         get_txn_id(), incoming_nodes_->size(), 
+        //         outgoing_nodes_->size(), that_node->get_txn_id());
+        //     printf("waited incoming %ld, outgonig %ld\n", 
+        //             that_node->get_txn_id(), that_node->outgoing_nodes_->size());
+        //     printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
+        //             txn_status, cascading_abort_.load());
+        //     sleep(1);
            
-            that_node->mut_.unlock_shared();
-            it++;
+        //     that_node->mut_.unlock_shared();
+        //     it++;
 
-        }
+        //}
         
         
       }
@@ -1412,7 +1412,7 @@ void TxnManager::cleanup1()
       //printf("that node status: %d ", that_node->cleaned_.load());
       if (!that_node->cleaned_) {
         that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))));
-        printf("commited, and erase the txn %ld\n", that_node->get_txn_id());
+        //printf("commited, and erase the txn %ld\n", that_node->get_txn_id());
       }
       that_node->mut_.unlock_shared();
     }
@@ -1426,13 +1426,13 @@ void TxnManager::cleanup1()
       this->incoming_nodes_->erase(*it_out);
       ++it_out;
     }
-    printf("now the aborted txn %ld has incoming count %ld\n", 
-         this->get_txn_id(), this->incoming_nodes_->size());
+    //printf("now the aborted txn %ld has incoming count %ld\n", 
+     //    this->get_txn_id(), this->incoming_nodes_->size());
   }
 
   //atom::EpochGuard<EMB, EM> eg{em_};
    
-   this->mut_.lock();
+   this->mut_.lock_shared();
   //empty_sets.rns->emplace_back(cur_node->outgoing_nodes_);
   // empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
    assert(this->outgoing_nodes_->size() == 0);
@@ -1448,7 +1448,7 @@ void TxnManager::cleanup1()
 //   if (online_) {
 //     order_map_.erase(reinterpret_cast<uintptr_t>(this));
 //   }
-  this->mut_.unlock();
+  this->mut_.unlock_shared();
 
   // delete node;
   // eg.add(this);
