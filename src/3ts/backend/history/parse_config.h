@@ -173,6 +173,27 @@ auto MultiAlgorithmParse(const libconfig::Config &cfg, const libconfig::Setting 
   for (int i = 0; i < len; i++) {
     const std::string &algorithm_name =
         CONSTEXPR_CONDITIONAL(enable_filter, s[i].lookup("name"), s[i]);
+    
+    // in DLI_IDENTIFY, search the anomaly in different orders
+    const libconfig::Setting &get_anomaly_rank = cfg.lookup("TraversalGenerator");
+    if (algorithm_name == "DLI_IDENTIFY"){
+      const std::string &anomaly_rank_name = get_anomaly_rank.lookup("anomaly_rank");
+      if (anomaly_rank_name == "RAT_WAT_IAT"){
+        #define AnomalyRank1 RAT_WAT_IAT
+      }
+      else if (anomaly_rank_name == "WAT_RAT_IAT")
+      {
+        #define AnomalyRank2 WAT_RAT_IAT
+      }
+      else if (anomaly_rank_name == "IAT_RAT_WAT")
+      {
+        #define AnomalyRank3 IAT_RAT_WAT
+      }
+      else{
+        throw "anomaly rank name err";
+      }   
+    }
+
     AlgorithmParseInternal_<parse_algorithm_type ==
                             ONLY_ROLLBACK_RATE_ALGS /* only_rollback_rate */>(
         cfg, algorithm_name, [&s, i, &algorithms, &algorithm_name](auto &&algorithm) {

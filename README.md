@@ -29,12 +29,18 @@ If you want to better understand the aims of our project, please view [3TS opens
 - curl 7.29.0
 - nanomsg 5.1.0
 
+A more detailed document for the setup, please view [3TS Setup](doc/en/3TS_setup.md).
+
 ## Usage
 
-- Run `make.sh` to compile the code. The `3ts` binary will be generated if compiling successfully.
+- Run `make.sh` to compile the code. The `3TS` binary will be generated if compiling successfully.
 - Run `cp config/config.cfg.template config.cfg` to copy the configuration file.
 - Run `vi config.cfg` to modify the configuration file to determine the behavior of the testbed.
-- Run `./t3s --conf_path=config.cfg` to execute test. The test result file will be generated when test is over.
+- Run `./3TS --conf_path=config.cfg` to execute test. The test result file will be generated when test is over.
+
+A more detailed document for the performance test, please view [3TS performance test](doc/en/3TS_performance_test.md).
+
+A more detailed document for the consistency test, please view [3TS consistency test](doc/en/3TS_consistency_test.md).
 
 ## Principle
 
