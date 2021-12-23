@@ -59,6 +59,7 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
         }
         row = his->row;
         his->row = NULL;
+#if ISOLATION_LEVEL == SERIALIZABLE
         //clear si_read
         OPT_SSILockEntry * read = his->si_read_lock;
         while (read != NULL) {
@@ -69,6 +70,7 @@ row_t * Row_opt_ssi::clear_history(TsType type, ts_t ts) {
             delete_p->next = NULL;
             free(delete_p);
         }
+#endif
         return_his_entry(his);
         his = prev;
         if (type == R_REQ) rhis_len --;
@@ -264,7 +266,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
     ts_t ts = txn->get_commit_timestamp();
     ts_t start_ts = txn->get_start_timestamp();
     uint64_t starttime = get_sys_clock();
+#if ISOLATION_LEVEL == SERIALIZABLE
     txnid_t txnid = txn->get_txn_id();
+#endif
     if (g_central_man) {
         glob_manager.lock_row(_row);
     } else {
@@ -276,6 +280,11 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         OPT_SSIHisEntry* c_his = writehis;
         OPT_SSIHisEntry* p_his = writehis;
 
+#if ISOLATION_LEVEL == NOLOCK
+        row_t * ret = (p_his == NULL) ? _row : p_his->row;
+        txn->cur_row = ret;
+#endif
+
         // To build rw, find the correct W which is from the next version of R version
         // if the read version is not the init data or last committed version
         if (c_his != NULL && c_his->ts > start_ts){
@@ -285,6 +294,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 c_his = p_his;
                 p_his = p_his->next;
             }
+#if ISOLATION_LEVEL == SERIALIZABLE
             //build rw
             if (c_his->txn->out_rw) { // Abort when exists out_rw
                 rc = Abort;
@@ -295,7 +305,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             c_his->txn->in_rw = true;
             txn->out_rw = true;
             DEBUG("ssi read the write_commit in %ld out %ld\n",c_his->txnid, txnid);
+#endif
         } else{ 
+#if ISOLATION_LEVEL == SERIALIZABLE
             // else if the read is the init version or the last committed version  
             // (c_his == NULL) || (c_his != NULL && p_his == NULL)
             OPT_SSILockEntry * write = write_lock;
@@ -316,8 +328,10 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                 DEBUG("ssi read the write_lock in %ld out %ld\n",write->txnid, txnid);
                 write = write->next;
             }
+#endif
         }
 
+#if ISOLATION_LEVEL == SERIALIZABLE
         // add si_read lock to write history
         // the release si_read_lock is in the clear_history and release_lock
         if (p_his != NULL){
@@ -325,9 +339,12 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         } else{
             get_lock(LOCK_SH, txn);         // si_read_lock add to row
         }
+#endif
 
+#if ISOLATION_LEVEL != NOLOCK
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
+#endif
         assert(strstr(_row->get_table_name(), ret->get_table_name()));
     } else if (type == P_REQ) {
         //WW lock conflict
@@ -344,6 +361,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         // Add the write lock
         get_lock(LOCK_EX, txn);
 
+#if ISOLATION_LEVEL == SERIALIZABLE
         // get si_read from last committed history or row manager(if not write history)
         OPT_SSILockEntry * si_read = writehis != NULL? writehis->si_read_lock : si_read_lock;
         while (si_read != NULL) {
@@ -371,6 +389,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
             }
             si_read = si_read->next;
         }
+#endif
         
     } else if (type == W_REQ) {
         rc = RCOK;
@@ -379,7 +398,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());  
     } else if (type == XP_REQ) {
         release_lock(LOCK_EX, txn);
+#if ISOLATION_LEVEL == SERIALIZABLE
         release_lock(LOCK_SH, txn);
+#endif
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
     } else {
         assert(false);
@@ -403,7 +424,9 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
                     si_read_lock = NULL; //can not read initial version once we have clear the versions.
                 }
             }
+#if ISOLATION_LEVEL == SERIALIZABLE
             release_lock(t_th);
+#endif
         }      
     }
 end:

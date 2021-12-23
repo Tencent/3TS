@@ -148,6 +148,7 @@ RC OptCC::central_validate(TxnManager * txn) {
     uint64_t active_checked = 0;
     uint64_t hist_checked = 0;
     stop = 0;
+#if ISOLATION_LEVEL == SERIALIZABLE
     if (finish_tn > start_tn) {
     while (his && his->tn > finish_tn) his = his->next;
         while (his && his->tn > start_tn) {
@@ -167,13 +168,16 @@ RC OptCC::central_validate(TxnManager * txn) {
     }
 
     INC_STATS(txn->get_thd_id(),occ_hist_validate_time,get_sys_clock() - starttime);
+#endif
     starttime = get_sys_clock();
     stop = 1;
     for (UInt32 i = 0; i < f_active_len; i++) {
         set_ent * wact = finish_active[i];
+#if ISOLATION_LEVEL == SERIALIZABLE
         ++checked;
         ++active_checked;
         valid = test_valid(wact, rset);
+#endif
         if (valid) {
             ++checked;
             ++active_checked;

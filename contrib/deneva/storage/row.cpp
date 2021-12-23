@@ -228,10 +228,6 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     access->data = this;
     return rc;
 #endif
-#if ISOLATION_LEVEL == NOLOCK
-    access->data = this;
-    return rc;
-#endif
 
 #if CC_ALG == CNULL
 
@@ -263,7 +259,13 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
 
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT
     //uint64_t thd_id = txn->get_thd_id();
+#if ISOLATION_LEVEL == SERIALIZABLE
     lock_t lt = (type == RD || type == SCAN) ? LOCK_SH : LOCK_EX; // ! this may be wrong
+#elif ISOLATION_LEVEL == READ_COMMITTED
+    lock_t lt = (type == RD || type == SCAN) ? LOCK_SH : LOCK_EX;
+#elif ISOLATION_LEVEL == NOLOCK
+    lock_t lt = (type == RD || type == SCAN) ? LOCK_NONE : LOCK_EX;
+#endif
     rc = this->manager->lock_get(lt, txn);
     if (rc == RCOK) {
         access->data = this;
@@ -271,6 +273,9 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     } else if (rc == WAIT) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
+#if ISOLATION_LEVEL == READ_COMMITTED
+    rc = this->manager->lock_release(txn, type);
+#endif
     goto end;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     //uint64_t thd_id = txn->get_thd_id();
@@ -335,7 +340,10 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     DEBUG_M("row_t::get_row OCC alloc \n");
     txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
     txn->cur_row->init(get_table(), get_part_id());
-    rc = this->manager->access(txn, R_REQ);
+#if ISOLATION_LEVEL == NOLOCK
+    if(type == WR) rc = this->manager->access(txn, P_REQ, this);
+#endif
+    rc = this->manager->access(txn, R_REQ, this);
     access->data = txn->cur_row;
     goto end;
 #elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
@@ -462,9 +470,6 @@ RC row_t::get_row_post_wait(access_t type, TxnManager * txn, row_t *& row) {
 // (c.f. row_ts.cpp)
 uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
 #if MODE==NOCC_MODE || MODE==QRY_ONLY_MODE
-    return 0;
-#endif
-#if ISOLATION_LEVEL == NOLOCK
     return 0;
 #endif
 
