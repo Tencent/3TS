@@ -44,7 +44,7 @@ private:
     bool                blatch;
 
     row_t *             _row;
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == READ_UNCOMMITTED
     row_t *             tmp_row;
 #endif
     // the last update time

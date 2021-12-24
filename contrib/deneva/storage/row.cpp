@@ -263,7 +263,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     lock_t lt = (type == RD || type == SCAN) ? LOCK_SH : LOCK_EX; // ! this may be wrong
 #elif ISOLATION_LEVEL == READ_COMMITTED
     lock_t lt = (type == RD || type == SCAN) ? LOCK_SH : LOCK_EX;
-#elif ISOLATION_LEVEL == NOLOCK
+#elif ISOLATION_LEVEL == READ_UNCOMMITTED
     lock_t lt = (type == RD || type == SCAN) ? LOCK_NONE : LOCK_EX;
 #endif
     rc = this->manager->lock_get(lt, txn);
@@ -340,7 +340,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     DEBUG_M("row_t::get_row OCC alloc \n");
     txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
     txn->cur_row->init(get_table(), get_part_id());
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == READ_UNCOMMITTED
     if(type == WR) rc = this->manager->access(txn, P_REQ, this);
 #endif
     rc = this->manager->access(txn, R_REQ, this);

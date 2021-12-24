@@ -843,22 +843,22 @@ void TxnManager::cleanup_row(RC rc, uint64_t rid) {
     // Handle calvin elsewhere
 
 #if CC_ALG != CALVIN
-#if ISOLATION_LEVEL != READ_UNCOMMITTED
+// #if ISOLATION_LEVEL != READ_UNCOMMITTED
     row_t * orig_r = txn->accesses[rid]->orig_row;
     if (ROLL_BACK && type == XP &&
             (CC_ALG == DL_DETECT || CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == HSTORE ||
              CC_ALG == HSTORE_SPEC)) {
         orig_r->return_row(rc,type, this, txn->accesses[rid]->orig_data);
     } else {
-#if ISOLATION_LEVEL == READ_COMMITTED
-        if(type == WR) {
-            version = orig_r->return_row(rc, type, this, txn->accesses[rid]->data);
-        }
-#else
+// #if ISOLATION_LEVEL == READ_COMMITTED
+//         if(type == WR) {
+//             version = orig_r->return_row(rc, type, this, txn->accesses[rid]->data);
+//         }
+// #else
         version = orig_r->return_row(rc, type, this, txn->accesses[rid]->data);
-#endif
+// #endif
     }
-#endif
+// #endif
 
 #if ROLL_BACK && \
         (CC_ALG == NO_WAIT || CC_ALG == WAIT_DIE || CC_ALG == HSTORE || CC_ALG == HSTORE_SPEC)

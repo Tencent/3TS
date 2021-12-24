@@ -280,7 +280,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         OPT_SSIHisEntry* c_his = writehis;
         OPT_SSIHisEntry* p_his = writehis;
 
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == READ_UNCOMMITTED
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
 #endif
@@ -341,7 +341,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         }
 #endif
 
-#if ISOLATION_LEVEL != NOLOCK
+#if ISOLATION_LEVEL != READ_UNCOMMITTED
         row_t * ret = (p_his == NULL) ? _row : p_his->row;
         txn->cur_row = ret;
 #endif

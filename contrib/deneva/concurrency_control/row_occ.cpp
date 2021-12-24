@@ -20,7 +20,7 @@
 #include "mem_alloc.h"
 
 void Row_occ::init(row_t *row) {
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == READ_UNCOMMITTED
     tmp_row = row;
 #endif
     _row = row;
@@ -38,7 +38,7 @@ RC Row_occ::access(TxnManager *txn, TsType type, row_t *row) {
     uint64_t starttime = get_sys_clock();
     sem_wait(&_semaphore);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == READ_UNCOMMITTED
     if(type == P_REQ) {
         tmp_row = row;
         rc = RCOK;
@@ -55,7 +55,7 @@ RC Row_occ::access(TxnManager *txn, TsType type, row_t *row) {
             INC_STATS(txn->get_thd_id(),occ_ts_abort_cnt,1);
             rc = Abort;
         } else {
-#if ISOLATION_LEVEL == NOLOCK
+#if ISOLATION_LEVEL == READ_UNCOMMITTED
             txn->cur_row->copy(tmp_row);
 #else
             txn->cur_row->copy(_row);
