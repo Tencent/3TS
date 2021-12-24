@@ -97,6 +97,9 @@ RC OptCC::per_row_validate(TxnManager *txn) {
 }
 
 RC OptCC::central_validate(TxnManager * txn) {
+#if ISOLATION_LEVEL == NOLOCK
+    return RCOK;
+#endif
     RC rc;
     uint64_t starttime = get_sys_clock();
     uint64_t total_starttime = starttime;
