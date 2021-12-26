@@ -256,7 +256,7 @@ void OptCC::central_finish(RC rc, TxnManager * txn) {
             act = act->next;
         }
         if(act == NULL) {
-            assert(rc == Abort);
+            // assert(rc == Abort);
             //pthread_mutex_unlock( &latch );
             sem_post(&_semaphore);
             return;
