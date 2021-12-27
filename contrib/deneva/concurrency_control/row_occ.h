@@ -26,7 +26,7 @@ struct TsReqEntry;
 class Row_occ {
 public:
     void                init(row_t * row);
-    RC                  access(TxnManager * txn, TsType type, row_t *row);
+    RC                  access(TxnManager * txn, TsType type);
     void                latch();
     // ts is the start_ts of the validating txn
     bool                validate(uint64_t ts);
@@ -44,9 +44,6 @@ private:
     bool                blatch;
 
     row_t *             _row;
-#if ISOLATION_LEVEL == READ_UNCOMMITTED
-    row_t *             tmp_row;
-#endif
     // the last update time
     ts_t                wts;
 

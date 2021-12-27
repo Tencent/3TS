@@ -20,9 +20,6 @@
 #include "mem_alloc.h"
 
 void Row_occ::init(row_t *row) {
-#if ISOLATION_LEVEL == READ_UNCOMMITTED
-    tmp_row = row;
-#endif
     _row = row;
     _latch = (pthread_mutex_t *)mem_allocator.alloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(_latch, NULL);
@@ -32,18 +29,12 @@ void Row_occ::init(row_t *row) {
     blatch = false;
 }
 
-RC Row_occ::access(TxnManager *txn, TsType type, row_t *row) {
+RC Row_occ::access(TxnManager *txn, TsType type) {
     RC rc = RCOK;
     //pthread_mutex_lock( _latch );
     uint64_t starttime = get_sys_clock();
     sem_wait(&_semaphore);
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
-#if ISOLATION_LEVEL == READ_UNCOMMITTED
-    if(type == P_REQ) {
-        tmp_row = row;
-        rc = RCOK;
-    }
-#endif
     if (type == R_REQ) {
 #if CC_ALG == FOCC
         if (lock_tid != 0 && lock_tid != txn->get_txn_id()) {
@@ -55,11 +46,7 @@ RC Row_occ::access(TxnManager *txn, TsType type, row_t *row) {
             INC_STATS(txn->get_thd_id(),occ_ts_abort_cnt,1);
             rc = Abort;
         } else {
-#if ISOLATION_LEVEL == READ_UNCOMMITTED
-            txn->cur_row->copy(tmp_row);
-#else
             txn->cur_row->copy(_row);
-#endif
             rc = RCOK;
         }
     }  // else assert(false);

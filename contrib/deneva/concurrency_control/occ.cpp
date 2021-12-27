@@ -176,7 +176,7 @@ RC OptCC::central_validate(TxnManager * txn) {
     stop = 1;
     for (UInt32 i = 0; i < f_active_len; i++) {
         set_ent * wact = finish_active[i];
-#if ISOLATION_LEVEL == SERIALIZABLE
+#if ISOLATION_LEVEL == SERIALIZABLE || ISOLATION_LEVEL == READ_COMMITTED
         ++checked;
         ++active_checked;
         valid = test_valid(wact, rset);

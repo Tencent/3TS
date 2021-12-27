@@ -280,7 +280,8 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
         ASSERT(CC_ALG == WAIT_DIE);
     }
 #if ISOLATION_LEVEL == READ_COMMITTED
-    rc = this->manager->lock_release(txn, type);
+    if(lt == LOCK_SH)
+        rc = this->manager->lock_release(txn);
 #endif
     goto end;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
@@ -346,10 +347,7 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     DEBUG_M("row_t::get_row OCC alloc \n");
     txn->cur_row = (row_t *) mem_allocator.alloc(sizeof(row_t));
     txn->cur_row->init(get_table(), get_part_id());
-#if ISOLATION_LEVEL == READ_UNCOMMITTED
-    if(type == WR) rc = this->manager->access(txn, P_REQ, this);
-#endif
-    rc = this->manager->access(txn, R_REQ, this);
+    rc = this->manager->access(txn, R_REQ);
     access->data = txn->cur_row;
     goto end;
 #elif CC_ALG == DLI_BASE || CC_ALG == DLI_OCC
