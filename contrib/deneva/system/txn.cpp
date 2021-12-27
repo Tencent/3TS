@@ -370,6 +370,7 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     _cur_tid = 0;
     num_locks = 0;
     memset(write_set, 0, sizeof(write_set));
+    sem_init(&_semaphore, 0, 1);
   // write_set = (int *) mem_allocator.alloc(sizeof(int) * 100);
 #endif
 

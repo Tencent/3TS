@@ -56,11 +56,23 @@ Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
     } 
     txn->last_tid = v & (~LOCK_BIT);
 #else 
-    if (!try_lock())
-    {
-        return Abort;
-        // break;
-    }
+    #if LOCK_CS 
+        lock();
+    #elif LOCK_NW
+        if (!try_lock())
+        {
+            return Abort;
+            // break;
+        }
+    #elif LOCK_WD
+        float wait_second = 1;
+        float wait_nanosecond = 0;
+        if (!try_lock_wait(wait_second, wait_nanosecond))
+        {
+            return Abort;
+            // break;
+        }
+    #endif
     DEBUG("silo %ld read lock row %ld \n", txn->get_txn_id(), _row->get_primary_key());
     local_row->copy(_row);
     txn->last_tid = _tid;
@@ -88,8 +100,17 @@ Row_silo::validate(ts_t tid, bool in_write_set) {
 #else
     if (in_write_set)    
         return tid == _tid;
+    
+    #if LOCK_NW
     if (!try_lock())
         return false;
+    #elif LOCK_WD
+    float wait_second = 1;
+    float wait_nanosecond = 0;
+    if (!try_lock_wait(wait_second, wait_nanosecond))
+        return false;
+    #endif
+        
 
     DEBUG("silo %ld validate lock row %ld \n", tid, _row->get_primary_key());
     bool valid = (tid == _tid);
@@ -146,6 +167,15 @@ Row_silo::try_lock()
     return pthread_mutex_trylock( _latch ) != EBUSY;
     
 #endif
+}
+
+
+bool Row_silo::try_lock_wait(float wait_second, float wait_nanosecond)
+{
+    struct timespec timeoutTime;
+    timeoutTime.tv_nsec = wait_nanosecond;
+    timeoutTime.tv_sec = wait_second;
+    return pthread_mutex_timedlock( _latch, &timeoutTime ) == 0; // == 0 locked else no lock
 }
 
 uint64_t 

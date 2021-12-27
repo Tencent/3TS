@@ -32,6 +32,9 @@
 #include "array.h"
 #include "transport/message.h"
 #include "../concurrency_control/unified_util.h"
+#if CC_ALG == SILO
+#include "semaphore.h"
+#endif
 //#include "wl.h"
 
 class Workload;
@@ -332,6 +335,7 @@ protected:
     bool             _validation_no_wait;
     ts_t             _cur_tid;
     RC                validate_silo();
+    sem_t            _semaphore;
 #endif
 };
 
