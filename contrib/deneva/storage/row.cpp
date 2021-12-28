@@ -275,14 +275,14 @@ RC row_t::get_row(access_t type, TxnManager *txn, Access *access) {
     rc = this->manager->lock_get(lt, txn);
     if (rc == RCOK) {
         access->data = this;
-    } else if (rc == Abort) {
-    } else if (rc == WAIT) {
-        ASSERT(CC_ALG == WAIT_DIE);
-    }
 #if ISOLATION_LEVEL == READ_COMMITTED
     if(lt == LOCK_SH)
         rc = this->manager->lock_release(txn);
 #endif
+    } else if (rc == Abort) {
+    } else if (rc == WAIT) {
+        ASSERT(CC_ALG == WAIT_DIE);
+    }
     goto end;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     //uint64_t thd_id = txn->get_thd_id();
