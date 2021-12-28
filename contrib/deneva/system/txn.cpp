@@ -556,36 +556,35 @@ RC TxnManager::commit() {
         }
         txn->accessesInfo.clear();
         
-        //printf("the txn %ld commited\n", get_txn_id());
-      } else {
-        
-        // auto it = incoming_nodes_->begin();
+      } else if (cycleCheckNaive1()) {
+         abort_ = true;
+         //printf("oh, no!!!!cycle found in commit!!!\n");
+        // printf("the txnid %ld, incoming nodes size %ld\n", get_txn_id(),
+        //    incoming_nodes_->size());
+    //     auto it = incoming_nodes_->begin();
       
-        // while (it != incoming_nodes_->end()) {
+    //     while (it != incoming_nodes_->end()) {
             
-        //     auto that_node = std::get<0>(findEdge1(*it)); 
-        //     if (that_node != nullptr)
-        //        that_node->mut_.lock_shared();
-        //     else { 
-        //        it++;
-        //        continue;
-        //     }
+    //         auto that_node = std::get<0>(findEdge1(*it)); 
+    //         if (that_node != nullptr)
+    //            that_node->mut_.lock_shared();
+    //         else { 
+    //            it++;
+    //            continue;
+    //         }
             
-        //     printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
-        //         get_txn_id(), incoming_nodes_->size(), 
-        //         outgoing_nodes_->size(), that_node->get_txn_id());
-        //     printf("waited incoming %ld, outgonig %ld\n", 
-        //             that_node->get_txn_id(), that_node->outgoing_nodes_->size());
-        //     printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
-        //             txn_status, cascading_abort_.load());
-        //     sleep(1);
-           
-        //     that_node->mut_.unlock_shared();
-        //     it++;
-
-        //}
-        
-        
+    //         printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
+    //             get_txn_id(), incoming_nodes_->size(), 
+    //             outgoing_nodes_->size(), that_node->get_txn_id());
+    //         printf("waited incoming txn %p, incoming %ld outgonig %ld\n", 
+    //                 that_node, that_node->incoming_nodes_->size(),
+    //                 that_node->outgoing_nodes_->size());
+    //         printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
+    //                 txn_status, cascading_abort_.load());
+    //         that_node->mut_.unlock_shared();
+    //         sleep(1);
+    //         it++;
+    //     }
       }
      
     }//end while
@@ -1412,7 +1411,8 @@ void TxnManager::cleanup1()
       //printf("that node status: %d ", that_node->cleaned_.load());
       if (!that_node->cleaned_) {
         that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))));
-        //printf("commited, and erase the txn %ld\n", that_node->get_txn_id());
+        //printf("%ld commited, and erase the txn %ld\n", get_txn_id(), 
+        //                                   that_node->get_txn_id());
       }
       that_node->mut_.unlock_shared();
     }
@@ -1461,7 +1461,7 @@ bool TxnManager::checkCommited1() {
   }
 
   this->mut_.lock_shared();
-  this->checked_ = true;
+  this->checked_.store(true);
   this->mut_.unlock_shared();
 
   // barrier for inserts

@@ -273,12 +273,12 @@ bool Row_opt_ssi::insert_and_check1(TxnManager* cur_node, uintptr_t from_node, b
       }
 
       that_node->mut_.lock_shared();
-      if (that_node->cleaned_) {
+      if (that_node->cleaned_.load()) {
         that_node->mut_.unlock_shared();
         return true;
       }
 
-      if (that_node->checked_) {
+      if (that_node->checked_.load()) {
         that_node->mut_.unlock_shared();
         continue;
       }
