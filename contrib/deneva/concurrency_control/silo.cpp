@@ -77,13 +77,13 @@ TxnManager::validate_silo()
             num_locks = 0;
             for (uint64_t i = 0; i < wr_cnt; i++) {
                 row_t * row = txn->accesses[ write_set[i] ]->orig_row;
-                #if LOCK_NW
+#if LOCK_NW
                 if (!row->manager->try_lock())
-                #elif LOCK_WD
+#elif LOCK_WD
                 float wait_second = 1;
                 float wait_nanosecond = 0;
                 if (!row->manager->try_lock_wait(wait_second, wait_nanosecond))
-                #endif
+#endif
                 {
                     break;
                 }
@@ -134,6 +134,7 @@ TxnManager::validate_silo()
         bool success = access->orig_row->manager->validate(access->tid, false);
         if (!success) {
             rc = Abort;
+            std::cout<<txn->txn_id<<": read set abort"<<std::endl;
             return rc;
         }
         if (access->tid > max_tid)
@@ -145,6 +146,7 @@ TxnManager::validate_silo()
         bool success = access->orig_row->manager->validate(access->tid, true);
         if (!success) {
             rc = Abort;
+            std::cout<<txn->txn_id<<": write set abort"<<std::endl;
             return rc;
         }
         if (access->tid > max_tid)
@@ -152,22 +154,8 @@ TxnManager::validate_silo()
     }
 
     this->max_tid = max_tid;
+    this->_cur_tid = max_tid;
     INC_STATS(get_thd_id(), silo_check_time, get_sys_clock()-check_start);
-
-#if LOCK_CS
-
-    // put write in critical section
-    if (rc == RCOK) 
-    {
-        for (uint64_t i = 0; i < txn->write_cnt; i++) {
-            Access * access = txn->accesses[ write_set[i] ];
-            access->orig_row->manager->write( 
-                access->data, this->commit_timestamp );
-        }
-    }
-
-    sem_post(&_semaphore);
-#endif 
 
     return rc;
 }
@@ -199,6 +187,18 @@ TxnManager::finish(RC rc)
     }
     num_locks = 0;
 #endif
+#if LOCK_CS
+    // put write in critical section
+    if (rc == RCOK) 
+    {
+        for (uint64_t i = 0; i < txn->write_cnt; i++) {
+            Access * access = txn->accesses[ write_set[i] ];
+            access->orig_row->manager->write( 
+                access->data, this->commit_timestamp );
+        }
+    }
+    sem_post(&_semaphore);
+#endif 
     memset(write_set, 0, sizeof(write_set));
 
     INC_STATS(get_thd_id(), silo_finish_time, get_sys_clock()-finish_start);

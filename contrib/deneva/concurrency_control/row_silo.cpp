@@ -56,23 +56,23 @@ Row_silo::access(TxnManager * txn, TsType type, row_t * local_row) {
     } 
     txn->last_tid = v & (~LOCK_BIT);
 #else 
-    #if LOCK_CS 
-        lock();
-    #elif LOCK_NW
-        if (!try_lock())
-        {
-            return Abort;
-            // break;
-        }
-    #elif LOCK_WD
-        float wait_second = 1;
-        float wait_nanosecond = 0;
-        if (!try_lock_wait(wait_second, wait_nanosecond))
-        {
-            return Abort;
-            // break;
-        }
-    #endif
+#if LOCK_CS 
+    lock();
+#elif LOCK_NW
+    if (!try_lock())
+    {
+        return Abort;
+        // break;
+    }
+#elif LOCK_WD
+    float wait_second = 1;
+    float wait_nanosecond = 0;
+    if (!try_lock_wait(wait_second, wait_nanosecond))
+    {
+        return Abort;
+        // break;
+    }
+#endif
     DEBUG("silo %ld read lock row %ld \n", txn->get_txn_id(), _row->get_primary_key());
     local_row->copy(_row);
     txn->last_tid = _tid;
@@ -98,20 +98,24 @@ Row_silo::validate(ts_t tid, bool in_write_set) {
     else 
         return true;
 #else
-    if (in_write_set)    
+#if LOCK_CS 
+    lock();
+#endif
+#if LOCK_NW || LOCK_WD
+    if (in_write_set)   {
         return tid == _tid;
-    
-    #if LOCK_NW
+    } 
+#endif
+#if LOCK_NW
     if (!try_lock())
         return false;
-    #elif LOCK_WD
+#elif LOCK_WD
     float wait_second = 1;
     float wait_nanosecond = 0;
     if (!try_lock_wait(wait_second, wait_nanosecond))
         return false;
-    #endif
-        
-
+#endif
+    
     DEBUG("silo %ld validate lock row %ld \n", tid, _row->get_primary_key());
     bool valid = (tid == _tid);
     release();
@@ -122,6 +126,9 @@ Row_silo::validate(ts_t tid, bool in_write_set) {
 
 void
 Row_silo::write(row_t * data, uint64_t tid) {
+#if LOCK_CS 
+    lock();
+#endif
     _row->copy(data);
 #if ATOMIC_WORD
     uint64_t v = _tid_word;
@@ -129,6 +136,9 @@ Row_silo::write(row_t * data, uint64_t tid) {
         _tid_word = (tid | LOCK_BIT); 
 #else
     _tid = tid;
+#endif
+#if LOCK_CS 
+    release();
 #endif
 }
 
