@@ -295,6 +295,7 @@ RC Row_lock::lock_release(TxnManager * txn) {
         }
 
     } else {
+#if ISOLATION_LEVEL != READ_COMMITTED
         assert(false);
         en = waiters_head;
         while (en != NULL && en->txn != txn) en = en->next;
@@ -305,6 +306,7 @@ RC Row_lock::lock_release(TxnManager * txn) {
         if (en == waiters_tail) waiters_tail = en->prev;
         return_entry(en);
         waiter_cnt --;
+#endif
     }
 #endif
 
