@@ -42,10 +42,6 @@ void Row_lock::init(row_t * row) {
 
 }
 
-UInt32 Row_lock::get_owner_cnt() {
- return owner_cnt;
-}
-
 RC Row_lock::lock_get(lock_t type, TxnManager * txn) {
     uint64_t *txnids = NULL;
     int txncnt = 0;
@@ -248,6 +244,14 @@ RC Row_lock::lock_release(TxnManager * txn) {
       // If CC is NO_WAIT or WAIT_DIE, txn should own this lock
       // What about Calvin?
 #if CC_ALG == NO_WAIT
+#if ISOLATION_LEVEL == READ_COMMITTED
+    if(owner_cnt == 0) {
+        if (g_central_man)
+            glob_manager.release_row(_row);
+        else
+            pthread_mutex_unlock( latch );
+        return RCOK;
+    }
     assert(owner_cnt > 0);
     owner_cnt--;
     if (owner_cnt == 0) {

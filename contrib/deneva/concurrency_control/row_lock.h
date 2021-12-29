@@ -32,7 +32,6 @@ public:
     RC lock_get(lock_t type, TxnManager * txn);
     RC lock_get(lock_t type, TxnManager * txn, uint64_t* &txnids, int &txncnt);
     RC lock_release(TxnManager * txn);
-    UInt32 get_owner_cnt();
 
 private:
     pthread_mutex_t * latch;
