@@ -252,6 +252,7 @@ RC Row_lock::lock_release(TxnManager * txn) {
             pthread_mutex_unlock( latch );
         return RCOK;
     }
+#endif
     assert(owner_cnt > 0);
     owner_cnt--;
     if (owner_cnt == 0) {
