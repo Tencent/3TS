@@ -42,6 +42,10 @@ void Row_lock::init(row_t * row) {
 
 }
 
+UInt32 Row_lock::get_owner_cnt() {
+ return owner_cnt;
+}
+
 RC Row_lock::lock_get(lock_t type, TxnManager * txn) {
     uint64_t *txnids = NULL;
     int txncnt = 0;
@@ -224,10 +228,6 @@ final:
 
 
 RC Row_lock::lock_release(TxnManager * txn) {
-
-#if ISOLATION_LEVEL == READ_COMMITTED
-    if(owner_cnt == 0) return RCOK;
-#endif
 
 #if CC_ALG == CALVIN
     if (txn->isRecon()) {

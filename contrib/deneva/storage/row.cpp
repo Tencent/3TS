@@ -486,7 +486,12 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
             type == XP) {  // recover from previous writes. should not happen w/ Calvin
         this->copy(row);
     }
+#if ISOLATION_LEVEL == READ_COMMITTED
+    if(this->manager->get_owner_cnt() > 0)
+        this->manager->lock_release(txn);
+#else
     this->manager->lock_release(txn);
+#endif
     return 0;
 #elif CC_ALG == TIMESTAMP || CC_ALG == MVCC || CC_ALG == SSI || CC_ALG == WSI || CC_ALG == OPT_SSI
     // for RD or SCAN or XP, the row should be deleted.
