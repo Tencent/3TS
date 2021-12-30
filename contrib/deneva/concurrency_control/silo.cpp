@@ -134,7 +134,6 @@ TxnManager::validate_silo()
         bool success = access->orig_row->manager->validate(access->tid, false);
         if (!success) {
             rc = Abort;
-            std::cout<<txn->txn_id<<": read set abort"<<std::endl;
             return rc;
         }
         if (access->tid > max_tid)
@@ -146,7 +145,6 @@ TxnManager::validate_silo()
         bool success = access->orig_row->manager->validate(access->tid, true);
         if (!success) {
             rc = Abort;
-            std::cout<<txn->txn_id<<": write set abort"<<std::endl;
             return rc;
         }
         if (access->tid > max_tid)
