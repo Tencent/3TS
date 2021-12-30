@@ -158,10 +158,12 @@ RC OptCC::central_validate(TxnManager * txn) {
               ++hist_checked;
               ++checked;
             valid = test_valid(his, rset);
-#if WORKLOAD == TPCC
+// #if WORKLOAD == TPCC
+//             if (valid)
+//                 valid = test_valid(his, wset);
+// #endif
             if (valid)
                 valid = test_valid(his, wset);
-#endif
             if (!valid) {
                 INC_STATS(txn->get_thd_id(),occ_hist_validate_fail_time,get_sys_clock() - starttime);
                 goto final;
