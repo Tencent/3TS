@@ -82,9 +82,10 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
       auto it = rw_history->begin();
       for (; it != rw_history->end(); ++it) {
         if (it.getId() < prv) {
-          if ( std::get<1>(find(*it)) &&
+          if (std::get<1>(find(*it)) &&
               !insert_and_check1(txn, std::get<0>(find(*it)), false)) {
             cyclic = true;
+            break;
           }
         }
       }
@@ -130,14 +131,29 @@ begin_write:
         while (!aborted && it_wait != it_end) {
           if (it_wait.getId() < prv && std::get<1>(find(*it_wait)) &&
               std::get<0>(find(*it_wait)) != uintptr_t(txn)) {
-            if (!isCommited(std::get<0>(find(*it_wait)))) {
+            if (!isCommited(std::get<0>(find(*it_wait)))) { //is commited?
               // ww-edge hence cascading abort necessary
               if (!insert_and_check1(txn, std::get<0>(find(*it_wait)), false)) {
                 cyclic = true;
               }
               wait = true;
             }
+          } else if (it_wait.getId() < prv && std::get<0>(find(*it_wait)) != uintptr_t(txn)) {
+               if (!isCommited(std::get<0>(find(*it_wait)))) { //is commited?
+              // rw-edge hence no cascading abort necessary
+                  if (!insert_and_check1(txn, std::get<0>(find(*it_wait)), true)) {
+                     cyclic = true;
+                  }
+               }
           }
+          reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait)))->mut_.lock_shared();
+          txn->incoming_nodes_->erase(
+              accessEdge(reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait))), true));
+          (reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait))))
+              ->outgoing_nodes_->erase(accessEdge(txn, true));
+          reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait)))->mut_.unlock_shared();
+          if (cyclic) break;
+
           ++it_wait;
         }
 
@@ -178,7 +194,7 @@ cyclic_write:
                }
             }
             ++it;
-          }
+         }
 
          if (cyclic) {
             goto cyclic_write;
@@ -289,6 +305,7 @@ bool Row_opt_ssi::insert_and_check1(TxnManager* cur_node, uintptr_t from_node, b
       that_node->outgoing_nodes_->insert(accessEdge(cur_node, readwrite));
       that_node->mut_.unlock_shared();
 
+      
       bool cycle;
       if (online_) {
         cycle = !cycleCheckNaiveWrapper(cur_node);
@@ -296,7 +313,7 @@ bool Row_opt_ssi::insert_and_check1(TxnManager* cur_node, uintptr_t from_node, b
         cycle = !cycleCheckNaiveWrapper(cur_node);
       }
       return cycle;
-    }
+    } 
     return true;
   }
 }
@@ -408,7 +425,7 @@ void Row_opt_ssi::cleanup(TxnManager* cur_node) {
 
   //atom::EpochGuard<EMB, EM> eg{em_};
 
-  //cur_node->mut_.lock();
+  cur_node->mut_.lock();
   //empty_sets.rns->emplace_back(cur_node->outgoing_nodes_);
   //empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
 
@@ -422,7 +439,7 @@ void Row_opt_ssi::cleanup(TxnManager* cur_node) {
   // if (online_) {
   //   order_map_.erase(reinterpret_cast<uintptr_t>(cur_node));
   // }
-  //cur_node->mut_.unlock();
+  cur_node->mut_.unlock();
 
   // delete node;
   //eg.add(cur_node);

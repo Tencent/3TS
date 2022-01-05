@@ -419,6 +419,8 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     abort_through_ = 0;
     txn_status = TxnStatus::ACTIVE;
     aborted = false;
+    assert(incoming_nodes_->size() == 0);
+    assert(outgoing_nodes_->size() == 0);
 }
 
 // reset after abort
@@ -467,6 +469,8 @@ void TxnManager::reset() {
     commited_ = false;
     visited.clear();
     visit_path.clear();
+    assert(incoming_nodes_->size() == 0);
+    assert(outgoing_nodes_->size() == 0);
 
 }
 
@@ -556,35 +560,28 @@ RC TxnManager::commit() {
         }
         txn->accessesInfo.clear();
         
-      } else if (cycleCheckNaive1()) {
-         abort_ = true;
-         //printf("oh, no!!!!cycle found in commit!!!\n");
-        // printf("the txnid %ld, incoming nodes size %ld\n", get_txn_id(),
-        //    incoming_nodes_->size());
-    //     auto it = incoming_nodes_->begin();
+      } else {
+
+        //auto it = incoming_nodes_->begin();
       
-    //     while (it != incoming_nodes_->end()) {
+       // while (it != incoming_nodes_->end()) {
             
-    //         auto that_node = std::get<0>(findEdge1(*it)); 
-    //         if (that_node != nullptr)
-    //            that_node->mut_.lock_shared();
-    //         else { 
-    //            it++;
-    //            continue;
-    //         }
+        //     auto that_node = std::get<0>(findEdge1(*it)); 
             
-    //         printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
-    //             get_txn_id(), incoming_nodes_->size(), 
-    //             outgoing_nodes_->size(), that_node->get_txn_id());
-    //         printf("waited incoming txn %p, incoming %ld outgonig %ld\n", 
-    //                 that_node, that_node->incoming_nodes_->size(),
-    //                 that_node->outgoing_nodes_->size());
-    //         printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
-    //                 txn_status, cascading_abort_.load());
-    //         that_node->mut_.unlock_shared();
-    //         sleep(1);
-    //         it++;
-    //     }
+            
+        //     printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
+        //         get_txn_id(), incoming_nodes_->size(), 
+        //         outgoing_nodes_->size(), that_node->get_txn_id());
+        //     printf("waited incoming txn %p, incoming %ld outgonig %ld\n", 
+        //             that_node, that_node->incoming_nodes_->size(),
+        //             that_node->outgoing_nodes_->size());
+        //     printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
+        //             txn_status, cascading_abort_.load());
+                   
+        //    sleep(1);
+          //  it++;
+            
+       // }
       }
      
     }//end while
@@ -1411,8 +1408,8 @@ void TxnManager::cleanup1()
       //printf("that node status: %d ", that_node->cleaned_.load());
       if (!that_node->cleaned_) {
         that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))));
-        //printf("%ld commited, and erase the txn %ld\n", get_txn_id(), 
-        //                                   that_node->get_txn_id());
+       // printf("%ld commited, and erase the txn %ld\n", get_txn_id(), 
+       //                                    that_node->get_txn_id());
       }
       that_node->mut_.unlock_shared();
     }
@@ -1432,9 +1429,9 @@ void TxnManager::cleanup1()
 
   //atom::EpochGuard<EMB, EM> eg{em_};
    
-   this->mut_.lock_shared();
+   this->mut_.lock();
   //empty_sets.rns->emplace_back(cur_node->outgoing_nodes_);
-  // empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
+  //empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
    assert(this->outgoing_nodes_->size() == 0);
    assert(this->incoming_nodes_->size() == 0);
 
@@ -1448,7 +1445,7 @@ void TxnManager::cleanup1()
 //   if (online_) {
 //     order_map_.erase(reinterpret_cast<uintptr_t>(this));
 //   }
-  this->mut_.unlock_shared();
+  this->mut_.unlock();
 
   // delete node;
   // eg.add(this);
@@ -1491,7 +1488,7 @@ bool TxnManager::checkCommited1() {
 
 bool TxnManager::erase_graph_constraints1() {
   if (cycleCheckNaive1()) {
-    printf("cycle found\n");
+    //printf("cycle found\n");
     this->abort_.store(true);
     return false;
   }

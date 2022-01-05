@@ -119,7 +119,7 @@ private:
     static thread_local std::unordered_set<TxnManager*> visited;
     static thread_local std::unordered_set<TxnManager*> visit_path;
     static thread_local RecycledTxnManagerSets empty_sets;
-    TxnManager* cur_node;
+    //TxnManager* cur_node;
     static thread_local atom::EpochGuard<NEMB, NEM>* neg_;
     std::atomic<uint64_t> lsn;
     
