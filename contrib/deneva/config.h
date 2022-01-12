@@ -92,7 +92,7 @@
 // # of transactions to run for warmup
 #define WARMUP            0
 // YCSB or TPCC or PPS or DA
-#define WORKLOAD DA
+#define WORKLOAD YCSB
 // print the transaction latency distribution
 #define PRT_LAT_DISTR false
 #define STATS_ENABLE        true
@@ -152,7 +152,7 @@
 
 // WAIT_DIE, NO_WAIT, TIMESTAMP, MVCC, CALVIN, MAAT, SUNDIAL, SILO, BOCC, FOCC, SSI, WSI
 #define ISOLATION_LEVEL SERIALIZABLE
-#define CC_ALG SSI //DLI_DTA
+#define CC_ALG SILO //DLI_DTA
 #define YCSB_ABORT_MODE false
 #define QUEUE_CAPACITY_NEW 1000000
 // all transactions acquire tuples according to the primary key order.
@@ -196,7 +196,14 @@
 #define PRE_ABORT true
 #define OCC_LOCK_TYPE WAIT_DIE
 #define OCC_WAW_LOCK true
+// [WSI]
+#define WSI_LOCK_CS true   // CS: critical section, NW: no wait, WD: wait_die  // default
+#define WSI_LOCK_NW false   // CS: critical section, NW: no wait, WD: wait_die
+#define WSI_LOCK_WD false   // CS: critical section, NW: no wait, WD: wait_die
 // [SILO]
+#define SILO_LOCK_CS false   // CS: critical section, NW: no wait, WD: wait_die
+#define SILO_LOCK_NW true   // CS: critical section, NW: no wait, WD: wait_die  // default
+#define SILO_LOCK_WD false   // CS: critical section, NW: no wait, WD: wait_die
 #define VALIDATION_LOCK                "no-wait" // no-wait or waiting
 #define PRE_ABORT2                    "true"
 #define ATOMIC_WORD                    false

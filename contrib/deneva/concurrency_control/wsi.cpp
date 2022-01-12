@@ -35,36 +35,114 @@ RC wsi::validate(TxnManager * txn) {
 }
 
 RC wsi::central_validate(TxnManager * txn) {
-    RC rc;
+    RC rc = RCOK;
     uint64_t start_tn = txn->get_start_timestamp();
-    bool valid = true;
 
     wsi_set_ent * wset;
     wsi_set_ent * rset;
     get_rw_set(txn, rset, wset);
     bool readonly = (wset->set_size == 0);
 
+#if WSI_LOCK_CS
     int stop __attribute__((unused));
     uint64_t checked = 0;
     sem_wait(&_semaphore);
-
     if (!readonly) {
         for (UInt32 i = 0; i < rset->set_size; i++) {
             checked++;
             if (rset->rows[i]->manager->get_last_commit() > start_tn) {
                 rc = Abort;
-            }
+                sem_post(&_semaphore);
+                mem_allocator.free(rset->rows, sizeof(row_t *) * rset->set_size);
+                mem_allocator.free(rset, sizeof(wsi_set_ent));
+            	return rc;
+                }
         }
     }
-    sem_post(&_semaphore);
+    //sem_post(&_semaphore);
     mem_allocator.free(rset->rows, sizeof(row_t *) * rset->set_size);
     mem_allocator.free(rset, sizeof(wsi_set_ent));
 
-    if (valid) {
-        rc = RCOK;
-    } else {
-        rc = Abort;
+    txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
+    for (UInt32 i = 0; i < wset->set_size; i++) {
+        assert (txn->get_access_original_row(i) != NULL);
+        wset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
+        wset->rows[i]->manager->access(txn, W_REQ, wset->rows[i]);
     }
+    sem_post(&_semaphore);
+#elif  WSI_LOCK_NW || WSI_LOCK_WD
+    // TODO 
+    if (!readonly) {
+        for (uint64_t i = txn->get_access_cnt() - 1; i > 0; i--) {
+            for (uint64_t j = 0; j < i; j ++) {
+                int tabcmp = strcmp(txn->get_access_original_row(j)->get_table_name(),
+                    txn->get_access_original_row(j+1)->get_table_name());
+        if (tabcmp > 0 ||
+            (tabcmp == 0 && txn->get_access_original_row(j)->get_primary_key() >
+                                txn->get_access_original_row(j + 1)->get_primary_key())) {
+                    txn->swap_accesses(j,j+1);
+                }
+            }
+        }
+
+        // lock all rows in the  writeset.
+        bool ok = true;
+        int lock_cnt = 0;
+        #if  WSI_LOCK_WD 
+        float wait_second = 1;
+        float wait_nanosecond = 0;
+        #endif
+        for (uint64_t i = 0; i < txn->get_access_cnt() && ok; i++) {
+            if(txn->get_access_type(i) == WR){  
+                #if  WSI_LOCK_NW 
+                if (!txn->get_access_original_row(i)->manager->try_lock()) {
+                #endif
+                #if  WSI_LOCK_WD 
+                if (!txn->get_access_original_row(i)->manager->try_lock_wait(wait_second,wait_nanosecond)) {
+                #endif
+                    ok = false;
+                } else{
+                    lock_cnt ++;
+                }             
+            }   
+        }
+
+        // Validate each read access
+        if (ok){     
+            txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));  
+            for (uint64_t i = 0; i < txn->get_access_cnt() && ok; i++) {
+                if(txn->get_access_type(i) == RD){
+                    if(txn->get_access_original_row(i)->manager->get_last_commit() > start_tn){
+                        ok = false;
+                    }
+                }   
+            }
+        }
+        // write timestamp, write into database, and release lock when validate succeeded
+        if (ok){
+            for (uint64_t i = 0; i < txn->get_access_cnt() && lock_cnt; i++) {
+                if(txn->get_access_type(i) == WR){
+                    lock_cnt -- ;
+                    txn->get_access_original_row(i)->manager->update_last_commit(txn->get_commit_timestamp());
+                    txn->get_access_original_row(i)->manager->access(txn, W_REQ, txn->get_access_data(i));
+                    txn->get_access_original_row(i)->manager->release();
+                }   
+            }
+        }
+        // release lock when validate failed
+        else {
+            for (uint64_t i = 0; i < txn->get_access_cnt() && lock_cnt; i++) {
+                if(txn->get_access_type(i) == WR){
+                    lock_cnt -- ;
+                    txn->get_access_original_row(i)->manager->release();
+                }   
+            }
+        }
+
+        rc = ok ? RCOK : Abort;    
+    }
+#endif
+
     DEBUG("End Validation %ld\n",txn->get_txn_id());
     return rc;
 }
@@ -77,14 +155,9 @@ void wsi::central_finish(RC rc, TxnManager * txn) {
     wsi_set_ent * wset;
     wsi_set_ent * rset;
     get_rw_set(txn, rset, wset);
-
-    for (UInt32 i = 0; i < rset->set_size; i++) {
-        rset->rows[i]->manager->update_last_commit(txn->get_commit_timestamp());
-    }
 }
 
 void wsi::gene_finish_ts(TxnManager * txn) {
-    txn->set_commit_timestamp(glob_manager.get_ts(txn->get_thd_id()));
 }
 
 RC wsi::get_rw_set(TxnManager * txn, wsi_set_ent * &rset, wsi_set_ent *& wset) {

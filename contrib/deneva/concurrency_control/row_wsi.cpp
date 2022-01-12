@@ -14,6 +14,7 @@
 #include "manager.h"
 #include "row_wsi.h"
 #include "mem_alloc.h"
+#include <jemalloc/jemalloc.h>
 
 void Row_wsi::init(row_t * row) {
     _row = row;
@@ -24,7 +25,7 @@ void Row_wsi::init(row_t * row) {
     readhistail = NULL;
     writehistail = NULL;
     blatch = false;
-    latch = (pthread_mutex_t *) mem_allocator.alloc(sizeof(pthread_mutex_t));
+    latch = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(latch, NULL);
     whis_len = 0;
     rhis_len = 0;
@@ -59,8 +60,7 @@ row_t * Row_wsi::clear_history(TsType type, ts_t ts) {
         prev = his->prev;
         assert(prev->ts >= his->ts);
         if (row != NULL) {
-            row->free_row();
-            mem_allocator.free(row, sizeof(row_t));
+            free(row);
         }
         row = his->row;
         his->row = NULL;
@@ -83,23 +83,22 @@ row_t * Row_wsi::clear_history(TsType type, ts_t ts) {
 }
 
 WSIReqEntry * Row_wsi::get_req_entry() {
-    return (WSIReqEntry *) mem_allocator.alloc(sizeof(WSIReqEntry));
+    return (WSIReqEntry *) malloc(sizeof(WSIReqEntry));
 }
 
 void Row_wsi::return_req_entry(WSIReqEntry * entry) {
-    mem_allocator.free(entry, sizeof(WSIReqEntry));
+    free(entry);
 }
 
 WSIHisEntry * Row_wsi::get_his_entry() {
-    return (WSIHisEntry *) mem_allocator.alloc(sizeof(WSIHisEntry));
+    return (WSIHisEntry *) malloc(sizeof(WSIHisEntry));
 }
 
 void Row_wsi::return_his_entry(WSIHisEntry * entry) {
     if (entry->row != NULL) {
-        entry->row->free_row();
-        mem_allocator.free(entry->row, sizeof(row_t));
+        free(entry->row);
     }
-    mem_allocator.free(entry, sizeof(WSIHisEntry));
+    free(entry);
 }
 
 void Row_wsi::buffer_req(TsType type, TxnManager * txn)
@@ -175,11 +174,27 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
     ts_t start_ts = txn->get_start_timestamp();
     uint64_t starttime = get_sys_clock();
 
+#if WSI_LOCK_CS
     if (g_central_man) {
         glob_manager.lock_row(_row);
     } else {
         pthread_mutex_lock(latch);
     }
+#elif WSI_LOCK_NW
+    if (!try_lock())
+    {
+        return Abort;
+        // break;
+    }
+#elif WSI_LOCK_WD
+    float wait_second = 1;
+    float wait_nanosecond = 0;
+    if (!try_lock_wait(wait_second, wait_nanosecond))
+    {
+        return Abort;
+        // break;
+    }
+#endif
     INC_STATS(txn->get_thd_id(), trans_access_lock_wait_time, get_sys_clock() - starttime);
     if (type == R_REQ) {
         // Read the row
@@ -191,28 +206,28 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
         row_t * ret = (whis == NULL) ? _row : whis->row;
         txn->cur_row = ret;
         insert_history(start_ts, txn, NULL);
-        assert(strstr(_row->get_table_name(), ret->get_table_name()));
+        // assert(strstr(_row->get_table_name(), ret->get_table_name()));
     } else if (type == P_REQ) {
-        if (preq_len < g_max_pre_req){
-            DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-            buffer_req(P_REQ, txn);
-            rc = RCOK;
-        } else  {
-            rc = Abort;
-        }
+        // if (preq_len < g_max_pre_req){
+        //     DEBUG("buf P_REQ %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
+        //     buffer_req(P_REQ, txn);
+        //     rc = RCOK;
+        // } else  {
+        //     rc = Abort;
+        // }
     } else if (type == W_REQ) {
         rc = RCOK;
         // the corresponding prewrite request is debuffered.
         insert_history(ts, txn, row);
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-        WSIReqEntry * req = debuffer_req(P_REQ, txn);
-        assert(req != NULL);
-        return_req_entry(req);
+        // WSIReqEntry * req = debuffer_req(P_REQ, txn);
+        // assert(req != NULL);
+        // return_req_entry(req);
     } else if (type == XP_REQ) {
         DEBUG("debuf %ld %ld\n",txn->get_txn_id(),_row->get_primary_key());
-        WSIReqEntry * req = debuffer_req(P_REQ, txn);
-        assert (req != NULL);
-        return_req_entry(req);
+        // WSIReqEntry * req = debuffer_req(P_REQ, txn);
+        // assert (req != NULL);
+        // return_req_entry(req);
     } else {
         assert(false);
     }
@@ -243,11 +258,35 @@ RC Row_wsi::access(TxnManager * txn, TsType type, row_t * row) {
     txn->txn_stats.cc_time += timespan;
     txn->txn_stats.cc_time_short += timespan;
 
+#if  WSI_LOCK_CS
     if (g_central_man) {
         glob_manager.release_row(_row);
     } else {
         pthread_mutex_unlock( latch );
     }
+#elif WSI_LOCK_NW
+    release();
+#elif WSI_LOCK_WD
+    release();
+#endif
 
     return rc;
+}
+
+bool Row_wsi::try_lock()
+{
+    return pthread_mutex_trylock( latch ) != EBUSY;
+}
+
+bool Row_wsi::try_lock_wait(float wait_second, float wait_nanosecond)
+{
+    struct timespec timeoutTime;
+    timeoutTime.tv_nsec = wait_nanosecond;
+    timeoutTime.tv_sec = wait_second;
+    return pthread_mutex_timedlock( latch, &timeoutTime ) == 0; // == 0 locked else no lock
+}
+
+void Row_wsi::release() {
+    pthread_mutex_unlock( latch );
+
 }

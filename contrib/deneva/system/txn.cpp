@@ -371,7 +371,8 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
         assert(false);
     _cur_tid = 0;
     num_locks = 0;
-    memset(write_set, 0, 100);
+    memset(write_set, 0, sizeof(write_set));
+    sem_init(&_semaphore, 0, 1);
   // write_set = (int *) mem_allocator.alloc(sizeof(int) * 100);
 #endif
 
@@ -453,7 +454,7 @@ void TxnManager::release() {
     calvin_locked_rows.release();
 #elif CC_ALG == SILO
     num_locks = 0;
-    memset(write_set, 0, 100);
+    memset(write_set, 0, sizeof(write_set));
     // mem_allocator.free(write_set, sizeof(int) * 100);
 #elif IS_GENERIC_ALG
     uni_txn_man_ = nullptr;

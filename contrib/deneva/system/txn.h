@@ -33,6 +33,9 @@
 #include "transport/message.h"
 #include "../concurrency_control/unified_util.h"
 //#include "wl.h"
+#if CC_ALG == SILO
+#include "semaphore.h"
+#endif
 
 class Workload;
 class Thread;
@@ -236,6 +239,7 @@ public:
     uint64_t get_access_version(uint64_t access_id) { return txn->accesses[access_id]->version; }
     row_t * get_access_original_row(uint64_t access_id) {return txn->accesses[access_id]->orig_row;}
     void swap_accesses(uint64_t a, uint64_t b) { txn->accesses.swap(a, b); }
+    row_t * get_access_data(uint64_t access_id) {return txn->accesses[access_id]->data;}
     uint64_t get_batch_id() {return txn->batch_id;}
     void set_batch_id(uint64_t batch_id) {txn->batch_id = batch_id;}
 
@@ -336,6 +340,7 @@ protected:
     bool             _validation_no_wait;
     ts_t             _cur_tid;
     RC                validate_silo();
+    sem_t            _semaphore;
 #endif
 };
 
