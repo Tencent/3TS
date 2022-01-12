@@ -138,22 +138,8 @@ begin_write:
               }
               wait = true;
             }
-          } else if (it_wait.getId() < prv && std::get<0>(find(*it_wait)) != uintptr_t(txn)) {
-               if (!isCommited(std::get<0>(find(*it_wait)))) { //is commited?
-              // rw-edge hence no cascading abort necessary
-                  if (!insert_and_check1(txn, std::get<0>(find(*it_wait)), true)) {
-                     cyclic = true;
-                  }
-               }
-          }
-          reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait)))->mut_.lock_shared();
-          txn->incoming_nodes_->erase(
-              accessEdge(reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait))), true));
-          (reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait))))
-              ->outgoing_nodes_->erase(accessEdge(txn, true));
-          reinterpret_cast<TxnManager*>(std::get<0>(find(*it_wait)))->mut_.unlock_shared();
-          if (cyclic) break;
-
+          } 
+          
           ++it_wait;
         }
 
@@ -216,6 +202,9 @@ end:
     //  } else {
     //     pthread_mutex_unlock(latch);
     //  }
+
+    //printf(">>>>>>rw historiy(%p) size is: %ld\n", rw_history, rw_history->size());
+    //sleep(1);
 
     return rc;
 }
@@ -289,7 +278,7 @@ bool Row_opt_ssi::insert_and_check1(TxnManager* cur_node, uintptr_t from_node, b
       }
 
       that_node->mut_.lock_shared();
-      if (that_node->cleaned_.load()) {
+      if (that_node->cleaned_.load() || that_node->commited_.load()) {
         that_node->mut_.unlock_shared();
         return true;
       }
@@ -300,8 +289,6 @@ bool Row_opt_ssi::insert_and_check1(TxnManager* cur_node, uintptr_t from_node, b
       }
 
       cur_node->incoming_nodes_->insert(accessEdge(that_node, readwrite));
-      //printf("txnid %ld's incoming txnid is %ld and count %ld>\n", 
-      // cur_node->get_txn_id(), that_node->get_txn_id(), cur_node->incoming_nodes_->size());
       that_node->outgoing_nodes_->insert(accessEdge(cur_node, readwrite));
       that_node->mut_.unlock_shared();
 
@@ -362,12 +349,12 @@ bool Row_opt_ssi::needsAbort(uintptr_t cur) {
 }
 
 bool Row_opt_ssi::isCommited(uintptr_t cur) {
-  return reinterpret_cast<TxnManager*>(cur)->commited_;
+  return reinterpret_cast<TxnManager*>(cur)->commited_.load();
 }
 
 void Row_opt_ssi::abort(TxnManager* cur_node, std::unordered_set<uint64_t>& oset) {
   
-  cur_node->abort_ = true;
+  cur_node->abort_.store(true);
   
 // #ifdef 0
 //   bool cascading = cur_node->cascading_abort_;
@@ -385,15 +372,15 @@ void Row_opt_ssi::abort(TxnManager* cur_node, std::unordered_set<uint64_t>& oset
     it_in++;
   }
 
-  cleanup(cur_node);
+  //cleanup(cur_node);
 
   oset.emplace(cur_node->abort_through_);
 }
 
 void Row_opt_ssi::cleanup(TxnManager* cur_node) {
-  cur_node->mut_.lock_shared();
-  cur_node->cleaned_ = true;
-  cur_node->mut_.unlock_shared();
+  //cur_node->mut_.lock_shared();
+  cur_node->cleaned_.store(true);
+  //cur_node->mut_.unlock_shared();
 
   // barrier for inserts
   cur_node->mut_.lock();
@@ -402,12 +389,12 @@ void Row_opt_ssi::cleanup(TxnManager* cur_node) {
   auto it = cur_node->outgoing_nodes_->begin();
   while (it != cur_node->outgoing_nodes_->end()) {
     auto that_node = std::get<0>(findEdge(*it));
-    if (cur_node->abort_ && !std::get<1>(findEdge(*it))) {
-      that_node->cascading_abort_ = true;
-      that_node->abort_through_ = reinterpret_cast<uintptr_t>(cur_node);
+    if (cur_node->abort_.load() && !std::get<1>(findEdge(*it))) {
+      that_node->cascading_abort_.store(true);
+      that_node->abort_through_.store(reinterpret_cast<uintptr_t>(cur_node));
     } else {
       that_node->mut_.lock_shared();
-      if (!that_node->cleaned_)
+      if (!that_node->cleaned_.load())
         that_node->incoming_nodes_->erase(accessEdge(cur_node, std::get<1>(findEdge(*it))));
       that_node->mut_.unlock_shared();
     }
@@ -415,7 +402,7 @@ void Row_opt_ssi::cleanup(TxnManager* cur_node) {
     ++it;
   }
 
-  if (cur_node->abort_) {
+  if (cur_node->abort_.load()) {
     auto it_out = cur_node->incoming_nodes_->begin();
     while (it_out != cur_node->incoming_nodes_->end()) {
       cur_node->incoming_nodes_->erase(*it_out);
@@ -433,6 +420,8 @@ void Row_opt_ssi::cleanup(TxnManager* cur_node) {
     std::cout << "BROKEN" << std::endl;
   }
 
+  assert(cur_node->outgoing_nodes_->size() == 0);
+  assert(cur_node->incoming_nodes_->size() == 0);
   //cur_node->outgoing_nodes_ = nullptr;
   //cur_node->incoming_nodes_ = nullptr;
 

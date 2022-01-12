@@ -628,6 +628,7 @@ RC TxnManager::abort() {
     }
     txn->accessesInfo.clear();
     cleanup1();
+    
  
 #endif
     DEBUG("Abort %ld\n",get_txn_id());
@@ -1388,31 +1389,30 @@ void TxnManager::release_locks(RC rc) {
 void TxnManager::cleanup1() 
 {
   mut_.lock_shared();
-  cleaned_ = true;
+  this->commited_.store(true);
+  this->cleaned_.store(true);
   mut_.unlock_shared();
-  
   // barrier for inserts
   mut_.lock();
   mut_.unlock();
   
-  assert(outgoing_nodes_ != nullptr);
   auto it = outgoing_nodes_->begin();
 
   while (it != outgoing_nodes_->end()) {
     auto that_node = std::get<0>(findEdge1(*it));
-    if (abort_ && !std::get<1>(findEdge1(*it))) {
-      that_node->cascading_abort_ = true;
-      that_node->abort_through_ = reinterpret_cast<uintptr_t>(this);
+    that_node->mut_.lock_shared();
+    if (abort_.load() && !std::get<1>(findEdge1(*it))) {
+      that_node->cascading_abort_.store(true);
+      that_node->abort_through_.store(reinterpret_cast<uintptr_t>(this));
     } else {
-      that_node->mut_.lock_shared();
       //printf("that node status: %d ", that_node->cleaned_.load());
-      if (!that_node->cleaned_) {
+      if (!that_node->cleaned_.load()) {
         that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))));
-       // printf("%ld commited, and erase the txn %ld\n", get_txn_id(), 
-       //                                    that_node->get_txn_id());
+        printf("%ld commited, and erase the txn %ld\n", get_txn_id(), 
+                                           that_node->get_txn_id());
       }
-      that_node->mut_.unlock_shared();
     }
+    that_node->mut_.unlock_shared();
     outgoing_nodes_->erase(*it);
     ++it;
   }
@@ -1468,6 +1468,12 @@ bool TxnManager::checkCommited1() {
   this->mut_.lock_shared();
   if (this->incoming_nodes_->size() != 0) {
     this->checked_ = false;
+    auto it = incoming_nodes_->begin();
+    while (it != incoming_nodes_->end()) {
+      auto that_node = std::get<0>(findEdge1(*it));
+      if (that_node->cleaned_.load()) {continue;}
+      ++it;
+    }
     this->mut_.unlock_shared();
     return false;
   }
@@ -1476,10 +1482,11 @@ bool TxnManager::checkCommited1() {
   if (this->abort_.load() || this->cascading_abort_.load()) {
     return false;
   }
-  
+  //set commited status
   bool success = erase_graph_constraints1();
 
   if (success) {
+    //set cleaned status
     cleanup1();
   }
   return success;
@@ -1493,7 +1500,6 @@ bool TxnManager::erase_graph_constraints1() {
     return false;
   }
   
-  this->commited_.store(true);
 // #ifdef 0
 //   // logger.log(generateString());
 //   logger.log(common::LogInfo{reinterpret_cast<uintptr_t>(cur_node), 0, 0, 0, 'c'});
