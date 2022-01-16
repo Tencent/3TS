@@ -50,6 +50,7 @@ TraversalGenerator = {
 	tcl_position = "ANYWHERE"; // generate TCL operation in history position ("TAIL", "ANYWHERE", "NOWHERE")
   allow_empty_trans = false; // transactions generated can be without DML operations
   dynamic_history_len = false; // number of DML operation can be less than <max_dml>
+  anomaly_rank = "IAT_RAT_WAT"; //IAT_RAT_WAT //WAT_RAT_IAT//RAT_WAT_IAT
 };
 
 // Generate histories described in the file.

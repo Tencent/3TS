@@ -195,7 +195,9 @@ void row_t::set_data(char * data) {
 }
 // copy from the src to this
 void row_t::copy(row_t * src) {
+    #if CC_ALG != WSI
     assert(src->get_schema() == this->get_schema());
+    #endif
 #if SIM_FULL_ROW
     set_data(src->get_data());
 #else
@@ -491,10 +493,12 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
         mem_allocator.free(row, sizeof(row_t));
         this->manager->access(txn, XP_REQ, NULL);
     } else if (type == WR) {
+        #if CC_ALG != WSI
         assert (type == WR && row != NULL);
         assert (row->get_schema() == this->get_schema());
         RC rc = this->manager->access(txn, W_REQ, row);
         assert(rc == RCOK);
+        #endif
     }
     return 0;
 #elif CC_ALG == OCC || CC_ALG == FOCC || CC_ALG == BOCC

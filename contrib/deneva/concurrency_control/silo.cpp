@@ -49,7 +49,6 @@ TxnManager::validate_silo()
 
     num_locks = 0;
     ts_t max_tid = 0;
-    bool done = false;
     if (_pre_abort) {
         for (uint64_t i = 0; i < wr_cnt; i++) {
             row_t * row = txn->accesses[ write_set[i] ]->orig_row;
@@ -67,13 +66,21 @@ TxnManager::validate_silo()
         }
     }
 
+#if SILO_LOCK_NW || SILO_LOCK_WD  
     // lock all rows in the write set.
+    bool done = false;
     if (_validation_no_wait) {
         while (!done) {
             num_locks = 0;
             for (uint64_t i = 0; i < wr_cnt; i++) {
                 row_t * row = txn->accesses[ write_set[i] ]->orig_row;
+#if SILO_LOCK_NW
                 if (!row->manager->try_lock())
+#elif SILO_LOCK_WD
+                float wait_second = 1;
+                float wait_nanosecond = 0;
+                if (!row->manager->try_lock_wait(wait_second, wait_nanosecond))
+#endif
                 {
                     break;
                 }
@@ -106,9 +113,12 @@ TxnManager::validate_silo()
             }
         }
     }
+#endif
 
     COMPILER_BARRIER
-
+#if LOCK_CS
+    sem_wait(&_semaphore);
+#endif 
     // validate rows in the read set
     // for repeatable_read, no need to validate the read set.
     for (uint64_t i = 0; i < txn->row_cnt - wr_cnt; i ++) {
@@ -134,6 +144,7 @@ TxnManager::validate_silo()
     }
 
     this->max_tid = max_tid;
+    this->_cur_tid = max_tid;
 
     return rc;
 }
@@ -141,6 +152,7 @@ TxnManager::validate_silo()
 RC
 TxnManager::finish(RC rc)
 {
+#if SILO_LOCK_NW || SILO_LOCK_WD  
     if (rc == Abort) {
         if (this->num_locks > get_access_cnt()) 
             return rc;
@@ -159,7 +171,20 @@ TxnManager::finish(RC rc)
         }
     }
     num_locks = 0;
-    memset(write_set, 0, 100);
+#endif
+#if SILO_LOCK_CS
+    // put write in critical section
+    if (rc == RCOK) 
+    {
+        for (uint64_t i = 0; i < txn->write_cnt; i++) {
+            Access * access = txn->accesses[ write_set[i] ];
+            access->orig_row->manager->write( 
+                access->data, this->commit_timestamp );
+        }
+    }
+    sem_post(&_semaphore);
+#endif 
+    memset(write_set, 0, sizeof(write_set));
 
     return rc;
 }

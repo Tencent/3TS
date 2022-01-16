@@ -29,6 +29,7 @@ public:
     void                lock();
     void                release();
     bool                try_lock();
+    bool try_lock_wait(float wait_second, float wait_nanosecond);
     uint64_t            get_tid();
 #if ATOMIC_WORD
     void                assert_lock() {assert(_tid_word & LOCK_BIT); }
