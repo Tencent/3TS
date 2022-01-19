@@ -463,14 +463,18 @@ void TxnManager::reset() {
     txn_stats.reset();
   
     //for ssi
+#if CC_ALG == OPT_SSI
+    
     in_rw = false; out_rw = false;
     cleaned_ = false; checked_ = false;
     cascading_abort_ = false; abort_ = false;
-    commited_ = false;
+    commited_ = false; 
     visited.clear();
     visit_path.clear();
-    assert(incoming_nodes_->size() == 0);
-    assert(outgoing_nodes_->size() == 0);
+    //assert(incoming_nodes_->size() == 0);
+    //assert(outgoing_nodes_->size() == 0);
+
+#endif
 
 }
 
@@ -498,6 +502,9 @@ void TxnManager::release() {
     // mem_allocator.free(write_set, sizeof(int) * 100);
 #elif IS_GENERIC_ALG
     uni_txn_man_ = nullptr;
+#elif CC_ALG == OPT_SSI
+    incoming_nodes_ = nullptr;
+    outgoing_nodes_ = nullptr;
 #endif
     txn_ready = true;
 }
@@ -527,7 +534,12 @@ RC TxnManager::commit() {
     inout_table.set_state(get_thd_id(), get_txn_id(), SSI_COMMITTED);
 #endif
 #if CC_ALG == OPT_SSI
-    
+    for (uint64_t i = 0; i < txn->accessesInfo.size(); i++) {
+      uint64_t lsn = txn->accessesInfo[i]->lsn;
+      txn->accessesInfo[i]->which_rw_his->erase(lsn);
+    }
+    txn->accessesInfo.clear();
+
     bool all_pending_transactions_commited = false;
     while (!all_pending_transactions_commited) {
     //   auto not_alive = not_alive_.find(transaction);
@@ -554,34 +566,28 @@ RC TxnManager::commit() {
         //   t->deallocate(alloc_);
         // }
         
-        for (uint64_t i = 0; i < txn->accessesInfo.size(); i++) {
-          uint64_t lsn = txn->accessesInfo[i]->lsn;
-          txn->accessesInfo[i]->which_rw_his->erase(lsn);
-        }
-        txn->accessesInfo.clear();
-        
       } else {
 
-        //auto it = incoming_nodes_->begin();
+    //     auto it = incoming_nodes_->begin();
       
-       // while (it != incoming_nodes_->end()) {
+    //    while (it != incoming_nodes_->end()) {
             
-        //     auto that_node = std::get<0>(findEdge1(*it)); 
+    //         auto that_node = std::get<0>(findEdge1(*it)); 
             
             
-        //     printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
-        //         get_txn_id(), incoming_nodes_->size(), 
-        //         outgoing_nodes_->size(), that_node->get_txn_id());
-        //     printf("waited incoming txn %p, incoming %ld outgonig %ld\n", 
-        //             that_node, that_node->incoming_nodes_->size(),
-        //             that_node->outgoing_nodes_->size());
-        //     printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
-        //             txn_status, cascading_abort_.load());
+    //         printf("the waiting txn %ld, incoming size %ld, outgoing size %ld waiting for %ld\n", 
+    //             get_txn_id(), incoming_nodes_->size(), 
+    //             outgoing_nodes_->size(), that_node->get_txn_id());
+    //         printf("waited incoming txn %p, incoming %ld outgonig %ld\n", 
+    //                 that_node, that_node->incoming_nodes_->size(),
+    //                 that_node->outgoing_nodes_->size());
+    //         printf("the status of waited txn: aborted/commited/active %d, cascade %d\n", 
+    //                 txn_status, cascading_abort_.load());
                    
-        //    sleep(1);
-          //  it++;
+    //         sleep(1);
+    //         it++;
             
-       // }
+    //}
       }
      
     }//end while
@@ -608,7 +614,6 @@ RC TxnManager::commit() {
 RC TxnManager::abort() {
     
     if (aborted) {
-      abort_ = true;
       return Abort;
     } 
 
@@ -616,21 +621,7 @@ RC TxnManager::abort() {
     inout_table.set_state(get_thd_id(), get_txn_id(), SSI_ABORTED);
     inout_table.clear_Conflict(get_thd_id(), get_txn_id());
 #endif
-#if CC_ALG == OPT_SSI
-    txn_status = TxnStatus::ABORTED;
-    abort_ = true;
-    in_rw = false, out_rw = false;
-    uint64_t lsn;
-    
-    for (uint64_t i = 0; i < txn->accessesInfo.size(); i++) {
-       lsn = txn->accessesInfo[i]->lsn;
-       txn->accessesInfo[i]->which_rw_his->erase(lsn);
-    }
-    txn->accessesInfo.clear();
-    cleanup1();
-    
- 
-#endif
+
     DEBUG("Abort %ld\n",get_txn_id());
     txn->rc = Abort;
     INC_STATS(get_thd_id(),total_txn_abort_cnt,1);
@@ -643,6 +634,18 @@ RC TxnManager::abort() {
     }
 
     release_locks(Abort);
+
+#if CC_ALG == OPT_SSI
+    txn_status = TxnStatus::ABORTED;
+    in_rw = false, out_rw = false;
+
+    for (uint64_t i = 0; i < txn->accessesInfo.size(); i++) {
+      uint64_t lsn = txn->accessesInfo[i]->lsn;
+      txn->accessesInfo[i]->which_rw_his->erase(lsn);
+    }
+    txn->accessesInfo.clear();
+    abort_and_cleanup();
+#endif
 
 #if CC_ALG == MAAT
     //assert(time_table.get_state(get_txn_id()) == MAAT_ABORTED);
@@ -1386,7 +1389,7 @@ void TxnManager::release_locks(RC rc) {
 }
 
 // incoming is always passive, but outgoing is initiative
-void TxnManager::cleanup1() 
+void TxnManager::commit_and_cleanup() 
 {
   mut_.lock_shared();
   this->commited_.store(true);
@@ -1395,61 +1398,95 @@ void TxnManager::cleanup1()
   // barrier for inserts
   mut_.lock();
   mut_.unlock();
-  
-  auto it = outgoing_nodes_->begin();
 
+  auto it = outgoing_nodes_->begin();
   while (it != outgoing_nodes_->end()) {
     auto that_node = std::get<0>(findEdge1(*it));
     that_node->mut_.lock_shared();
-    if (abort_.load() && !std::get<1>(findEdge1(*it))) {
-      that_node->cascading_abort_.store(true);
-      that_node->abort_through_.store(reinterpret_cast<uintptr_t>(this));
-    } else {
-      //printf("that node status: %d ", that_node->cleaned_.load());
-      if (!that_node->cleaned_.load()) {
-        that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))));
-        printf("%ld commited, and erase the txn %ld\n", get_txn_id(), 
-                                           that_node->get_txn_id());
+    
+    if (!that_node->cleaned_.load()) {
+      if (that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))))) {
+         printf("%ld commited, and erase the txn %ld\n", get_txn_id(), that_node->get_txn_id());
       }
     }
     that_node->mut_.unlock_shared();
     outgoing_nodes_->erase(*it);
     ++it;
   }
-
-  if (abort_.load()) {
-    auto it_out = this->incoming_nodes_->begin();
-    while (it_out != this->incoming_nodes_->end()) {
-      this->incoming_nodes_->erase(*it_out);
-      ++it_out;
-    }
-    //printf("now the aborted txn %ld has incoming count %ld\n", 
-     //    this->get_txn_id(), this->incoming_nodes_->size());
-  }
-
+  //mut_.unlock();
   //atom::EpochGuard<EMB, EM> eg{em_};
    
-   this->mut_.lock();
   //empty_sets.rns->emplace_back(cur_node->outgoing_nodes_);
   //empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
-   assert(this->outgoing_nodes_->size() == 0);
-   assert(this->incoming_nodes_->size() == 0);
 
+  mut_.lock_shared();
+  assert(this->incoming_nodes_->size() == 0);
+  assert(this->outgoing_nodes_->size() == 0);
   if (this->outgoing_nodes_->size() > 0 || this->incoming_nodes_->size() > 0) {
-    std::cout << "BROKEN" << std::endl;
+      std::cout << "BROKEN" << std::endl;
   }
+  mut_.unlock_shared();
 
-  //this->outgoing_nodes_ = nullptr;
-  //this->incoming_nodes_ = nullptr;
+  
 
 //   if (online_) {
 //     order_map_.erase(reinterpret_cast<uintptr_t>(this));
 //   }
-  this->mut_.unlock();
 
   // delete node;
   // eg.add(this);
   // alloc_->deallocate(node, 1);
+}
+
+// incoming is always passive, but outgoing is initiative
+void TxnManager::abort_and_cleanup() 
+{
+  mut_.lock_shared();
+  abort_.store(true);
+  cleaned_.store(true);
+  mut_.unlock_shared();
+
+  mut_.lock();
+  mut_.unlock();
+ 
+  auto it = outgoing_nodes_->begin();
+  while (it != outgoing_nodes_->end()) {
+    auto that_node = std::get<0>(findEdge1(*it));
+    that_node->mut_.lock_shared();
+    if (!std::get<1>(findEdge1(*it))) {
+      that_node->cascading_abort_.store(true);
+      that_node->abort_through_.store(reinterpret_cast<uintptr_t>(this));
+    }
+    
+    if (that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))))) {
+         printf("%ld aborted, and erase the txn %ld\n", get_txn_id(), that_node->get_txn_id());
+    }
+    
+    that_node->mut_.unlock_shared();
+    outgoing_nodes_->erase(*it);
+    ++it;
+  }
+
+  auto it_out = this->incoming_nodes_->begin();
+  while (it_out != this->incoming_nodes_->end()) {
+    this->incoming_nodes_->erase(*it_out);
+    ++it_out;
+  }
+
+  //printf("before--->size of incoming nodes:%ld\n", this->incoming_nodes_->size());
+  mut_.lock();
+  if (this->incoming_nodes_->size() != 0) {
+      printf("Aborted txn's incoming size is %ld\n", this->incoming_nodes_->size());
+      assert(false);
+  }
+  assert(this->outgoing_nodes_->size() == 0);
+  mut_.unlock();
+
+  
+  //printf("after--->size of incoming nodes:%ld\n", this->incoming_nodes_->size());
+  //printf("size of outgoing nodes:%ld\n", this->outgoing_nodes_->size());
+  
+
 }
 
 bool TxnManager::checkCommited1() {
@@ -1469,9 +1506,9 @@ bool TxnManager::checkCommited1() {
   if (this->incoming_nodes_->size() != 0) {
     this->checked_ = false;
     auto it = incoming_nodes_->begin();
-    while (it != incoming_nodes_->end()) {
+    while (it != incoming_nodes_->end()) { //(txn_ptr, rw)
       auto that_node = std::get<0>(findEdge1(*it));
-      if (that_node->cleaned_.load()) {continue;}
+      if (that_node->cleaned_.load()) { it++; continue;}
       ++it;
     }
     this->mut_.unlock_shared();
@@ -1487,7 +1524,7 @@ bool TxnManager::checkCommited1() {
 
   if (success) {
     //set cleaned status
-    cleanup1();
+    commit_and_cleanup();
   }
   return success;
 }
@@ -1495,7 +1532,7 @@ bool TxnManager::checkCommited1() {
 
 bool TxnManager::erase_graph_constraints1() {
   if (cycleCheckNaive1()) {
-    //printf("cycle found\n");
+    printf("cycle found\n");
     this->abort_.store(true);
     return false;
   }

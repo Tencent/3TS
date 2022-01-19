@@ -83,7 +83,7 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
       for (; it != rw_history->end(); ++it) {
         if (it.getId() < prv) {
           if (std::get<1>(find(*it)) &&
-              !insert_and_check1(txn, std::get<0>(find(*it)), false)) {
+              !insert_and_check1(txn, std::get<0>(find(*it)), false)) { //w-r edge
             cyclic = true;
             break;
           }
@@ -91,11 +91,11 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
       }
 
       if (cyclic) {
-        rw_history->erase(prv);
-        lsn.store(prv + 1);
-        abort(txn, oset);
+        //abort(txn, oset);
         free(accessInfo);
         rc = Abort;
+        rw_history->erase(prv);
+        lsn.store(prv + 1);
         goto end;
       }
 
@@ -112,11 +112,11 @@ RC Row_opt_ssi::access(TxnManager * txn, TsType type, row_t * row) {
         //printf("in Write OP (%ld, %ld)\n", lsn.load(), prv);
 begin_write:
         if (txn->abort_ || txn->cascading_abort_) {
-          rw_history->erase(prv);
-          lsn.store(prv + 1);
-          abort(txn, oset);
+          //abort(txn, oset);
           free(accessInfo);
           rc = Abort;
+          rw_history->erase(prv);
+          lsn.store(prv + 1);
           goto end;
         }
         assert(lsn.load() == prv);
@@ -131,27 +131,28 @@ begin_write:
         while (!aborted && it_wait != it_end) {
           if (it_wait.getId() < prv && std::get<1>(find(*it_wait)) &&
               std::get<0>(find(*it_wait)) != uintptr_t(txn)) {
-            if (!isCommited(std::get<0>(find(*it_wait)))) { //is commited?
+            if (!isCommited(std::get<0>(find(*it_wait)))) {  // is commited?
               // ww-edge hence cascading abort necessary
               if (!insert_and_check1(txn, std::get<0>(find(*it_wait)), false)) {
                 cyclic = true;
+                break;
               }
               wait = true;
             }
-          } 
-          
+          }
+
           ++it_wait;
         }
 
         if (!aborted) {
           if (cyclic) {
 cyclic_write:
-             rw_history->erase(prv);
-             lsn.store(prv + 1);
-             abort(txn, oset);
+             //abort(txn, oset);
              free(accessInfo);
              // std::cout << "abort(" << transaction << ") | rw" << std::endl;
              rc = Abort;
+             rw_history->erase(prv);
+             lsn.store(prv + 1);
              goto end;
           }
 
@@ -271,13 +272,15 @@ bool Row_opt_ssi::insert_and_check1(TxnManager* cur_node, uintptr_t from_node, b
 
   while (true) {
     if (!find(*cur_node->incoming_nodes_, accessEdge(that_node, readwrite))) {
+
+      that_node->mut_.lock_shared();
       if ((that_node->abort_ || that_node->cascading_abort_) && !readwrite) {
         cur_node->cascading_abort_ = true;
         cur_node->abort_through_ = from_node;
+        that_node->mut_.unlock_shared();
         return false;
       }
 
-      that_node->mut_.lock_shared();
       if (that_node->cleaned_.load() || that_node->commited_.load()) {
         that_node->mut_.unlock_shared();
         return true;
