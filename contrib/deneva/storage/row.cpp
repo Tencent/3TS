@@ -491,6 +491,7 @@ uint64_t row_t::return_row(RC rc, access_t type, TxnManager *txn, row_t *row) {
         this->copy(row);
     }
     return 0;
+    
 #endif
 
 #if CC_ALG == WAIT_DIE || CC_ALG == NO_WAIT || CC_ALG == CALVIN 

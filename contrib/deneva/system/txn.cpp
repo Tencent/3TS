@@ -1406,7 +1406,7 @@ void TxnManager::commit_and_cleanup()
     
     if (!that_node->cleaned_.load()) {
       if (that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))))) {
-         printf("%ld commited, and erase the txn %ld\n", get_txn_id(), that_node->get_txn_id());
+        // printf("%ld commited, and erase the txn %ld\n", get_txn_id(), that_node->get_txn_id());
       }
     }
     that_node->mut_.unlock_shared();
@@ -1459,7 +1459,7 @@ void TxnManager::abort_and_cleanup()
     }
     
     if (that_node->incoming_nodes_->erase(accessEdge1(this, std::get<1>(findEdge1(*it))))) {
-         printf("%ld aborted, and erase the txn %ld\n", get_txn_id(), that_node->get_txn_id());
+        // printf("%ld aborted, and erase the txn %ld\n", get_txn_id(), that_node->get_txn_id());
     }
     
     that_node->mut_.unlock_shared();
@@ -1486,7 +1486,6 @@ void TxnManager::abort_and_cleanup()
   //printf("after--->size of incoming nodes:%ld\n", this->incoming_nodes_->size());
   //printf("size of outgoing nodes:%ld\n", this->outgoing_nodes_->size());
   
-
 }
 
 bool TxnManager::checkCommited1() {

@@ -265,7 +265,8 @@ public:
 #endif
 
     //the following is for graphcc
-    void cleanup1();
+    void commit_and_cleanup();
+    void abort_and_cleanup();
     bool cycleCheckNaive1();
     bool cycleCheckNaive1(TxnManager* cur) const;
     bool erase_graph_constraints1();
