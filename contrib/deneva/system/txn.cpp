@@ -400,6 +400,16 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     }
     outgoing_nodes_ = sets[0];
     incoming_nodes_ = sets[1];
+
+    assert(incoming_nodes_->size() == 0);
+    assert(outgoing_nodes_->size() == 0);
+
+    cleaned_ = false;
+    checked_ = false;
+    cascading_abort_ = false;
+    abort_ = false;
+    commited_ = false;
+    abort_through_ = 0;
    
 #endif
 
@@ -411,16 +421,9 @@ void TxnManager::init(uint64_t thd_id, Workload * h_wl) {
     //for ssi 
     in_rw = false;
     out_rw = false;
-    cleaned_ = false;
-    checked_ = false;
-    cascading_abort_ = false;
-    abort_ = false;
-    commited_ = false;
-    abort_through_ = 0;
     txn_status = TxnStatus::ACTIVE;
     aborted = false;
-    assert(incoming_nodes_->size() == 0);
-    assert(outgoing_nodes_->size() == 0);
+   
 }
 
 // reset after abort
@@ -1419,13 +1422,13 @@ void TxnManager::commit_and_cleanup()
   //empty_sets.rns->emplace_back(cur_node->outgoing_nodes_);
   //empty_sets.rns->emplace_back(cur_node->incoming_nodes_);
 
-  mut_.lock_shared();
+  mut_.lock();
   assert(this->incoming_nodes_->size() == 0);
   assert(this->outgoing_nodes_->size() == 0);
   if (this->outgoing_nodes_->size() > 0 || this->incoming_nodes_->size() > 0) {
       std::cout << "BROKEN" << std::endl;
   }
-  mut_.unlock_shared();
+  mut_.unlock();
 
   
 
@@ -1504,12 +1507,12 @@ bool TxnManager::checkCommited1() {
   this->mut_.lock_shared();
   if (this->incoming_nodes_->size() != 0) {
     this->checked_ = false;
-    auto it = incoming_nodes_->begin();
-    while (it != incoming_nodes_->end()) { //(txn_ptr, rw)
-      auto that_node = std::get<0>(findEdge1(*it));
-      if (that_node->cleaned_.load()) { it++; continue;}
-      ++it;
-    }
+    //auto it = incoming_nodes_->begin();
+    //while (it != incoming_nodes_->end()) { //(txn_ptr, rw)
+    //  auto that_node = std::get<0>(findEdge1(*it));
+    //  if (that_node->cleaned_.load()) { it++; continue;}
+    //  ++it;
+    //}
     this->mut_.unlock_shared();
     return false;
   }
