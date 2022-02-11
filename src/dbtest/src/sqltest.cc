@@ -10,18 +10,196 @@
  */
 #include "gflags/gflags.h"
 #include "sqltest.h"
+#include <thread>
+#include <unistd.h>
+#include <mutex>
+#include <regex>
 
 DEFINE_string(db_type, "mysql", "data resource name, please see /etc/odbc.ini, such as mysql pg oracle ob tidb sqlserver crdb");
 DEFINE_string(user, "test123", "username");
 DEFINE_string(passwd, "Ly.123456", "password");
 DEFINE_string(db_name, "test", "create database name");
-DEFINE_int32(conn_pool_size, 4, "db_conn pool size");
+DEFINE_int32(conn_pool_size, 6, "db_conn pool size");
 DEFINE_string(isolation, "serializable", "transation isolation level: read-uncommitted read-committed repeatable-read serializable");
 DEFINE_string(case_dir, "mysql", "test case dir name");
-DEFINE_string(timeout, "2", "timeout");
+DEFINE_string(timeout, "20", "timeout");
+
+
+// std::vector<std::mutex *> mutex_txn(5); // same as conn_pool_size
+std::vector<pthread_mutex_t *> mutex_txn(6);  // same as conn_pool_size
+
+bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
+{
+    struct timespec timeoutTime;
+    timeoutTime.tv_nsec = wait_nanosecond;
+    timeoutTime.tv_sec = wait_second;
+    return pthread_mutex_timedlock( mutex_txn[txn_id], &timeoutTime ) == 0; // == 0 locked else no lock
+}
+
+
+
+bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_sequence, TestResultSet& test_result_set, 
+    DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
+    
+    usleep(1000000*sleeptime);
+    
+    std::ofstream test_process(test_process_file, std::ios::app);
+    int txn_id;
+    if (txn_sql_list.size() && txn_sql_list[0].TxnId()){
+        txn_id = txn_sql_list[0].TxnId();
+        pthread_mutex_lock(mutex_txn[txn_id]);
+        /*
+        float wait_second = 5;
+        float wait_nanosecond = 0;
+        if (!try_lock_wait(wait_second, wait_nanosecond, txn_id))
+        {
+                std::string blank(blank_base*(txn_id - 1), ' ');
+                // std::cout<< blank <<"wait too long"<<std::endl;
+                return false;
+        }
+        */
+    }
+    else{
+        return false;
+    }
+
+    for (auto& txn_sql : txn_sql_list) {
+        // std::cout << " asdfg " <<  std::endl;
+
+        // usleep(1000000);
+        // mutex_txn[txn_sql.TxnId()]->lock();
+        // std::cout << " SQLID: " << txn_sql_list[0].SqlId() << " TXNID: " <<  txn_sql_list[0].TxnId() << " SQL: " << txn_sql_list[0].Sql() <<  std::endl;
+        int sql_id = txn_sql.SqlId();
+        txn_id = txn_sql.TxnId();
+        std::string sql = txn_sql.Sql();
+        
+        if (FLAGS_db_type == "oracle") {
+            std::string sub_str ("IF EXISTS");
+            if (sql.find(sub_str) != std::string::npos) {
+                // std::cout << " sql: " << sql << std::endl;
+                sql = std::regex_replace(sql, std::regex("IF EXISTS "), "");
+                sql = std::regex_replace(sql, std::regex("if exists "), "");
+                // std::cout << " sql: " << sql << std::endl;
+                std::string sql_timeout = "alter session set ddl_lock_timeout = " + FLAGS_timeout + ";";
+                // std::cout << " sql: " << sql_timeout << std::endl;
+                if (!db_connector.ExecWriteSql(1024, sql_timeout, test_result_set, txn_id, test_process_file)) {
+                    goto jump;
+                }
+            }
+         
+        }
+        
+        
+
+        std::string ret_type = test_result_set.ResultType();
+        auto index_T = ret_type.find("Timeout");
+        auto index_R = ret_type.find("Rollback");
+        if (index_T != ret_type.npos || index_R != ret_type.npos) {
+            for (int i = 0; i < FLAGS_conn_pool_size; i++) {
+                if (FLAGS_db_type != "ob") {
+                    if (FLAGS_db_type == "crdb") {
+                        db_connector.ExecWriteSql(1024, "ROLLBACK TRANSACTION", test_result_set, i + 1, test_process_file);
+                    } else {
+                        db_connector.SQLEndTnx("rollback", i + 1, 1024, test_result_set, FLAGS_db_type,test_process_file);
+                    }
+                }
+            }
+            break;
+        }
+
+        auto index_read = sql.find("SELECT");
+        auto index_read_1 = sql.find("select");
+        auto index_begin = sql.find("BEGIN");
+        auto index_begin_1 = sql.find("begin");
+        auto index_commit = sql.find("COMMIT");
+        auto index_commit_1 = sql.find("commit");
+        auto index_rollback = sql.find("ROLLBACK");
+        auto index_rollback_1 = sql.find("rollback");
+
+        if (sql_id == 1) {
+            std::cout << "" << std::endl;
+            test_process << "" << std::endl;
+            std::cout << dash + test_sequence.TestCaseType() + " test run" + dash << std::endl;
+            test_process << dash + test_sequence.TestCaseType() + " test run" + dash << std::endl;
+        }
+        if (index_read != sql.npos || index_read_1 != sql.npos) {
+            if (!db_connector.ExecReadSql2Int(sql_id, sql, test_result_set, cur_result_set, txn_id, test_sequence.ParamNum(), test_process_file)) {
+                goto jump;
+            }
+        } else if (index_begin != sql.npos || index_begin_1 != sql.npos) {
+            if (FLAGS_db_type != "crdb" && FLAGS_db_type != "ob") {
+                if (FLAGS_db_type == "tidb") {
+                    if (!db_connector.ExecWriteSql(0, "BEGIN PESSIMISTIC;", test_result_set, txn_id, test_process_file)) {
+                        goto jump;
+                    }
+                } else {
+                    if (!db_connector.SQLStartTxn(txn_id, sql_id, test_process_file)) {
+                        goto jump;
+                    }
+                    // set pg lock timeout
+                    if (FLAGS_db_type == "pg") {
+                        std::string sql_timeout = "SET LOCAL lock_timeout = '" + FLAGS_timeout + "s';";
+                        if (!db_connector.ExecWriteSql(1024, sql_timeout, test_result_set, txn_id, test_process_file)) {
+                            goto jump;
+                        }
+                    }
+                    // // oracle
+                    // if (FLAGS_db_type == "oracle") {
+                    //     std::string sql_timeout = "alter session set ddl_lock_timeout = " + FLAGS_timeout + ";";
+                    //     std::cout << " sql: " << sql_timeout << std::endl;
+                    //     if (!db_connector.ExecWriteSql(1024, sql_timeout, test_result_set, txn_id, test_process_file)) {
+                    //         goto jump;
+                    //     }
+                    // }
+                    // // alter session set ddl_lock_timeout = 5
+
+                }
+            } else {
+                if (FLAGS_db_type == "crdb") {
+                    if (!db_connector.ExecWriteSql(0, "BEGIN TRANSACTION;", test_result_set, txn_id, test_process_file)) {
+                        goto jump;
+                    }
+                } else {
+                    if (!db_connector.ExecWriteSql(0, "BEGIN;", test_result_set, txn_id, test_process_file)) {
+                        goto jump;
+                    }
+                }
+            }
+        } else if (index_commit != sql.npos || index_commit_1 != sql.npos) {
+            if (FLAGS_db_type != "crdb") {
+                if (!db_connector.SQLEndTnx("commit", txn_id, sql_id, test_result_set, FLAGS_db_type, test_process_file)) {
+                    goto jump;
+                }
+            } else {
+                if (!db_connector.ExecWriteSql(0, "COMMIT TRANSACTION;", test_result_set, txn_id, test_process_file)) {
+                    goto jump;
+                }
+            }
+        } else if (index_rollback != sql.npos || index_rollback_1 != sql.npos) {
+            if (!db_connector.SQLEndTnx("rollback", txn_id, sql_id, test_result_set, FLAGS_db_type, test_process_file)) {
+                goto jump;
+            }
+        } else {
+            if (!db_connector.ExecWriteSql(sql_id, sql, test_result_set, txn_id, test_process_file)) {
+                goto jump;
+            }
+        }
+        
+        // mutex_txn[txn_id]->unlock(); 
+    }
+    pthread_mutex_unlock(mutex_txn[txn_id]);
+    return true;
+jump:
+    pthread_mutex_unlock(mutex_txn[txn_id]);
+    // mutex_txn[txn_id]->unlock(); 
+    return false;
+    
+
+};
 
 bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& test_result_set, DBConnector db_connector) {
-    std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType() + "_" + FLAGS_isolation + ".txt";
+    std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType()  + ".txt";
+    // std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType() + "_" + FLAGS_isolation + ".txt";
     std::cout << test_process_file << std::endl;
     std::ifstream test_process_tmp(test_process_file);
     if (test_process_tmp) {
@@ -68,103 +246,198 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     std::unordered_map<int, std::vector<std::string>> cur_result_set;
     std::unordered_map<int, std::string> sql_map;
     std::string table_name;
-    int sql_id_old;
-    for (auto& txn_sql : txn_sql_list) {
-        int sql_id = txn_sql.SqlId();
-        int txn_id = txn_sql.TxnId();
-        std::string sql = txn_sql.Sql();
-        sql_map[sql_id] = sql;
+    
 
-        std::string ret_type = test_result_set.ResultType();
-        auto index_T = ret_type.find("Timeout");
-        auto index_R = ret_type.find("Rollback");
-        if (index_T != ret_type.npos || index_R != ret_type.npos) {
-            for (int i = 0; i < FLAGS_conn_pool_size; i++) {
-                if (FLAGS_db_type != "ob") {
-                    if (FLAGS_db_type == "crdb") {
-                        db_connector.ExecWriteSql(1024, "ROLLBACK TRANSACTION", test_result_set, i + 1);
-                    } else {
-                        db_connector.SQLEndTnx("rollback", i + 1, 1024, test_result_set, FLAGS_db_type);
-                    }
-                }
-            }
-            break;
-        }
+    std::vector<std::vector<TxnSql>> init_group;
+    std::vector<std::vector<TxnSql>> split_groups;
+    std::vector<TxnSql> group;
 
-        auto index_read = sql.find("SELECT");
-        auto index_read_1 = sql.find("select");
-        auto index_begin = sql.find("BEGIN");
-        auto index_begin_1 = sql.find("begin");
-        auto index_commit = sql.find("COMMIT");
-        auto index_commit_1 = sql.find("commit");
-        auto index_rollback = sql.find("ROLLBACK");
-        auto index_rollback_1 = sql.find("rollback");
+    // for(int i = 0; i != txn_sql_list.size(); i++) {
+    //     std::cout << txn_sql_list[i].SqlId() <<  std::endl;
+    // }
 
-        if (sql_id == 1 && sql_id_old == 0) {
-            std::cout << "" << std::endl;
-            test_process << "" << std::endl;
-            std::cout << dash + test_sequence.TestCaseType() + " test run" + dash << std::endl;
-            test_process << dash + test_sequence.TestCaseType() + " test run" + dash << std::endl;
-        }
-        if (index_read != sql.npos || index_read_1 != sql.npos) {
-            if (!db_connector.ExecReadSql2Int(sql_id, sql, test_result_set, cur_result_set, txn_id, test_sequence.ParamNum(), test_process_file)) {
-                return false;
+    // std::cout << " SQLID: " << txn_sql_list[0].SqlId() << " TXNID: " <<  txn_sql_list[0].TxnId() << " SQL: " << txn_sql_list[0].Sql() <<  std::endl;
+    int txn_id_old;
+    int thread_cnt = 0;
+    for (auto& txn_sql : txn_sql_list) {   
+        // split into anther group
+        if (txn_sql.SqlId() == 1 || txn_sql.TxnId() != txn_id_old){
+            // put into init group
+            if (txn_sql.SqlId() == 1) {
+                init_group.push_back(group);
+                group.clear();
             }
-        } else if (index_begin != sql.npos || index_begin_1 != sql.npos) {
-            if (FLAGS_db_type != "crdb" && FLAGS_db_type != "ob") {
-                if (FLAGS_db_type == "tidb") {
-                    if (!db_connector.ExecWriteSql(0, "BEGIN PESSIMISTIC;", test_result_set, txn_id)) {
-                        return false;
-                    }
-                } else {
-                    if (!db_connector.SQLStartTxn(txn_id, sql_id, test_process_file)) {
-                        return false;
-                    }
-                    // set pg lock timeout
-                    if (FLAGS_db_type == "pg") {
-                        std::string sql_timeout = "SET LOCAL lock_timeout = '" + FLAGS_timeout + "s';";
-                        if (!db_connector.ExecWriteSql(1024, sql_timeout, test_result_set, txn_id)) {
-                            return false;
-                        }
-                    }
-                }
-            } else {
-                if (FLAGS_db_type == "crdb") {
-                    if (!db_connector.ExecWriteSql(0, "BEGIN TRANSACTION;", test_result_set, txn_id, test_process_file)) {
-                        return false;
-                    }
-                } else {
-                    if (!db_connector.ExecWriteSql(0, "BEGIN;", test_result_set, txn_id, test_process_file)) {
-                        return false;
-                    }
-                }
-            }
-        } else if (index_commit != sql.npos || index_commit_1 != sql.npos) {
-            if (FLAGS_db_type != "crdb") {
-                if (!db_connector.SQLEndTnx("commit", txn_id, sql_id, test_result_set, test_process_file)) {
-                    return false;
-                }
-            } else {
-                if (!db_connector.ExecWriteSql(0, "COMMIT TRANSACTION;", test_result_set, txn_id, test_process_file)) {
-                    return false;
-                }
-            }
-        } else if (index_rollback != sql.npos || index_rollback_1 != sql.npos) {
-            if (!db_connector.SQLEndTnx("rollback", txn_id, sql_id, test_result_set, test_process_file)) {
-                return false;
-            }
-        } else {
-            if (!db_connector.ExecWriteSql(sql_id, sql, test_result_set, txn_id, test_process_file)) {
-                return false;
+            // put into parallel groups
+            else{
+                split_groups.push_back(group);
+                group.clear();
+                thread_cnt = thread_cnt + 1;
             }
         }
-    sql_id_old = sql_id;
+        sql_map[txn_sql.SqlId()] = txn_sql.Sql();;
+        // add into the same group
+        TxnSql txn_sql1(txn_sql.SqlId(), txn_sql.TxnId(), txn_sql.Sql(), txn_sql.TestCaseType());
+        group.push_back(txn_sql1);
+        txn_id_old = txn_sql.TxnId();
     }
+    split_groups.push_back(group);
+    thread_cnt = thread_cnt + 1;
+    
+    for (auto& group : init_group) {
+        // for (auto& txn_sql : group) {   
+        //     std::cout << " SQLID: " << txn_sql.SqlId() << " TXNID: " <<  txn_sql.TxnId() << " SQL: " << txn_sql.Sql() <<  std::endl;
+        // }
+        // std::cout << std::endl;
+
+        if (! MultiThreadExecution(group, test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
+
+    }
+
+    std::vector<std::thread> threads;
+
+
+    for (int i = 0; i < thread_cnt; i++) {
+        // if (thread_cnt-1==i){
+        //     threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), std::ref(test_process_file), std::ref(cur_result_set), i*2+1+1));
+        // } else{
+        //     threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), std::ref(test_process_file), std::ref(cur_result_set), i*2+1));
+        // }
+        threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), test_process_file, std::ref(cur_result_set), i+1));
+    }
+
+    for (auto &th : threads) {
+        th.join();
+        // th.detach();
+    }
+
+    // threads[thread_cnt-1].detach();
+
+    // std::cout <<"wait too long"<<std::endl;
+
+    // float wait_second = 0.01;
+    // float wait_nanosecond = 0;
+    // for (int thread_id=0; thread_id<FLAGS_conn_pool_size; thread_id++) {
+    //     if (!try_lock_wait(wait_second, wait_nanosecond, thread_id))
+    //     {
+    //             std::string blank(blank_base*(thread_id - 1), ' ');
+    //             std::cout<< blank <<"wait too long"<<std::endl;
+    //             return false;
+    //     }
+    // }
+
+    usleep(2000000);
+    // std::cout<< "At time: " << thread_cnt+2 << "s" << std::endl;
+    // for (auto& group : split_groups) {
+    //     // for (auto& txn_sql : group) {   
+    //     //     std::cout << " SQLID: " << txn_sql.SqlId() << " TXNID: " <<  txn_sql.TxnId() << " SQL: " << txn_sql.Sql() <<  std::endl;
+    //     // }
+    //     // std::cout << std::endl;
+
+    //     if (! MultiThreadExecution(group, test_sequence, test_result_set, db_connector, test_process_file, cur_result_set)) {return false;}
+
+    // }
+
+    // for (auto& txn_sql : txn_sql_list) {
+
+    //     std::cout << " SQLID: " << txn_sql.SqlId() << " TXNID: " <<  txn_sql.TxnId() << " SQL: " << txn_sql.Sql() <<  std::endl;
+    //     std::cout << std::endl;
+
+    //     int sql_id = txn_sql.SqlId();
+    //     int txn_id = txn_sql.TxnId();
+    //     std::string sql = txn_sql.Sql();
+    //     sql_map[sql_id] = sql;
+
+    //     std::string ret_type = test_result_set.ResultType();
+    //     auto index_T = ret_type.find("Timeout");
+    //     auto index_R = ret_type.find("Rollback");
+    //     if (index_T != ret_type.npos || index_R != ret_type.npos) {
+    //         for (int i = 0; i < FLAGS_conn_pool_size; i++) {
+    //             if (FLAGS_db_type != "ob") {
+    //                 if (FLAGS_db_type == "crdb") {
+    //                     db_connector.ExecWriteSql(1024, "ROLLBACK TRANSACTION", test_result_set, i + 1);
+    //                 } else {
+    //                     db_connector.SQLEndTnx("rollback", i + 1, 1024, test_result_set, FLAGS_db_type);
+    //                 }
+    //             }
+    //         }
+    //         break;
+    //     }
+
+    //     auto index_read = sql.find("SELECT");
+    //     auto index_read_1 = sql.find("select");
+    //     auto index_begin = sql.find("BEGIN");
+    //     auto index_begin_1 = sql.find("begin");
+    //     auto index_commit = sql.find("COMMIT");
+    //     auto index_commit_1 = sql.find("commit");
+    //     auto index_rollback = sql.find("ROLLBACK");
+    //     auto index_rollback_1 = sql.find("rollback");
+
+    //     if (sql_id == 1) {
+    //         std::cout << "" << std::endl;
+    //         test_process << "" << std::endl;
+    //         std::cout << dash + test_sequence.TestCaseType() + " test run" + dash << std::endl;
+    //         test_process << dash + test_sequence.TestCaseType() + " test run" + dash << std::endl;
+    //     }
+    //     if (index_read != sql.npos || index_read_1 != sql.npos) {
+    //         if (!db_connector.ExecReadSql2Int(sql_id, sql, test_result_set, cur_result_set, txn_id, test_sequence.ParamNum(), test_process_file)) {
+    //             return false;
+    //         }
+    //     } else if (index_begin != sql.npos || index_begin_1 != sql.npos) {
+    //         if (FLAGS_db_type != "crdb" && FLAGS_db_type != "ob") {
+    //             if (FLAGS_db_type == "tidb") {
+    //                 if (!db_connector.ExecWriteSql(0, "BEGIN PESSIMISTIC;", test_result_set, txn_id)) {
+    //                     return false;
+    //                 }
+    //             } else {
+    //                 if (!db_connector.SQLStartTxn(txn_id, sql_id, test_process_file)) {
+    //                     return false;
+    //                 }
+    //                 // set pg lock timeout
+    //                 if (FLAGS_db_type == "pg") {
+    //                     std::string sql_timeout = "SET LOCAL lock_timeout = '" + FLAGS_timeout + "s';";
+    //                     if (!db_connector.ExecWriteSql(1024, sql_timeout, test_result_set, txn_id)) {
+    //                         return false;
+    //                     }
+    //                 }
+    //             }
+    //         } else {
+    //             if (FLAGS_db_type == "crdb") {
+    //                 if (!db_connector.ExecWriteSql(0, "BEGIN TRANSACTION;", test_result_set, txn_id, test_process_file)) {
+    //                     return false;
+    //                 }
+    //             } else {
+    //                 if (!db_connector.ExecWriteSql(0, "BEGIN;", test_result_set, txn_id, test_process_file)) {
+    //                     return false;
+    //                 }
+    //             }
+    //         }
+    //     } else if (index_commit != sql.npos || index_commit_1 != sql.npos) {
+    //         if (FLAGS_db_type != "crdb") {
+    //             if (!db_connector.SQLEndTnx("commit", txn_id, sql_id, test_result_set, test_process_file)) {
+    //                 return false;
+    //             }
+    //         } else {
+    //             if (!db_connector.ExecWriteSql(0, "COMMIT TRANSACTION;", test_result_set, txn_id, test_process_file)) {
+    //                 return false;
+    //             }
+    //         }
+    //     } else if (index_rollback != sql.npos || index_rollback_1 != sql.npos) {
+    //         if (!db_connector.SQLEndTnx("rollback", txn_id, sql_id, test_result_set, test_process_file)) {
+    //             return false;
+    //         }
+    //     } else {
+    //         if (!db_connector.ExecWriteSql(sql_id, sql, test_result_set, txn_id, test_process_file)) {
+    //             return false;
+    //         }
+    //     }
+
+    // }
+
     if (test_result_set.ResultType() == "") {
         if (result_handler.IsTestExpectedResult(cur_result_set, test_result_set.ExpectedResultSetList(), sql_map, test_process_file)) {
             test_result_set.SetResultType("Avoid\nReason: Data anomaly did not occur and the data is consistent");
         } else {
-            test_result_set.SetResultType("Exception\nReason: Data anomaly is not recognized by the database, resulting in data inconsistencies");
+            test_result_set.SetResultType("Anomaly\nReason: Data anomaly is not recognized by the database, resulting in data inconsistencies");
         }
     }
     if(!outputter.WriteResultType(test_result_set.ResultType(), test_process_file)) {
@@ -175,16 +448,23 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
 
 int main(int argc, char* argv[]) {
     // parse gflags args
-    google::ParseCommandLineFlags(&argc, &argv, true);
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
     std::cout << "input param-> " << std::endl;
     std::cout << "  db_type: " + FLAGS_db_type << std::endl;
     std::cout << "  user: " + FLAGS_user << std::endl;
     std::cout << "  passwd: " + FLAGS_passwd << std::endl;
     std::cout << "  isolation: " + FLAGS_isolation << std::endl;
+    // // mutex for txn
+    // //for(int i=0;i<FLAGS_conn_pool_size;++i) mutex_txn[i] = new std::mutex();
+    for(int i=0;i<FLAGS_conn_pool_size;++i) {
+        mutex_txn[i] = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        pthread_mutex_init(mutex_txn[i], NULL);
+    }
     // read test sequence
     CaseReader case_reader;
     std::string test_path_base = "t/";
-    std::string test_path = test_path_base + FLAGS_db_type;
+    // std::string test_path = test_path_base + FLAGS_db_type;
+    std::string test_path = test_path_base + "pg";
     if (!case_reader.InitTestSequenceAndTestResultSetList(test_path, FLAGS_db_type)) {
         std::cout << "init test sequence and test result set failed" << std::endl;
     }
@@ -207,7 +487,8 @@ int main(int argc, char* argv[]) {
             db_connector.ExecWriteSql(0, "create database if not exists " + FLAGS_db_name, test_rs__, 1);
             db_connector.ExecWriteSql(0, "use " + FLAGS_db_name, test_rs__, 1);
         }
-    }*/
+    }
+    */
 
     // set TXN_ISOLATION
     // crdb has only one isolation level, which is serializable by default
@@ -233,7 +514,7 @@ int main(int argc, char* argv[]) {
         mkdir(FLAGS_db_type.c_str(), S_IRWXU);
     }
     // create isolation dir
-    std::vector<std::string> iso_list = {"read-uncommitted", "read-committed", "repeatable-read", "serializable"};
+    std::vector<std::string> iso_list = {"read-uncommitted", "read-committed", "repeatable-read", "serializable", "result_summary"};
     for (auto iso : iso_list) {
         std::string iso_dir = FLAGS_db_type + "/" + iso;
         if (access(iso_dir.c_str(), 0) == -1) {
@@ -244,16 +525,28 @@ int main(int argc, char* argv[]) {
     JobExecutor job_executor;
     int len = test_sequence_list.size();
     for (int i = 0; i < len; i++) {
+
         if (!job_executor.ExecTestSequence(test_sequence_list[i], test_result_set_list[i], db_connector)) {
             std::cout << "test sequence " + test_sequence_list[i].TestCaseType() + " execute failed" << std::endl;
         } else {
             std::string result_type = test_result_set_list[i].ResultType();
             std::cout << "Test Result: " << result_type + "\n" << std::endl;
         }
+        // restart db connection
+        // db_connector.ReleaseConn();
+        // if (!db_connector.InitDBConnector(FLAGS_user, FLAGS_passwd, FLAGS_db_type, FLAGS_conn_pool_size)) {
+        //     std::cout << "init db_connector failed" << std::endl;
+        // }
+        // for(int i=0;i<FLAGS_conn_pool_size;++i) {
+        //     pthread_mutex_init(mutex_txn[i], NULL);
+        // }
     }
-    std::string ret_file = "./" + FLAGS_db_type + "/" + FLAGS_db_type + "_" + FLAGS_isolation + "_total-result.txt";
+    // std::string ret_file = "./" + FLAGS_db_type + "/" + FLAGS_db_type + "_" + FLAGS_isolation + "_total-result.txt";
+    std::string ret_file = "./" + FLAGS_db_type + "/result_summary" + "/" +  FLAGS_isolation + "_total-result.txt";
     outputter.WriteResultTotal(test_result_set_list, ret_file);
     db_connector.ReleaseConn();
 
+    // mutex for txn
+    // for(int i=0;i<FLAGS_conn_pool_size;++i) delete mutex_txn[i];
     return 0;
 }

@@ -72,7 +72,8 @@ std::pair<TestSequence, TestResultSet> CaseReader::TestSequenceAndTestResultSetF
     const auto index_second = test_file.rfind("/");
     const auto end = test_file.find(".");
     std::string test_case = test_file.substr(index_second + 1, end - index_second - 1);
-    std::string test_case_type = db_type + "_" + test_case;
+    // std::string test_case_type = db_type + "_" + test_case;
+    std::string test_case_type = test_case;
     std::string line;
     TestSequence test_sequence(test_case_type);
     TestResultSet test_result_set(test_case_type);
@@ -235,7 +236,10 @@ bool ResultHandler::IsTestExpectedResult(std::unordered_map<int, std::vector<std
 void Outputter::WriteResultTotal(std::vector<TestResultSet> test_result_set_list, const std::string& ret_file) {
     std::ofstream out(ret_file);
     for (auto& test_result_set : test_result_set_list) {
-        out << test_result_set.TestCaseType() + ": " << test_result_set.ResultType() << std::endl;
+        // return result without reason
+        auto result = test_result_set.ResultType();
+        result = result.substr(0, result.find("\n"));
+        out << test_result_set.TestCaseType() + ": " << result << std::endl << std::endl;
     }
     out.close();
 }

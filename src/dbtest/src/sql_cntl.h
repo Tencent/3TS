@@ -43,7 +43,7 @@ public:
                              (SQLCHAR*)user.c_str(), SQL_NTS, 
                              (SQLCHAR*)passwd.c_str(), SQL_NTS);
 
-	        std::string err_info_stmt = DBConnector::SqlExecuteErr(1, "connnected", "dbc", m_hDatabaseConnection, ret);
+	        std::string err_info_stmt = DBConnector::SqlExecuteErr(1, 1024, "connnected", "dbc", m_hDatabaseConnection, ret);
 	        if (err_info_stmt != "") {
                 return false;
             }
@@ -66,7 +66,7 @@ public:
 
     void ErrInfoWithStmt(std::string handle_type, SQLHANDLE& handle, SQLCHAR ErrInfo[], SQLCHAR SQLState[]);
     std::vector<SQLHDBC> DBConnPool() {return conn_pool_;};
-    std::string SqlExecuteErr(int session_id, const std::string& sql, std::string handle_type, SQLHANDLE& handle, SQLRETURN ret, std::string test_process_file="");
+    std::string SqlExecuteErr(int session_id, int sql_id, const std::string& sql, std::string handle_type, SQLHANDLE& handle, SQLRETURN ret, std::string test_process_file="");
 
     bool SQLEndTnx(std::string opt, int session_id, int sql_id, TestResultSet& test_result_set, const std::string& db_type, std::string test_process_file="");
     bool SQLStartTxn(int session_id, int sql_id, std::string test_process_file="");

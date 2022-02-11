@@ -9,6 +9,58 @@
  *
  */
 #include "sql_cntl.h"
+#include <time.h>
+#include <chrono>
+#include <string>
+
+std::string get_current_time(){
+
+    // date
+    time_t d = time(0);
+    tm* d_now = std::localtime(&d);
+    // std::cout << (d_now->tm_year + 1900) << '-' 
+    //      << (d_now->tm_mon + 1) << '-'
+    //      <<  d_now->tm_mday
+    //      << "\n";
+
+    // time
+    std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
+    auto duration = now.time_since_epoch();
+
+    typedef std::chrono::duration<int, std::ratio_multiply<std::chrono::hours::period, std::ratio<8>
+    >::type> Days; /* UTC: +8:00 */
+
+    Days days = std::chrono::duration_cast<Days>(duration);
+        duration -= days;
+    auto hours = std::chrono::duration_cast<std::chrono::hours>(duration);
+        duration -= hours;
+    auto minutes = std::chrono::duration_cast<std::chrono::minutes>(duration);
+        duration -= minutes;
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(duration);
+        duration -= seconds;
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+        duration -= milliseconds;
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration);
+        duration -= microseconds;
+    auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
+
+
+    // return std::to_string(hours.count()) +':'+ std::to_string(minutes.count()) +":"+ std::to_string(seconds.count())+":"
+    //         + std::to_string(milliseconds.count()) +":"+ std::to_string(microseconds.count()) +":"+ std::to_string(nanoseconds.count());
+    return  std::to_string(d_now->tm_year + 1900) + "-" + std::to_string(d_now->tm_mon + 1) + "-" + std::to_string(d_now->tm_mday) 
+            + " " +
+            std::to_string(d_now->tm_hour) +':'+ std::to_string(minutes.count()) +":"+ std::to_string(seconds.count())+":"
+            + std::to_string(milliseconds.count()) +':'+ std::to_string(microseconds.count());
+
+}
+
+bool replace(std::string& str, const std::string& from, const std::string& to) {
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
 
 std::string SQLCHARToStr(SQLCHAR* ch) {
     char* ch_char = (char*)ch;
@@ -28,7 +80,8 @@ void DBConnector::ErrInfoWithStmt(std::string handle_type, SQLHANDLE& handle, SQ
     }
 }
 
-std::string DBConnector::SqlExecuteErr(int session_id, const std::string& sql, std::string handle_type, SQLHANDLE& handle, SQLRETURN ret, std::string test_process_file) {
+std::string DBConnector::SqlExecuteErr(int session_id, int sql_id, const std::string& sql, std::string handle_type, SQLHANDLE& handle, SQLRETURN ret, std::string test_process_file) {
+    
     std::ofstream test_process(test_process_file, std::ios::app);
     std::string blank(blank_base*(session_id - 1), ' ');
     if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
@@ -39,13 +92,29 @@ std::string DBConnector::SqlExecuteErr(int session_id, const std::string& sql, s
         DBConnector::ErrInfoWithStmt(handle_type, handle, ErrInfo, SQLState);
         std::string err_info = SQLCHARToStr(ErrInfo);
 
+        // replace "\n" to " "
+        // replace(err_info, "\n", " ");
+        // std::string s = "one two three";
+        // get error information of first line 
+        err_info = err_info.substr(0, err_info.find("\n"));
+
         auto index_not_exist = err_info.find("not exist");
         auto index_crdb_rollback = sql.find("ROLLBACK TRANSACTION");
-        if (index_not_exist == err_info.npos && index_crdb_rollback == sql.npos) {
-            std::cout << blank + "execute sql: '" + sql + "' failed, reason: " << ErrInfo << " errcode: " << SQLState << std::endl;
-            if (!test_process) {
-                test_process << blank + "execute sql: '" + sql + "' failed, reason: " << ErrInfo << " errcode: " << SQLState << std::endl;
-            }
+        if (sql_id != 1024 && index_not_exist == err_info.npos && index_crdb_rollback == sql.npos) {
+            usleep(100000*sql_id^3);
+            std::cout << blank + "Q" + std::to_string(sql_id) +  " failed reason: " << err_info << " errcode: " << SQLState << std::endl;
+            test_process << blank + "Q" + std::to_string(sql_id) +  " failed reason: " << err_info << " errcode: " << SQLState << std::endl;
+            // if (!test_process) {
+            //     test_process << blank + "execute sql: '" + sql + "' failed, reason: " << ErrInfo << " errcode: " << SQLState << std::endl;
+            // }
+            std::string output_time_info = blank + "Q" + std::to_string(sql_id) + " failed at: " + get_current_time() ;
+            std::cout << output_time_info << std::endl;
+            std::ofstream test_process(test_process_file, std::ios::app);
+            test_process << output_time_info << std::endl;
+            // if (!test_process) {
+            //     test_process << output_time_info << std::endl;
+            // }
+            return err_info;
         } else {
             return "";
         }
@@ -67,10 +136,10 @@ std::string DBConnector::SqlExecuteErr(int session_id, const std::string& sql, s
         std::cout << blank + "SQL_INVALID_HANDLE" << std::endl;
         test_process << blank + "SQL_INVALID_HANDLE" << std::endl;
         return "SQL_INVALID_HANDLE";
-    } else if (ret == SQL_PARAM_DATA_AVAILABLE) {
-        std::cout << blank + "SQL_PARAM_DATA_AVAILABLE" << std::endl;
-        test_process << blank + "SQL_PARAM_DATA_AVAILABLE" << std::endl;
-        return "SQL_PARAM_DATA_AVAILABLE";
+    } else if (ret == SQL_PARAM_DIAG_UNAVAILABLE) {
+        std::cout << blank + "SQL_PARAM_DIAG_UNAVAILABLE" << std::endl;
+        test_process << blank + "SQL_PARAM_DIAG_UNAVAILABLE" << std::endl;
+        return "SQL_PARAM_DIAG_UNAVAILABLE";
     } else {
         std::cout << blank + "execute sql: '" + sql + "' failed, unknow error" << std::endl;
         test_process << blank + "execute sql: '" + sql + "' failed, unknow error" << std::endl;
@@ -84,29 +153,33 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     SQLHDBC m_hDatabaseConnection = DBConnector::conn_pool_[session_id - 1];
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDatabaseConnection, &m_hStatement);
-    std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, sql, "stmt", m_hStatement, ret);
+    std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
     if (!err_info_stmt.empty()) {
         std::cout << "get stmt failed in DBConnector::ExecWriteSql" << std::endl;
+        std::cout << __TIMESTAMP__ << std::endl;
         return false;
     }
     // execute sql
     if (sql_id != 1024) {
         std::string blank(blank_base*(session_id - 1), ' ');
-	    std::string output_info = blank + "T" + std::to_string(session_id) + " execute sql: '" + sql + "'";
+	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute sql: '" + sql + "'";
         std::cout << output_info << std::endl;
         if (!test_process_file.empty()) {
             std::ofstream test_process(test_process_file, std::ios::app);
 	        test_process << output_info << std::endl;
-        }
+        }    
     }
     ret = SQLExecDirect(m_hStatement, (SQLCHAR*)sql.c_str(), SQL_NTS);
-    std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql, "stmt", m_hStatement, ret, test_process_file);
+    std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
+
     if (!err_info_sql.empty()) {
         auto index_timeout1 = err_info_sql.find("timeout");
         auto index_timeout2 = err_info_sql.find("Timeout");
 	    auto index_timeout3 = err_info_sql.find("time out");
         if (index_timeout1 != err_info_sql.npos || index_timeout2 != err_info_sql.npos || index_timeout3 != err_info_sql.npos) {
-            test_result_set.SetResultType("Timeout\nReason: Transaction execution timeout");
+            if (test_result_set.ResultType() == ""){
+                test_result_set.SetResultType("Timeout\nReason: Transaction execution timeout");
+            }
             return true;
         } else {
 	    if (test_result_set.ResultType().empty()) {
@@ -117,6 +190,15 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
         //return false;
     }
     // get error info
+    else{
+        if (sql_id != 1024  && sql_id !=0) {
+            std::string blank(blank_base*(session_id - 1), ' ');
+            std::string output_time_info = blank + "Q" + std::to_string(sql_id) + " finished at: " + get_current_time() ;
+            std::cout << output_time_info << std::endl;
+            std::ofstream test_process(test_process_file, std::ios::app);
+            test_process << output_time_info << std::endl;
+        }
+    }
     return true;
 }
 
@@ -130,7 +212,7 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
     std::vector<std::unordered_map<int, std::vector<std::string>>> expected_result_set_list = test_result_set.ExpectedResultSetList();
 
     ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDatabaseConnection, &m_hStatement);
-    std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, sql, "stmt", m_hStatement, ret);
+    std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
     if (!err_info_stmt.empty()) {
         std::cout << "get stmt failed in DBConnector::ExecReadSql2Int" << std::endl;
         return false;
@@ -139,7 +221,7 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
     SQLCHAR value[param_num][20] = {{0}};
     // execute sql
     std::string blank(blank_base*(session_id - 1), ' ');
-    std::string output_info = blank + "T" + std::to_string(session_id) + " execute sql: '" + sql + "'";
+    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute sql: '" + sql + "'";
     std::cout << output_info << std::endl;
     if (!test_process_file.empty()) {
 	    std::ofstream test_process(test_process_file, std::ios::app);
@@ -147,8 +229,9 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
     }
     ret = SQLExecDirect(m_hStatement, (SQLCHAR*)sql.c_str(), SQL_NTS);
     // parse result
-    std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql, "stmt", m_hStatement, ret, test_process_file);
+    std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
     if(err_info_sql.empty()) {
+
         // bind column data
         for (int i = 0; i < param_num; i++) {
             SQLBindCol(m_hStatement, i + 1, SQL_C_CHAR, (void*)value[i], sizeof(value[i]), &length);
@@ -179,18 +262,26 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
             cur_result_set[sql_id].push_back("null");
         }
         outputter.PrintAndWriteTxnSqlResult(cur_result_set[sql_id], expected_result_set_list, sql_id, sql, session_id, test_process_file);
+        if (sql_id != 1024 && sql_id !=0) {
+            std::string output_time_info = blank + "Q" + std::to_string(sql_id) + " finished at: " + get_current_time() ;
+            std::cout << output_time_info << std::endl;
+            std::ofstream test_process(test_process_file, std::ios::app);
+            test_process << output_time_info << std::endl;
+        }
         return true;
     } else {
         auto index_timeout1 = err_info_sql.find("timeout");
 	auto index_timeout2 = err_info_sql.find("Timeout");
 	auto index_timeout3 = err_info_sql.find("time out");
         if (index_timeout1 != err_info_sql.npos || index_timeout2 != err_info_sql.npos || index_timeout3 != err_info_sql.npos) {
-            test_result_set.SetResultType("Timeout\nReason: Transaction execution timeout");
+            if (test_result_set.ResultType() == ""){
+                test_result_set.SetResultType("Timeout\nReason: Transaction execution timeout");
+            }
             return true;
         } else {
             if (test_result_set.ResultType().empty()) { 
                 std::string info = "Rollback\nReason: " + err_info_sql;
-	        test_result_set.SetResultType(info);
+	            test_result_set.SetResultType(info);
             }
         }
         //return false;
@@ -201,7 +292,7 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
 bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestResultSet& test_result_set, const std::string& db_type, std::string test_process_file) {
     if (sql_id != 1024) {
         std::string blank(blank_base*(session_id - 1), ' ');
-        std::string output_info = blank + "T" + std::to_string(session_id) + " execute opt: '" + opt + "'";
+        std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '" + opt + "'";
         std::cout << output_info << std::endl;
         if (!test_process_file.empty()) {
 	        std::ofstream test_process(test_process_file, std::ios::app);
@@ -219,11 +310,20 @@ bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestRes
             std::cout << "unknow txn opt" << std::endl;
         }
 
-	std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, opt, "dbc", m_hDatabaseConnection, ret, test_process_file);
+        std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql_id, opt, "dbc", m_hDatabaseConnection, ret, test_process_file);
         if (!err_info_sql.empty()) {
             if (test_result_set.ResultType().empty()) {
                 std::string info = "Rollback\n" + err_info_sql;
                 test_result_set.SetResultType(info);
+            }
+        }
+        else{
+            if (sql_id != 1024 && sql_id !=0) {
+                std::string blank(blank_base*(session_id - 1), ' ');
+                std::string output_time_info = blank + "Q" + std::to_string(sql_id) + " finished at: " + get_current_time() ;
+                std::cout << output_time_info << std::endl;
+                std::ofstream test_process(test_process_file, std::ios::app);
+                test_process << output_time_info << std::endl;
             }
         }
     } else {
@@ -240,7 +340,7 @@ bool DBConnector::SQLStartTxn(int session_id, int sql_id, std::string test_proce
     std::ofstream test_process(test_process_file, std::ios::app);
     if(!DBConnector::SetAutoCommit(m_hDatabaseConnection, 0)) {
         std::string blank(blank_base*(session_id - 1), ' ');
-	    std::string output_info = blank + "T" + std::to_string(session_id) + " start txn failed";
+	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " begin failed";
         std::cout << output_info << std::endl;
         if (!test_process) {
             test_process << output_info << std::endl;
@@ -248,11 +348,17 @@ bool DBConnector::SQLStartTxn(int session_id, int sql_id, std::string test_proce
         return false;
     } else {
         std::string blank(blank_base*(session_id - 1), ' ');
-	    std::string output_info = blank + "T" + std::to_string(session_id) + " start txn success";
+	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '"+"begin'";
         std::cout << output_info << std::endl;
-	if (!test_process) {
-	    test_process << output_info << std::endl;
-	}
+        test_process << output_info << std::endl;
+	// if (!test_process) {
+	//     test_process << output_info << std::endl;
+	// }
+    if (sql_id != 1024 && sql_id !=0) {
+        std::string output_time_info = blank + "Q" + std::to_string(sql_id) + " finished at: " + get_current_time() ;
+        std::cout << output_time_info << std::endl;
+        test_process << output_time_info << std::endl;
+    }
         return true;
     }
 }
@@ -305,7 +411,7 @@ bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string o
             std::cout << "unknow isolation level" << std::endl;
             return false;
         }
-        std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, "set isolation", "dbc", m_hDatabaseConnection, ret, test_process_file);
+        std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, 1024, "set isolation", "dbc", m_hDatabaseConnection, ret, test_process_file);
         if (!err_info_stmt.empty()) {
             return false;
         }
@@ -321,16 +427,16 @@ bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string o
             std::cout << "unknow isolation level" << std::endl;
             return false;
         }
-	TestResultSet test_result_set;
-	std::string sql;
-	if (db_type == "oracle") {
-	    sql = "alter session set isolation_level =" + iso;
-	} else if (db_type == "ob") {
-	    sql = "set session transaction isolation level " + iso + ";";
-	}
-    	if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
-	    return false;
-	}
+        TestResultSet test_result_set;
+        std::string sql;
+        if (db_type == "oracle") {
+            sql = "alter session set isolation_level =" + iso;
+        } else if (db_type == "ob") {
+            sql = "set session transaction isolation level " + iso + ";";
+        }
+        if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+            return false;
+        }
     }
     return true;
 }
