@@ -92,6 +92,7 @@ public:
     double txn_index_time;
     double txn_validate_time;
     double txn_cleanup_time;
+    double bkt_trav_len;
     // trans
     double trans_total_run_time=0;
     double trans_process_time=0;

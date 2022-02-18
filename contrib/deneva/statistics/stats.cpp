@@ -98,6 +98,7 @@ void Stats_thd::clear() {
     txn_index_time=0;
     txn_validate_time=0;
     txn_cleanup_time=0;
+    bkt_trav_len=0;
 
     trans_total_run_time=0;
     trans_process_time=0;
@@ -510,9 +511,11 @@ void Stats_thd::print(FILE * outf, bool prog) {
     ",txn_manager_time=%f"
     ",txn_index_time=%f"
     ",txn_validate_time=%f"
-        ",txn_cleanup_time=%f",
+    ",txn_cleanup_time=%f"
+    ",bkt_trav_len=%f",
         ts_alloc_time / BILLION, abort_time / BILLION, txn_manager_time / BILLION,
-        txn_index_time / BILLION, txn_validate_time / BILLION, txn_cleanup_time / BILLION);
+        txn_index_time / BILLION, txn_validate_time / BILLION, txn_cleanup_time / BILLION,
+        bkt_trav_len);
     // trans
     fprintf(outf,
     ",trans_total_run_time=%f"
@@ -1129,6 +1132,7 @@ void Stats_thd::combine(Stats_thd * stats) {
     txn_index_time+=stats->txn_index_time;
     txn_validate_time+=stats->txn_validate_time;
     txn_cleanup_time+=stats->txn_cleanup_time;
+    bkt_trav_len+=stats->bkt_trav_len;
     // trans
     trans_total_run_time+=stats->trans_total_run_time;
     trans_process_time+=stats->trans_process_time;

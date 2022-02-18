@@ -46,8 +46,8 @@ public:
     void delete_bucket();
     void insert_item(idx_key_t key, itemid_t * item, int part_id);
     void insert_item_nonunique(idx_key_t key, itemid_t * item, int part_id);
-    void read_item(idx_key_t key, itemid_t * &item);
-    void read_item(idx_key_t key, uint32_t count, itemid_t * &item);
+    int read_item(idx_key_t key, itemid_t * &item);
+    int read_item(idx_key_t key, uint32_t count, itemid_t * &item);
     BucketNode *     first_node;
     uint64_t         node_cnt;
     bool             locked;
@@ -62,15 +62,15 @@ public:
     RC             init(int part_cnt,
                     table_t * table,
                     uint64_t bucket_cnt);
-    void    index_delete();
-    void index_reset();
-    bool         index_exist(idx_key_t key); // check if the key exist.
+    void           index_delete();
+    void           index_reset();
+    bool           index_exist(idx_key_t key); // check if the key exist.
     RC             index_insert(idx_key_t key, itemid_t * item, int part_id=-1);
     RC             index_insert_nonunique(idx_key_t key, itemid_t * item, int part_id=-1);
     // the following call returns a single item
-    RC             index_read(idx_key_t key, itemid_t * &item, int part_id=-1);
-    RC             index_read(idx_key_t key, int count, itemid_t * &item, int part_id=-1);
-    RC             index_read(idx_key_t key, itemid_t * &item,
+    int            index_read(idx_key_t key, itemid_t * &item, int part_id=-1);
+    int            index_read(idx_key_t key, int count, itemid_t * &item, int part_id=-1);
+    int            index_read(idx_key_t key, itemid_t * &item,
                             int part_id=-1, int thd_id=0);
 
     // the following call returns a list of items
@@ -90,7 +90,7 @@ private:
 #endif
     }
 
-    BucketHeader **     _buckets;
+    BucketHeader **      _buckets;
     uint64_t             _bucket_cnt;
     uint64_t             _bucket_cnt_per_part;
 };

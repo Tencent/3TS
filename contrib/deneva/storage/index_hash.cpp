@@ -103,51 +103,53 @@ RC IndexHash::index_insert_nonunique(idx_key_t key, itemid_t * item, int part_id
     return rc;
 }
 
-RC IndexHash::index_read(idx_key_t key, itemid_t * &item, int part_id) {
+int IndexHash::index_read(idx_key_t key, itemid_t * &item, int part_id) {
     uint64_t bkt_idx = hash(key);
     assert(bkt_idx < _bucket_cnt_per_part);
     //BucketHeader * cur_bkt = &_buckets[part_id][bkt_idx];
     BucketHeader * cur_bkt = &_buckets[0][bkt_idx];
-    RC rc = RCOK;
+    int traverse_len = 0;
+    //RC rc = RCOK;
     // 1. get the sh latch
 
-    cur_bkt->read_item(key, item);
+    traverse_len = cur_bkt->read_item(key, item);
 
     // 3. release the latch
-    return rc;
+    return traverse_len;
 
 }
 
-RC IndexHash::index_read(idx_key_t key, int count, itemid_t * &item, int part_id) {
+int IndexHash::index_read(idx_key_t key, int count, itemid_t * &item, int part_id) {
     uint64_t bkt_idx = hash(key);
     assert(bkt_idx < _bucket_cnt_per_part);
     //BucketHeader * cur_bkt = &_buckets[part_id][bkt_idx];
     BucketHeader * cur_bkt = &_buckets[0][bkt_idx];
-    RC rc = RCOK;
+    int traverse_len = 0;
+    //RC rc = RCOK;
     // 1. get the sh latch
 
-    cur_bkt->read_item(key, count, item);
+    traverse_len = cur_bkt->read_item(key, count, item);
 
     // 3. release the latch
-    return rc;
+    return traverse_len;
 
 }
 
 
-RC IndexHash::index_read(idx_key_t key, itemid_t * &item,
+int IndexHash::index_read(idx_key_t key, itemid_t * &item,
                         int part_id, int thd_id) {
     uint64_t bkt_idx = hash(key);
     assert(bkt_idx < _bucket_cnt_per_part);
     //BucketHeader * cur_bkt = &_buckets[part_id][bkt_idx];
     BucketHeader * cur_bkt = &_buckets[0][bkt_idx];
-    RC rc = RCOK;
+    int traverse_len = 0;
+    //RC rc = RCOK;
     // 1. get the sh latch
 
-
-    cur_bkt->read_item(key, item);
+    traverse_len = cur_bkt->read_item(key, item);
 
     // 3. release the latch
-    return rc;
+    return traverse_len;
 }
 
 /************** BucketHeader Operations ******************/
@@ -213,21 +215,28 @@ void BucketHeader::insert_item_nonunique(idx_key_t key,
     first_node = new_node;
 }
 
-void BucketHeader::read_item(idx_key_t key, itemid_t *&item) {
+int BucketHeader::read_item(idx_key_t key, itemid_t *&item) {
+    int traverse_len = 0;
+
     BucketNode * cur_node = first_node;
     while (cur_node != NULL) {
-    if (cur_node->key == key) break;
-        cur_node = cur_node->next;
+      if (cur_node->key == key) break;
+      cur_node = cur_node->next;
+      traverse_len++;
     }
     M_ASSERT_V(cur_node != NULL, "Key does not exist! %ld\n",key);
 
     assert(cur_node->key == key);
     item = cur_node->items;
+
+    return traverse_len;
 }
 
-void BucketHeader::read_item(idx_key_t key, uint32_t count, itemid_t *&item) {
+int BucketHeader::read_item(idx_key_t key, uint32_t count, itemid_t *&item) {
     BucketNode * cur_node = first_node;
     uint32_t ctr = 0;
+    int traverse_len = 0;
+
     while (cur_node != NULL) {
         if (cur_node->key == key) {
             if (ctr == count) {
@@ -236,12 +245,15 @@ void BucketHeader::read_item(idx_key_t key, uint32_t count, itemid_t *&item) {
             ++ctr;
         }
         cur_node = cur_node->next;
+        traverse_len++;
     }
     if (cur_node == NULL) {
         item = NULL;
-        return;
+        return -1;
     }
     M_ASSERT_V(cur_node != NULL, "Key does not exist! %ld\n",key);
     assert(cur_node->key == key);
     item = cur_node->items;
+
+    return traverse_len;
 }

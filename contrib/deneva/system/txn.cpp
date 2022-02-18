@@ -1132,10 +1132,14 @@ itemid_t *TxnManager::index_read(INDEX *index, idx_key_t key, int part_id) {
     uint64_t starttime = get_sys_clock();
 
     itemid_t * item;
-    index->index_read(key, item, part_id, get_thd_id());
+    int len;
+
+    len = index->index_read(key, item, part_id, get_thd_id());
 
     uint64_t t = get_sys_clock() - starttime;
     INC_STATS(get_thd_id(), txn_index_time, t);
+    INC_STATS(get_thd_id(), bkt_trav_len, len);
+
 
     return item;
 }
@@ -1144,10 +1148,11 @@ itemid_t *TxnManager::index_read(INDEX *index, idx_key_t key, int part_id, int c
     uint64_t starttime = get_sys_clock();
 
     itemid_t * item;
-    index->index_read(key, count, item, part_id);
+    int len = index->index_read(key, count, item, part_id);
 
     uint64_t t = get_sys_clock() - starttime;
     INC_STATS(get_thd_id(), txn_index_time, t);
+    INC_STATS(get_thd_id(), bkt_trav_len, len);
 
     return item;
 }

@@ -85,17 +85,17 @@ RC index_btree::index_next(uint64_t thd_id, itemid_t * &item, bool samekey) {
     return RCOK;
 }
 
-RC index_btree::index_read(idx_key_t key, itemid_t *& item) {
+int index_btree::index_read(idx_key_t key, itemid_t *& item) {
     assert(false);
-    return RCOK;
+    return 0;
 }
 
-RC index_btree::index_read(idx_key_t key, itemid_t *&item, int part_id) {
+int index_btree::index_read(idx_key_t key, itemid_t *&item, int part_id) {
 
     return index_read(key, item, 0, part_id);
 }
 
-RC index_btree::index_read(idx_key_t key, itemid_t *&item, uint64_t thd_id, int64_t part_id) {
+int index_btree::index_read(idx_key_t key, itemid_t *&item, uint64_t thd_id, int64_t part_id) {
     RC rc = Abort;
     glob_param params;
     assert(part_id != -1);
@@ -109,13 +109,13 @@ RC index_btree::index_read(idx_key_t key, itemid_t *&item, uint64_t thd_id, int6
             release_latch(leaf);
             (*cur_leaf_per_thd[thd_id]) = leaf;
             *cur_idx_per_thd[thd_id] = i;
-            return RCOK;
+            return 0;
         }
     // release the latch after reading the node
 
     printf("key = %ld\n", key);
     M_ASSERT(false, "the key does not exist!");
-    return rc;
+    return (int)rc;
 }
 
 RC index_btree::index_insert(idx_key_t key, itemid_t * item, int part_id) {
