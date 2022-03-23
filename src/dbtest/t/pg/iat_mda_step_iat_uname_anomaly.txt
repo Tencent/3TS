@@ -10,11 +10,11 @@ ParamNum:2
 3-3-BEGIN;
 4-1-select * from t1 where k=1;
 5-2-select * from t1 where k=0;
-6-2-update t1 set v=1 where k=0;
-7-2-select * from t1 where k=1;
-8-2-update t1 set v=1 where k=1;
-9-2-commit;
-10-3-select * from t1 where k=0;
+6-3-select * from t1 where k=0;
+7-2-update t1 set v=1 where k=0;
+8-2-select * from t1 where k=1;
+9-2-update t1 set v=1 where k=1;
+10-2-commit;
 11-3-update t1 set v=2 where k=0;
 12-3-select * from t1 where k=2;
 13-3-update t1 set v=1 where k=2;
@@ -27,48 +27,48 @@ ParamNum:2
 serializable {
 4-1,0
 5-0,0
-7-1,0
-10-0,1
+6-0,1
+8-1,0
 12-2,0
 15-2,0
 17-0,2 1,1 2,1
 
 4-1,0
 5-0,2
-7-1,0
-10-0,0
+6-0,0
+8-1,0
 12-2,0
 15-2,0
 17-0,2 1,1 2,1
 
 4-1,1
 5-0,0
-7-1,0
-10-0,1
+6-0,1
+8-1,0
 12-2,0
 15-2,0
 17-0,2 1,1 2,1
 
 4-1,2
 5-0,0
-7-1,0
-10-0,1
+6-0,1
+8-1,0
 12-2,0
 15-2,2
 17-0,2 1,1 2,1
 
 4-1,0
 5-0,2
-7-1,0
-10-0,0
+6-0,0
+8-1,0
 12-2,0
 15-2,1
 17-0,2 1,1 2,1
 
 4-1,1
 5-0,2
-7-1,0
-10-0,0
+6-0,0
+8-1,0
 12-2,0
 15-2,1
 17-0,2 1,1 2,1

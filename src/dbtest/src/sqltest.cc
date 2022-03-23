@@ -42,6 +42,7 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
     DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
     
     usleep(1000000*sleeptime);
+
     
     std::ofstream test_process(test_process_file, std::ios::app);
     int txn_id;
@@ -73,7 +74,10 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
         txn_id = txn_sql.TxnId();
         std::string sql = txn_sql.Sql();
         
-        if (FLAGS_db_type == "oracle") {
+        // oracle mode
+        if (FLAGS_db_type == "oracle" || FLAGS_db_type == "ob") {
+        // mysql mode
+        // if (FLAGS_db_type == "oracle") {
             std::string sub_str ("IF EXISTS");
             if (sql.find(sub_str) != std::string::npos) {
                 // std::cout << " sql: " << sql << std::endl;
@@ -88,7 +92,15 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
             }
          
         }
-        
+
+        // replace sql keywords to capital
+        sql = std::regex_replace(sql, std::regex("set"), "SET"); // replace 'set' -> 'SET'
+        sql = std::regex_replace(sql, std::regex("from"), "FROM"); // replace 'from' -> 'FROM'
+        sql = std::regex_replace(sql, std::regex("values"), "VALUES");
+        sql = std::regex_replace(sql, std::regex("where"), "WHERE");
+        sql = std::regex_replace(sql, std::regex("insert"), "INSERT");
+        sql = std::regex_replace(sql, std::regex("select"), "SELECT"); 
+        sql = std::regex_replace(sql, std::regex("update"), "UPDATE"); 
         
 
         std::string ret_type = test_result_set.ResultType();
@@ -129,9 +141,15 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
         } else if (index_begin != sql.npos || index_begin_1 != sql.npos) {
             if (FLAGS_db_type != "crdb" && FLAGS_db_type != "ob") {
                 if (FLAGS_db_type == "tidb") {
-                    if (!db_connector.ExecWriteSql(0, "BEGIN PESSIMISTIC;", test_result_set, txn_id, test_process_file)) {
+                    if (!db_connector.ExecWriteSql(sql_id, "BEGIN PESSIMISTIC;", test_result_set, txn_id, test_process_file)) {
+                    // if (!db_connector.ExecWriteSql(sql_id, "BEGIN OPTIMISTIC;", test_result_set, txn_id, test_process_file)) {
                         goto jump;
                     }
+                // } else if (FLAGS_db_type == "myrocks") {
+                //     if (!db_connector.ExecWriteSql(sql_id, "START TRANSACTION WITH CONSISTENT SNAPSHOT;", test_result_set, txn_id, test_process_file)) {
+                //     // if (!db_connector.ExecWriteSql(sql_id, "BEGIN OPTIMISTIC;", test_result_set, txn_id, test_process_file)) {
+                //         goto jump;
+                //     }
                 } else {
                     if (!db_connector.SQLStartTxn(txn_id, sql_id, test_process_file)) {
                         goto jump;
@@ -156,11 +174,11 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
                 }
             } else {
                 if (FLAGS_db_type == "crdb") {
-                    if (!db_connector.ExecWriteSql(0, "BEGIN TRANSACTION;", test_result_set, txn_id, test_process_file)) {
+                    if (!db_connector.ExecWriteSql(sql_id, "BEGIN TRANSACTION;", test_result_set, txn_id, test_process_file)) {
                         goto jump;
                     }
                 } else {
-                    if (!db_connector.ExecWriteSql(0, "BEGIN;", test_result_set, txn_id, test_process_file)) {
+                    if (!db_connector.ExecWriteSql(sql_id, "BEGIN;", test_result_set, txn_id, test_process_file)) {
                         goto jump;
                     }
                 }
@@ -171,13 +189,19 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
                     goto jump;
                 }
             } else {
-                if (!db_connector.ExecWriteSql(0, "COMMIT TRANSACTION;", test_result_set, txn_id, test_process_file)) {
+                if (!db_connector.ExecWriteSql(sql_id, "COMMIT TRANSACTION;", test_result_set, txn_id, test_process_file)) {
                     goto jump;
                 }
             }
         } else if (index_rollback != sql.npos || index_rollback_1 != sql.npos) {
-            if (!db_connector.SQLEndTnx("rollback", txn_id, sql_id, test_result_set, FLAGS_db_type, test_process_file)) {
-                goto jump;
+            if (FLAGS_db_type != "crdb") {
+                if (!db_connector.SQLEndTnx("rollback", txn_id, sql_id, test_result_set, FLAGS_db_type, test_process_file)) {
+                    goto jump;
+                }
+            } else {
+                if (!db_connector.SQLEndTnx("rollback", txn_id, sql_id, test_result_set, FLAGS_db_type, test_process_file)) {
+                    goto jump;
+                }
             }
         } else {
             if (!db_connector.ExecWriteSql(sql_id, sql, test_result_set, txn_id, test_process_file)) {
@@ -219,6 +243,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     if (index_t != test_case_type.npos) {
         test_case_type = test_case_type.substr(int(index_t) + 1);
     }
+    
     test_process << "#### test_type: " + test_case_type + " ####" << std::endl;
     test_process << "#### isolation: " + FLAGS_isolation + " ####\n" << std::endl;
 
@@ -283,12 +308,20 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     split_groups.push_back(group);
     thread_cnt = thread_cnt + 1;
     
+    if (FLAGS_db_type == "crdb"){
+        // remove non transaction commit
+        // remove the first commit at the prepraration
+        init_group[0].pop_back();
+        // remove the last commit at verification selct
+        split_groups[thread_cnt-1].pop_back();
+    }
+
+    // std::cout << init_group.size() <<std::endl;
     for (auto& group : init_group) {
         // for (auto& txn_sql : group) {   
         //     std::cout << " SQLID: " << txn_sql.SqlId() << " TXNID: " <<  txn_sql.TxnId() << " SQL: " << txn_sql.Sql() <<  std::endl;
         // }
         // std::cout << std::endl;
-
         if (! MultiThreadExecution(group, test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
 
     }

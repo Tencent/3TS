@@ -12,6 +12,7 @@
 #include <time.h>
 #include <chrono>
 #include <string>
+#include <regex>
 
 std::string get_current_time(){
 
@@ -161,8 +162,9 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     }
     // execute sql
     if (sql_id != 1024) {
+        std::string sql1 = std::regex_replace(sql, std::regex("rollback"), "ROLLBACK"); 
         std::string blank(blank_base*(session_id - 1), ' ');
-	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute sql: '" + sql + "'";
+	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute sql: '" + sql1 + "'";
         std::cout << output_info << std::endl;
         if (!test_process_file.empty()) {
             std::ofstream test_process(test_process_file, std::ios::app);
@@ -292,7 +294,17 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
 bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestResultSet& test_result_set, const std::string& db_type, std::string test_process_file) {
     if (sql_id != 1024) {
         std::string blank(blank_base*(session_id - 1), ' ');
-        std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '" + opt + "'";
+        std::string output_info;
+        if ("commit" == opt) {
+            output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '"+ "COMMIT" +"';";
+        }
+        else if ("rollback" == opt) {
+            output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '"+ "ROLLBACK" +"';";
+        }
+        else {
+            output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '"+ opt +"';";
+        }
+        
         std::cout << output_info << std::endl;
         if (!test_process_file.empty()) {
 	        std::ofstream test_process(test_process_file, std::ios::app);
@@ -305,7 +317,16 @@ bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestRes
         if ("commit" == opt) {
             ret = SQLEndTran(SQL_HANDLE_DBC, m_hDatabaseConnection, SQL_COMMIT);
         } else if ("rollback" == opt) {
-            ret = SQLEndTran(SQL_HANDLE_DBC, m_hDatabaseConnection, SQL_ROLLBACK);
+            if (db_type != "crdb"){
+                ret = SQLEndTran(SQL_HANDLE_DBC, m_hDatabaseConnection, SQL_ROLLBACK);
+            } else {
+                std::string sql = "ROLLBACK TRANSCATION;"; 
+                // std::cout << sql << std::endl;
+                if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+                return false;
+                }
+            }
+            
         } else {
             std::cout << "unknow txn opt" << std::endl;
         }
@@ -348,7 +369,7 @@ bool DBConnector::SQLStartTxn(int session_id, int sql_id, std::string test_proce
         return false;
     } else {
         std::string blank(blank_base*(session_id - 1), ' ');
-	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '"+"begin'";
+	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '"+"BEGIN;'";
         std::cout << output_info << std::endl;
         test_process << output_info << std::endl;
 	// if (!test_process) {
@@ -397,16 +418,41 @@ bool DBConnector::SetTimeout(int conn_id, std::string timeout, const std::string
 }
 
 bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string opt, int session_id, const std::string& db_type, std::string test_process_file) {
+    // oracle mode
     if (db_type != "oracle" && db_type != "ob") {
+    // mysql mode
+    // if (db_type != "oracle") {
         SQLRETURN ret;
         if (opt == "read-uncommitted") {
             ret = SQLSetConnectAttr(m_hDatabaseConnection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)SQL_TXN_READ_UNCOMMITTED, 0);
         } else if (opt == "read-committed") {
-            ret = SQLSetConnectAttr(m_hDatabaseConnection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)SQL_TXN_READ_COMMITTED, 0);
+            ret = SQLSetConnectAttr(m_hDatabaseConnection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)SQL_TXN_READ_COMMITTED, 0);    
         } else if (opt == "repeatable-read") {
-            ret = SQLSetConnectAttr(m_hDatabaseConnection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)SQL_TXN_REPEATABLE_READ, 0);
+            ret = SQLSetConnectAttr(m_hDatabaseConnection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)SQL_TXN_REPEATABLE_READ, 0);  
         } else if (opt == "serializable") {
             ret = SQLSetConnectAttr(m_hDatabaseConnection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)SQL_TXN_SERIALIZABLE, 0);
+        } else if (opt == "snapshot") {
+            TestResultSet test_result_set;
+            std::string sql;
+            sql = "ALTER DATABASE CURRENT SET ALLOW_SNAPSHOT_ISOLATION ON;"; // SI
+            std::cout << sql << std::endl;
+            if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+                return false;
+            }
+            sql = "SET TRANSACTION ISOLATION LEVEL SNAPSHOT;"; // SI
+            std::cout << sql << std::endl;
+            if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+                return false;
+            }
+         } else if (opt == "rcsnapshot") {
+            ret = SQLSetConnectAttr(m_hDatabaseConnection, SQL_ATTR_TXN_ISOLATION, (SQLPOINTER)SQL_TXN_READ_COMMITTED, 0);
+            TestResultSet test_result_set;
+            std::string sql;
+            sql = "ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH NO_WAIT;"; // RCSI
+            std::cout << sql << std::endl;
+            if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+                return false;
+            }
         } else {
             std::cout << "unknow isolation level" << std::endl;
             return false;
@@ -415,7 +461,8 @@ bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string o
         if (!err_info_stmt.empty()) {
             return false;
         }
-    } else {
+    } 
+    else {
         std::string iso;
         if (opt == "read-committed") {
             iso = "read committed";
@@ -438,5 +485,18 @@ bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string o
             return false;
         }
     }
+
+    // // snapshot mode for myrocks
+    // if (db_type == "myrocks") {
+    //     TestResultSet test_result_set;
+    //     std::string sql;
+    //     // sql = "START TRANSACTION WITH CONSISTENT ROCKSDB SNAPSHOT"; 
+    //     sql = "START TRANSACTION WITH CONSISTENT SNAPSHOT"; 
+    //     if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+    //         return false;
+    //     }
+    //     std::cout << sql << std::endl;
+    // }
+
     return true;
 }
