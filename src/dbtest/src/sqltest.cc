@@ -329,7 +329,8 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     std::vector<std::thread> threads;
 
 
-    for (int i = 0; i < thread_cnt; i++) {
+    // exlcude last group
+    for (int i = 0; i < thread_cnt-1; i++) {
         // if (thread_cnt-1==i){
         //     threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), std::ref(test_process_file), std::ref(cur_result_set), i*2+1+1));
         // } else{
@@ -343,6 +344,11 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
         // th.detach();
     }
 
+    // execute last group if correct
+    if (test_result_set.ResultType() == "") {
+        if (! MultiThreadExecution(split_groups[thread_cnt-1], test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
+    }
+    
     // threads[thread_cnt-1].detach();
 
     // std::cout <<"wait too long"<<std::endl;
@@ -358,7 +364,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     //     }
     // }
 
-    usleep(2000000);
+
     // std::cout<< "At time: " << thread_cnt+2 << "s" << std::endl;
     // for (auto& group : split_groups) {
     //     // for (auto& txn_sql : group) {   
