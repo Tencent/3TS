@@ -6,11 +6,11 @@ ParamNum:2
 0-1-INSERT INTO t1 VALUES (2, 1);
 0-1-COMMIT;
 1-1-BEGIN;
-2-2-BEGIN;
-3-3-BEGIN;
-4-1-DELETE FROM t1 WHERE k=0;
-5-2-DELETE FROM t1 WHERE k=1;
-6-2-SELECT SUM(v) FROM t1 WHERE k = 0;
+2-1-DELETE FROM t1 WHERE k=0;
+3-2-BEGIN;
+4-2-DELETE FROM t1 WHERE k=1;
+5-2-SELECT SUM(v) FROM t1 WHERE k = 0;
+6-3-BEGIN;
 7-3-DELETE FROM t1 WHERE k=2;
 8-3-SELECT SUM(v) FROM t1 WHERE k = 1;
 9-1-SELECT SUM(v) FROM t1 WHERE k = 2;
@@ -21,32 +21,32 @@ ParamNum:2
 14-4-COMMIT;
 
 serializable {
-6-,
+5-,
 8-,
 9-1,
 13-null
 
-6-,
+5-,
 8-1,
 9-1,
 13-null
 
-6-1,
+5-1,
 8-,
 9-1,
 13-null
 
-6-1,
+5-1,
 8-1,
 9-,
 13-null
 
-6-,
+5-,
 8-1,
 9-,
 13-null
 
-6-1,
+5-1,
 8-1,
 9-,
 13-null

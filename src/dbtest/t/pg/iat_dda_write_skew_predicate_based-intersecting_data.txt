@@ -7,25 +7,24 @@ ParamNum:2
 0-1-INSERT INTO mytab VALUES (2, 200);
 0-1-COMMIT;
 1-1-BEGIN;
-2-2-BEGIN;
-3-1-SELECT SUM(value) FROM mytab WHERE class = 1;
-4-1-INSERT INTO mytab VALUES (2, 30);
+2-1-SELECT SUM(value) FROM mytab WHERE class = 1;
+3-1-INSERT INTO mytab VALUES (2, 30);
+4-2-BEGIN;
 5-2-SELECT SUM(value) FROM mytab WHERE class = 2;
 6-2-INSERT INTO mytab VALUES (1, 300);
 7-2-COMMIT;
 8-1-COMMIT;
 9-3-SELECT SUM(value) FROM mytab WHERE class = 1;
 10-3-SELECT SUM(value) FROM mytab WHERE class = 2;
-11-3-DROP TABLE mytab;
 12-3-COMMIT;
 
 serializable {
-3-30,
+2-30,
 5-330,
 9-330,
 10-330,
 
-3-330,
+2-330,
 5-300,
 9-330,
 10-330,
