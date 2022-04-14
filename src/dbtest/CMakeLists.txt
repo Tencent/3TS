@@ -37,28 +37,28 @@ target_link_libraries(3ts_dbtest ${ODBC_LD})
 
 ########### kv test ##############
 # all .cc files
-list(APPEND SOURCE_FILES_KV
-     "${CMAKE_CURRENT_SOURCE_DIR}/src/common.cc"
-     "${CMAKE_CURRENT_SOURCE_DIR}/src/case_cntl.cc"
-     "${CMAKE_CURRENT_SOURCE_DIR}/src/kv_cntl.cc"
-     "${CMAKE_CURRENT_SOURCE_DIR}/src/kvtest.cc"
-)
+#list(APPEND SOURCE_FILES_KV
+#     "${CMAKE_CURRENT_SOURCE_DIR}/src/common.cc"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/src/case_cntl.cc"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/src/kv_cntl.cc"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/src/kvtest.cc"
+#)
 # bin
-add_executable(3ts_kvtest ${SOURCE_FILES_KV})
+#add_executable(3ts_kvtest ${SOURCE_FILES_KV})
 # ld:bson mongo
-find_package(bsoncxx REQUIRED)
-find_package(mongocxx REQUIRED)
-include_directories(${LIBMONGOCXX_INCLUDE_DIR})
-include_directories(${LIBBSONCXX_INCLUDE_DIR})
+#find_package(bsoncxx REQUIRED)
+#find_package(mongocxx REQUIRED)
+#include_directories(${LIBMONGOCXX_INCLUDE_DIR})
+#include_directories(${LIBBSONCXX_INCLUDE_DIR})
 # link ld
-target_link_libraries(3ts_kvtest PRIVATE mongo::bsoncxx_shared)
-target_link_libraries(3ts_kvtest PRIVATE mongo::mongocxx_shared)
-target_link_libraries(3ts_kvtest PRIVATE ${THIRD_PARTIES})
+#target_link_libraries(3ts_kvtest PRIVATE mongo::bsoncxx_shared)
+#target_link_libraries(3ts_kvtest PRIVATE mongo::mongocxx_shared)
+#target_link_libraries(3ts_kvtest PRIVATE ${THIRD_PARTIES})
 # third parties .h
-target_include_directories(3ts_kvtest PUBLIC
-	                       "/usr/local/include/mongocxx/v_noabi"
-			               "/usr/local/include/bsoncxx/v_noabi"
-			               "/usr/local/include/libmongoc-1.0"
-			               "/usr/local/include/libbson-1.0"
-			               "/usr/local/lib"
-			               )
+#target_include_directories(3ts_kvtest PUBLIC
+#	                       "/usr/local/include/mongocxx/v_noabi"
+#			               "/usr/local/include/bsoncxx/v_noabi"
+#			               "/usr/local/include/libmongoc-1.0"
+#			               "/usr/local/include/libbson-1.0"
+#			               "/usr/local/lib"
+#			               )

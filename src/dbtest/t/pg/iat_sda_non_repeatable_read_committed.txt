@@ -12,7 +12,6 @@ ParamNum:2
 7-1-COMMIT;
 8-3-SELECT * FROM t1;
 9-3-COMMIT;
-10-3-COMMIT;
 
 serializable {
 2-0,0

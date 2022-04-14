@@ -1,6 +1,6 @@
 ParamNum:3
 0-1-DROP TABLE IF EXISTS account;
-0-1-create table account (name varchar(255) not null, type varchar(255) not null, balance int not null default 0.00, primary key (name, type));
+0-1-create table account (name varchar(255) not null, type varchar(255) not null, balance int not null, primary key (name, type))
 0-1-insert into account values ('kevin','saving', 500);
 0-1-insert into account values ('kevin','checking', 500);
 0-1-COMMIT;

@@ -108,7 +108,8 @@ bool JobExecutor::MongoStmtExcutor(const int session_id, const int stmt_id, cons
 }
 
 bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& test_result_set, MongoConnector& mongo_connector) {
-    std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType() + "_" + FLAGS_isolation + ".txt";
+    // std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType() + "_" + FLAGS_isolation + ".txt";
+    std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType() + ".txt";
     std::cout << "test_process_file : " << test_process_file << std::endl;
     // remove old test_process_file
     std::ifstream test_process_tmp(test_process_file);
@@ -175,7 +176,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
         if (result_handler.IsTestExpectedResult(cur_result_set, test_result_set.ExpectedResultSetList(), stmt_map, test_process_file)) {
             test_result_set.SetResultType("Avoid\nReason: Data anomaly did not occur and the data is consistent");
         } else {
-            test_result_set.SetResultType("Exception\nReason: Data anomaly is not recognized by the database, resulting in data inconsistencies");
+            test_result_set.SetResultType("Anomaly\nReason: Data anomaly is not recognized by the database, resulting in data inconsistencies");
         }
     }
     if(!outputter.WriteResultType(test_result_set.ResultType(), test_process_file)) {
@@ -209,8 +210,10 @@ int main(int argc, char* argv[]) {
     std::cout << "  db_type: " << FLAGS_db_type << std::endl;
     std::cout << "  uri: " <<  FLAGS_uri << std::endl;
     std::cout << "  isolation: " <<  FLAGS_isolation << std::endl;
-    // init mongo_connector
+    // init mongo_connector 
+    // provide IP, port, and db
     MongoConnector mongo_connector("mongodb://9.134.39.34:27037/admin", "testdb");
+    //MongoConnector mongo_connector("mongodb://9.134.218.253:27037/admin", "testdb");
     mongo_connector.InitMongoConnector(4);
     // init excute obj
     CaseReader case_reader;
@@ -220,7 +223,7 @@ int main(int argc, char* argv[]) {
         mkdir(FLAGS_db_type.c_str(), S_IRWXU);
     }
     // create isolation dir
-    std::string iso_dir = "snapshot";
+    std::string iso_dir = FLAGS_db_type + "/snapshot";
     if (access(iso_dir.c_str(), 0) == -1) {
         mkdir(iso_dir.c_str(), S_IRWXU);
     }

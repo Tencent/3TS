@@ -26,7 +26,7 @@ DEFINE_string(timeout, "20", "timeout");
 
 
 // std::vector<std::mutex *> mutex_txn(5); // same as conn_pool_size
-std::vector<pthread_mutex_t *> mutex_txn(6);  // same as conn_pool_size
+std::vector<pthread_mutex_t *> mutex_txn(FLAGS_conn_pool_size);  // same as conn_pool_size
 
 bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
 {
@@ -37,11 +37,12 @@ bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
 }
 
 
-
 bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_sequence, TestResultSet& test_result_set, 
     DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
     
-    usleep(1000000*sleeptime);
+    // time between queries
+    // usleep(1000000*sleeptime); // 1 second
+    usleep(100000*sleeptime); // 0.1 second
 
     
     std::ofstream test_process(test_process_file, std::ios::app);
@@ -49,7 +50,7 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
     if (txn_sql_list.size() && txn_sql_list[0].TxnId()){
         txn_id = txn_sql_list[0].TxnId();
         pthread_mutex_lock(mutex_txn[txn_id]);
-        /*
+        /*  pthread for wait die
         float wait_second = 5;
         float wait_nanosecond = 0;
         if (!try_lock_wait(wait_second, wait_nanosecond, txn_id))
@@ -65,10 +66,8 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
     }
 
     for (auto& txn_sql : txn_sql_list) {
-        // std::cout << " asdfg " <<  std::endl;
-
-        // usleep(1000000);
-        // mutex_txn[txn_sql.TxnId()]->lock();
+        
+        // for test purpose
         // std::cout << " SQLID: " << txn_sql_list[0].SqlId() << " TXNID: " <<  txn_sql_list[0].TxnId() << " SQL: " << txn_sql_list[0].Sql() <<  std::endl;
         int sql_id = txn_sql.SqlId();
         txn_id = txn_sql.TxnId();
@@ -80,12 +79,9 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
         // if (FLAGS_db_type == "oracle") {
             std::string sub_str ("IF EXISTS");
             if (sql.find(sub_str) != std::string::npos) {
-                // std::cout << " sql: " << sql << std::endl;
                 sql = std::regex_replace(sql, std::regex("IF EXISTS "), "");
                 sql = std::regex_replace(sql, std::regex("if exists "), "");
-                // std::cout << " sql: " << sql << std::endl;
                 std::string sql_timeout = "alter session set ddl_lock_timeout = " + FLAGS_timeout + ";";
-                // std::cout << " sql: " << sql_timeout << std::endl;
                 if (!db_connector.ExecWriteSql(1024, sql_timeout, test_result_set, txn_id, test_process_file)) {
                     goto jump;
                 }
@@ -141,15 +137,17 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
         } else if (index_begin != sql.npos || index_begin_1 != sql.npos) {
             if (FLAGS_db_type != "crdb" && FLAGS_db_type != "ob") {
                 if (FLAGS_db_type == "tidb") {
+                    // Pessimistic mode
                     if (!db_connector.ExecWriteSql(sql_id, "BEGIN PESSIMISTIC;", test_result_set, txn_id, test_process_file)) {
+                    // Optimistic mode
                     // if (!db_connector.ExecWriteSql(sql_id, "BEGIN OPTIMISTIC;", test_result_set, txn_id, test_process_file)) {
                         goto jump;
                     }
-                // } else if (FLAGS_db_type == "myrocks") {
-                //     if (!db_connector.ExecWriteSql(sql_id, "START TRANSACTION WITH CONSISTENT SNAPSHOT;", test_result_set, txn_id, test_process_file)) {
-                //     // if (!db_connector.ExecWriteSql(sql_id, "BEGIN OPTIMISTIC;", test_result_set, txn_id, test_process_file)) {
-                //         goto jump;
-                //     }
+                // MyRocks SI mode, comment it for 4 normal levels
+                } else if (FLAGS_db_type == "myrocks") {
+                    if (!db_connector.ExecWriteSql(sql_id, "START TRANSACTION WITH CONSISTENT SNAPSHOT;", test_result_set, txn_id, test_process_file)) {
+                        goto jump;
+                    }
                 } else {
                     if (!db_connector.SQLStartTxn(txn_id, sql_id, test_process_file)) {
                         goto jump;
@@ -161,7 +159,7 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
                             goto jump;
                         }
                     }
-                    // // oracle
+                    // // oracle this will kill the session.
                     // if (FLAGS_db_type == "oracle") {
                     //     std::string sql_timeout = "alter session set ddl_lock_timeout = " + FLAGS_timeout + ";";
                     //     std::cout << " sql: " << sql_timeout << std::endl;
@@ -348,7 +346,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     if (test_result_set.ResultType() == "") {
         if (! MultiThreadExecution(split_groups[thread_cnt-1], test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
     }
-    
+
     // threads[thread_cnt-1].detach();
 
     // std::cout <<"wait too long"<<std::endl;

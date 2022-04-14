@@ -19,10 +19,6 @@ std::string get_current_time(){
     // date
     time_t d = time(0);
     tm* d_now = std::localtime(&d);
-    // std::cout << (d_now->tm_year + 1900) << '-' 
-    //      << (d_now->tm_mon + 1) << '-'
-    //      <<  d_now->tm_mday
-    //      << "\n";
 
     // time
     std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
@@ -45,9 +41,7 @@ std::string get_current_time(){
         duration -= microseconds;
     auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration);
 
-
-    // return std::to_string(hours.count()) +':'+ std::to_string(minutes.count()) +":"+ std::to_string(seconds.count())+":"
-    //         + std::to_string(milliseconds.count()) +":"+ std::to_string(microseconds.count()) +":"+ std::to_string(nanoseconds.count());
+    // return it by year, month, day, and time
     return  std::to_string(d_now->tm_year + 1900) + "-" + std::to_string(d_now->tm_mon + 1) + "-" + std::to_string(d_now->tm_mday) 
             + " " +
             std::to_string(d_now->tm_hour) +':'+ std::to_string(minutes.count()) +":"+ std::to_string(seconds.count())+":"
@@ -93,21 +87,17 @@ std::string DBConnector::SqlExecuteErr(int session_id, int sql_id, const std::st
         DBConnector::ErrInfoWithStmt(handle_type, handle, ErrInfo, SQLState);
         std::string err_info = SQLCHARToStr(ErrInfo);
 
-        // replace "\n" to " "
-        // replace(err_info, "\n", " ");
-        // std::string s = "one two three";
-        // get error information of first line 
+        // get error information of all line, comment it to get only first line
+        // replace "\n" to " "    
         err_info = err_info.substr(0, err_info.find("\n"));
 
         auto index_not_exist = err_info.find("not exist");
         auto index_crdb_rollback = sql.find("ROLLBACK TRANSACTION");
         if (sql_id != 1024 && index_not_exist == err_info.npos && index_crdb_rollback == sql.npos) {
+            // some time between rollback queries
             usleep(100000*sql_id^3);
             std::cout << blank + "Q" + std::to_string(sql_id) +  " failed reason: " << err_info << " errcode: " << SQLState << std::endl;
             test_process << blank + "Q" + std::to_string(sql_id) +  " failed reason: " << err_info << " errcode: " << SQLState << std::endl;
-            // if (!test_process) {
-            //     test_process << blank + "execute sql: '" + sql + "' failed, reason: " << ErrInfo << " errcode: " << SQLState << std::endl;
-            // }
             std::string output_time_info = blank + "Q" + std::to_string(sql_id) + " failed at: " + get_current_time() ;
             std::cout << output_time_info << std::endl;
             std::ofstream test_process(test_process_file, std::ios::app);
@@ -273,8 +263,8 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
         return true;
     } else {
         auto index_timeout1 = err_info_sql.find("timeout");
-	auto index_timeout2 = err_info_sql.find("Timeout");
-	auto index_timeout3 = err_info_sql.find("time out");
+        auto index_timeout2 = err_info_sql.find("Timeout");
+        auto index_timeout3 = err_info_sql.find("time out");
         if (index_timeout1 != err_info_sql.npos || index_timeout2 != err_info_sql.npos || index_timeout3 != err_info_sql.npos) {
             if (test_result_set.ResultType() == ""){
                 test_result_set.SetResultType("Timeout\nReason: Transaction execution timeout");
@@ -321,7 +311,6 @@ bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestRes
                 ret = SQLEndTran(SQL_HANDLE_DBC, m_hDatabaseConnection, SQL_ROLLBACK);
             } else {
                 std::string sql = "ROLLBACK TRANSCATION;"; 
-                // std::cout << sql << std::endl;
                 if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
                 return false;
                 }
@@ -372,6 +361,7 @@ bool DBConnector::SQLStartTxn(int session_id, int sql_id, std::string test_proce
 	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " execute opt: '"+"BEGIN;'";
         std::cout << output_info << std::endl;
         test_process << output_info << std::endl;
+    // for test purpose
 	// if (!test_process) {
 	//     test_process << output_info << std::endl;
 	// }
@@ -418,9 +408,9 @@ bool DBConnector::SetTimeout(int conn_id, std::string timeout, const std::string
 }
 
 bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string opt, int session_id, const std::string& db_type, std::string test_process_file) {
-    // oracle mode
+    // for ob oracle mode
     if (db_type != "oracle" && db_type != "ob") {
-    // mysql mode
+    // for ob mysql mode
     // if (db_type != "oracle") {
         SQLRETURN ret;
         if (opt == "read-uncommitted") {
@@ -486,7 +476,8 @@ bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string o
         }
     }
 
-    // // snapshot mode for myrocks
+    // Snapshot mode for myrocks 
+    // comment for normal mode for 4 levels
     // if (db_type == "myrocks") {
     //     TestResultSet test_result_set;
     //     std::string sql;
