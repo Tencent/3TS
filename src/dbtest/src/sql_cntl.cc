@@ -5,7 +5,7 @@
  * in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All
  * Tencent Modifications are Copyright (C) THL A29 Limited.
  *
- * Author: farrisli (farrisli@tencent.com)
+ * Author: axingguchen xenitchen farrisli (axingguchen,xenitchen,farrisli@tencent.com)
  *
  */
 #include "sql_cntl.h"
