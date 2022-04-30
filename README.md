@@ -38,7 +38,6 @@ cp t/bk_do_test_list_all.txt do_test_list.txt
 
 // to test only basic cases
 cp t/bk_do_test_list_basic.txt do_test_list.txt 
-```
 
 // to test only predicate cases
 cp t/bk_do_test_list_predicate.txt do_test_list.txt 
