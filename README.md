@@ -16,7 +16,6 @@ We generate the anomaly history, and simulate multi-users transcation reqeusting
 Check out some test cases (e.g., [dirty write](test_result/test_cases/wat_sda_dirty_write_2commit.txt)) and result (e.g., [passed by MySQL](test_result/centralizend_result/mysql/serializable/wat_sda_dirty_write_2commit.txt)).
 
 
-
 ## Usage
 To generate Makefile (all commands are executed under '3TS/src/dbtest'):
 ```
@@ -39,6 +38,10 @@ cp t/bk_do_test_list_all.txt do_test_list.txt
 
 // to test only basic cases
 cp t/bk_do_test_list_basic.txt do_test_list.txt 
+```
+
+// to test only predicate cases
+cp t/bk_do_test_list_predicate.txt do_test_list.txt 
 ```
 
 Edit "auto_test.sh" for database configurations (e.g., username, password). Edit "auto_test_all.sh" for databse (e.g., PostgreSQL, and MySQL) and isolation (e.g., SERIALIZABLE, REPEATABLE READ, READ COMMITTED, and READ UNCOMMITTED) configuration.
