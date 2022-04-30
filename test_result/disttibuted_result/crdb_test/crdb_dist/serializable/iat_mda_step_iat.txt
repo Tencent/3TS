@@ -1,0 +1,88 @@
+#### db_type: crdb ####
+#### test_type: mda_step_iat ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_mda_step_iat test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t2;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES FROM (MINVALUE) TO (2), PARTITION p1 VALUES FROM (2) TO (MAXVALUE));'
+Q0-T1 execute sql: 'CREATE TABLE t2 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES FROM (MINVALUE) TO (2), PARTITION p1 VALUES FROM (2) TO (MAXVALUE));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1, 0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t2 VALUES (1, 3, 1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0, 2, 0);'
+
+----------iat_mda_step_iat test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-13 14:45:54:623:580
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE value1=2;'
+   current_result: 
+     (2,0,2,0) 
+  *(1) expected_result: 
+     (2,0,2,0) 
+  *(2) expected_result: 
+     (2,0,2,0) 
+  *(3) expected_result: 
+     (2,0,2,0) 
+   (4) expected_result: 
+     (2,0,2,1) 
+   (5) expected_result: 
+     (2,0,2,1) 
+   (6) expected_result: 
+     (2,0,2,1) 
+
+Q2 finished at: 2022-4-13 14:45:55:397:283
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-13 14:45:59:621:940
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE value1=0;'
+                                           current_result: 
+                                             (0,1,0,0) 
+                                           (1) expected_result: 
+                                             (0,1,0,,3) 
+                                           (2) expected_result: 
+                                             (0,1,0,3) 
+                                          *(3) expected_result: 
+                                             (0,1,0,0) 
+                                          *(4) expected_result: 
+                                             (0,1,0,0) 
+                                           (5) expected_result: 
+                                             (0,1,0,3) 
+                                          *(6) expected_result: 
+                                             (0,1,0,0) 
+
+                                        Q4 finished at: 2022-4-13 14:46:0:298:816
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q5 finished at: 2022-4-13 14:46:4:625:888
+                                                                                Q6-T3 execute sql: 'SELECT * FROM t2 WHERE value1=1;'
+                                                                                   current_result: 
+                                                                                     (1,3,1,0) 
+                                                                                   (1) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,3,1,0) 
+                                                                                   (3) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                   (4) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,3,1,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (1,3,1,0) 
+
+                                                                                Q6 finished at: 2022-4-13 14:46:5:260:710
+Q7-T1 execute sql: 'UPDATE t1 SET value2=3 WHERE value1=0;'
+Q7 finished at: 2022-4-13 14:46:9:629:210
+                                        Q8-T2 execute sql: 'UPDATE t2 SET value2=1 WHERE value1=1;'
+                                        Q8 finished at: 2022-4-13 14:46:14:626:62
+                                                                                Q9-T3 execute sql: 'UPDATE t1 SET value2=1 WHERE value1=2;'
+                                                                                Q9 finished at: 2022-4-13 14:46:19:635:811
+Q10-T1 execute sql: 'COMMIT TRANSACTION;'
+Q10 failed reason: Server error [SQL state: 40001]. Server's hint: See: https://www.cockroachlabs.com/docs/v21.2/transaction-retry-error-reference.html#retry_serializable: restart transaction: TransactionRetryWithProtoRefreshError: TransactionRetryError: retry txn (RETRY_SE errcode: HY000
+Q10 failed at: 2022-4-13 14:46:25:638:495
+
+Test Result: Rollback
+Reason: Server error [SQL state: 40001]. Server's hint: See: https://www.cockroachlabs.com/docs/v21.2/transaction-retry-error-reference.html#retry_serializable: restart transaction: TransactionRetryWithProtoRefreshError: TransactionRetryError: retry txn (RETRY_SE
+

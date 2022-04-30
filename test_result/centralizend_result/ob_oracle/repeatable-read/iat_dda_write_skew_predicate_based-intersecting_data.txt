@@ -1,0 +1,71 @@
+#### db_type: ob ####
+#### test_type: dda_write_skew_predicate_based-intersecting_data ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------iat_dda_write_skew_predicate_based-intersecting_data test prepare----------
+Q0-T1 execute sql: 'DROP TABLE mytab;'
+Q0-T1 execute sql: 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (1, 10);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (1, 20);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (2, 100);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (2, 200);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_dda_write_skew_predicate_based-intersecting_data test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-1 16:14:16:582:730
+Q2-T1 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
+   current_result: 
+     (30,) 
+  *(1) expected_result: 
+     (30,) 
+   (2) expected_result: 
+     (330,) 
+
+Q2 finished at: 2022-4-1 16:14:16:586:851
+Q3-T1 execute sql: 'INSERT INTO mytab VALUES (2, 30);'
+Q3 finished at: 2022-4-1 16:14:16:588:519
+                                        Q4-T2 execute sql: 'BEGIN;'
+                                        Q4 finished at: 2022-4-1 16:14:16:683:60
+                                        Q5-T2 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 2;'
+                                           current_result: 
+                                             (300,) 
+                                           (1) expected_result: 
+                                             (330,) 
+                                          *(2) expected_result: 
+                                             (300,) 
+
+                                        Q5 finished at: 2022-4-1 16:14:16:685:227
+                                        Q6-T2 execute sql: 'INSERT INTO mytab VALUES (1, 300);'
+                                        Q6 finished at: 2022-4-1 16:14:16:687:346
+                                        Q7-T2 execute opt: 'COMMIT';
+                                        Q7 finished at: 2022-4-1 16:14:16:693:119
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2022-4-1 16:14:16:784:1
+                                                                                Q9-T3 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
+                                                                                   current_result: 
+                                                                                     (330,) 
+                                                                                  *(1) expected_result: 
+                                                                                     (330,) 
+                                                                                  *(2) expected_result: 
+                                                                                     (330,) 
+
+                                                                                Q9 finished at: 2022-4-1 16:14:16:786:210
+                                                                                Q10-T3 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 2;'
+                                                                                   current_result: 
+                                                                                     (330,) 
+                                                                                  *(1) expected_result: 
+                                                                                     (330,) 
+                                                                                  *(2) expected_result: 
+                                                                                     (330,) 
+
+                                                                                Q10 finished at: 2022-4-1 16:14:16:788:92
+                                                                                Q12-T3 execute opt: 'COMMIT';
+                                                                                Q12 finished at: 2022-4-1 16:14:16:789:45
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

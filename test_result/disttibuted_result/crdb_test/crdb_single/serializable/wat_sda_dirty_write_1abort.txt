@@ -1,0 +1,42 @@
+#### db_type: crdb ####
+#### test_type: sda_dirty_write_1abort ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_sda_dirty_write_1abort test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+
+----------wat_sda_dirty_write_1abort test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-10 23:18:22:352:872
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-10 23:18:22:415:888
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-10 23:18:23:76:950
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q5-T1 execute opt: 'ROLLBACK';
+Q5 finished at: 2022-4-10 23:18:24:86:388
+                                                                                Q7-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q7 finished at: 2022-4-10 23:18:35:81:285
+                                                                                Q8-T3 execute sql: 'SELECT * FROM t1;'
+                                                                                   current_result: 
+                                                                                     (0,0) 
+                                                                                   (1) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,2) 
+
+                                                                                Q8 finished at: 2022-4-10 23:18:43:53:311
+                                                                                Q9-T3 execute sql: 'COMMIT TRANSACTION;'
+                                                                                Q9 finished at: 2022-4-10 23:18:43:382:778
+                                        Q4 failed reason: Timeout has been expired. Connection will be closed., [1] errcode: HY000
+                                        Q4 failed at: 2022-4-10 23:18:53:485:619
+
+Test Result: Timeout
+Reason: Transaction execution timeout
+

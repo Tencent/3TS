@@ -1,0 +1,41 @@
+#### db_type: crdb ####
+#### test_type: dda_read_write_skew2_committed ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_dda_read_write_skew2_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 3);'
+
+----------wat_dda_read_write_skew2_committed test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-10 23:28:26:67:418
+Q2-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q2 finished at: 2022-4-10 23:28:26:131:135
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-10 23:28:26:790:762
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                           current_result: 
+                                             (1,3) 
+                                           (1) expected_result: 
+                                             (1,1) 
+                                          *(2) expected_result: 
+                                             (1,3) 
+
+                                        Q4 finished at: 2022-4-10 23:28:27:459:335
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q7-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q7 finished at: 2022-4-10 23:28:27:797:714
+Q8-T1 execute sql: 'COMMIT TRANSACTION;'
+Q8 finished at: 2022-4-10 23:28:27:861:182
+                                        Q5 failed reason: Server error [SQL state: 40001]. Server's hint: See: https://www.cockroachlabs.com/docs/v21.2/transaction-retry-error-reference.html: restart transaction: TransactionRetryWithProtoRefreshError: WriteTooOldError: write at timestamp 1649604506.760633062,0 t errcode: HY000
+                                        Q5 failed at: 2022-4-10 23:28:28:372:348
+
+Test Result: Rollback
+Reason: Server error [SQL state: 40001]. Server's hint: See: https://www.cockroachlabs.com/docs/v21.2/transaction-retry-error-reference.html: restart transaction: TransactionRetryWithProtoRefreshError: WriteTooOldError: write at timestamp 1649604506.760633062,0 t
+

@@ -1,0 +1,91 @@
+#### db_type: pg ####
+#### test_type: mda_step_iat ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_mda_step_iat test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_mda_step_iat test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-1 12:19:48:565:498
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
+   current_result: 
+     (2,0) 
+  *(1) expected_result: 
+     (2,0) 
+  *(2) expected_result: 
+     (2,0) 
+  *(3) expected_result: 
+     (2,0) 
+   (4) expected_result: 
+     (2,1) 
+   (5) expected_result: 
+     (2,1) 
+   (6) expected_result: 
+     (2,1) 
+
+Q2 finished at: 2022-4-1 12:19:48:568:11
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-1 12:19:48:665:469
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
+                                             (0,1) 
+                                           (2) expected_result: 
+                                             (0,1) 
+                                          *(3) expected_result: 
+                                             (0,0) 
+                                          *(4) expected_result: 
+                                             (0,0) 
+                                           (5) expected_result: 
+                                             (0,1) 
+                                          *(6) expected_result: 
+                                             (0,0) 
+
+                                        Q4 finished at: 2022-4-1 12:19:48:667:741
+                                                                                Q5-T3 execute opt: 'BEGIN;'
+                                                                                Q5 finished at: 2022-4-1 12:19:48:765:475
+                                                                                Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                   current_result: 
+                                                                                     (1,0) 
+                                                                                   (1) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (3) expected_result: 
+                                                                                     (1,1) 
+                                                                                   (4) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (1,0) 
+
+                                                                                Q6 finished at: 2022-4-1 12:19:48:767:738
+Q7-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q7 finished at: 2022-4-1 12:19:48:866:944
+                                        Q8-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q8 finished at: 2022-4-1 12:19:48:966:727
+                                                                                Q9-T3 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+                                                                                Q9 finished at: 2022-4-1 12:19:49:68:919
+Q10-T1 execute opt: 'COMMIT';
+Q10 finished at: 2022-4-1 12:19:49:166:942
+                                        Q11-T2 execute opt: 'COMMIT';
+                                                                                Q12-T3 execute opt: 'COMMIT';
+                                                                                Q12 finished at: 2022-4-1 12:19:49:367:765
+                                        Q11 failed reason: ERROR: could not serialize access due to read/write dependencies among transactions errcode: 40001
+                                        Q11 failed at: 2022-4-1 12:19:50:366:27
+
+Test Result: Rollback
+ERROR: could not serialize access due to read/write dependencies among transactions
+

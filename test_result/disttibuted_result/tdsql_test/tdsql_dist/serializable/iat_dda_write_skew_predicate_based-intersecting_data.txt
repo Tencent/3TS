@@ -1,0 +1,77 @@
+#### db_type: tdsql ####
+#### test_type: dda_write_skew_predicate_based-intersecting_data ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_dda_write_skew_predicate_based-intersecting_data test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS mytab;'
+Q0-T1 execute sql: 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL PRIMARY KEY);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (1, 10);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (1, 20);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (2, 100);'
+Q0-T1 execute sql: 'INSERT INTO mytab VALUES (2, 200);'
+
+----------iat_dda_write_skew_predicate_based-intersecting_data test run----------
+Q1-T1 execute opt: 'BEGIN'
+Q1 finished at: 2022-4-24 14:28:10:996:44
+Q2-T1 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
+   current_result: 
+     (30,) 
+  *(1) expected_result: 
+     (30,) 
+   (2) expected_result: 
+     (330,) 
+
+Q2 finished at: 2022-4-24 14:28:11:35:541
+Q3-T1 execute sql: 'INSERT INTO mytab VALUES (2, 30);'
+Q3 finished at: 2022-4-24 14:28:11:72:323
+                                        Q4-T2 execute opt: 'BEGIN'
+                                        Q4 finished at: 2022-4-24 14:28:11:995:538
+                                        Q5-T2 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 2;'
+Q8-T1 execute opt: 'COMMIT';
+                                           current_result: 
+                                             (330,) 
+                                          *(1) expected_result: 
+                                             (330,) 
+                                           (2) expected_result: 
+                                             (300,) 
+
+                                        Q5 finished at: 2022-4-24 14:28:12:992:327
+                                        Q6-T2 execute sql: 'INSERT INTO mytab VALUES (1, 300);'
+Q8 finished at: 2022-4-24 14:28:12:996:813
+                                        Q6 finished at: 2022-4-24 14:28:13:30:1
+                                        Q7-T2 execute opt: 'COMMIT';
+                                        Q7 finished at: 2022-4-24 14:28:13:66:666
+                                                                                Q9-T3 execute opt: 'BEGIN'
+                                                                                Q9 finished at: 2022-4-24 14:28:22:995:751
+                                                                                Q10-T3 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
+                                                                                   current_result: 
+                                                                                     (330,) 
+                                                                                  *(1) expected_result: 
+                                                                                     (330,) 
+                                                                                  *(2) expected_result: 
+                                                                                     (330,) 
+
+                                                                                Q10 finished at: 2022-4-24 14:28:23:69:806
+                                                                                Q11-T3 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 2;'
+                                                                                   current_result: 
+                                                                                     (330,) 
+                                                                                  *(1) expected_result: 
+                                                                                     (330,) 
+                                                                                  *(2) expected_result: 
+                                                                                     (330,) 
+
+                                                                                Q11 finished at: 2022-4-24 14:28:23:106:694
+                                                                                Q12-T3 execute sql: 'DROP TABLE mytab;'
+                                                                                Q12 finished at: 2022-4-24 14:28:23:160:872
+                                                                                Q13-T3 execute opt: 'COMMIT';
+                                                                                Q13 finished at: 2022-4-24 14:28:23:197:255
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

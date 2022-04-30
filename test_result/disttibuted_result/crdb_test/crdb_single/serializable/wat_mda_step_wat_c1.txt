@@ -1,0 +1,41 @@
+#### db_type: crdb ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-10 23:32:7:897:423
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-10 23:32:7:954:15
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-10 23:32:8:901:813
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-10 23:32:8:964:269
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                                                                Q6-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q6 finished at: 2022-4-10 23:32:9:891:403
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-10 23:32:9:943:715
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+Q9 finished at: 2022-4-10 23:32:10:954:712
+Q10-T1 execute sql: 'COMMIT TRANSACTION;'
+Q10 finished at: 2022-4-10 23:32:11:8:709
+                                        Q5 finished at: 2022-4-10 23:32:11:30:241
+                                                                                Q8 failed reason: Server error [SQL state: 40001]. Server's hint: See: https://www.cockroachlabs.com/docs/v21.2/transaction-retry-error-reference.html#abort_reason_pusher_aborted: restart transaction: TransactionRetryWithProtoRefreshError: TransactionAbortedError(ABORT_REA errcode: HY000
+                                                                                Q8 failed at: 2022-4-10 23:32:11:831:931
+
+Test Result: Rollback
+Reason: Server error [SQL state: 40001]. Server's hint: See: https://www.cockroachlabs.com/docs/v21.2/transaction-retry-error-reference.html#abort_reason_pusher_aborted: restart transaction: TransactionRetryWithProtoRefreshError: TransactionAbortedError(ABORT_REA
+

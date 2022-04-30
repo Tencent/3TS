@@ -1,0 +1,54 @@
+#### db_type: myrocks ####
+#### test_type: dda_read_write_skew2_c1 ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------wat_dda_read_write_skew2_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_read_write_skew2_c1 test run----------
+Q1-T1 execute sql: 'START TRANSACTION WITH CONSISTENT SNAPSHOT;'
+Q1 finished at: 2022-4-2 14:20:23:883:165
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-2 14:20:23:883:875
+                                        Q3-T2 execute sql: 'START TRANSACTION WITH CONSISTENT SNAPSHOT;'
+                                        Q3 finished at: 2022-4-2 14:20:23:983:60
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                           current_result: 
+                                             (1,0) 
+                                           (1) expected_result: 
+                                             (1,1) 
+                                          *(2) expected_result: 
+                                             (1,0) 
+
+                                        Q4 finished at: 2022-4-2 14:20:23:983:764
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q6 finished at: 2022-4-2 14:20:24:83:176
+Q7-T1 execute opt: 'COMMIT';
+                                        Q5 finished at: 2022-4-2 14:20:24:88:405
+Q7 finished at: 2022-4-2 14:20:24:94:932
+                                        Q8-T2 execute opt: 'COMMIT';
+                                        Q8 finished at: 2022-4-2 14:20:24:201:381
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (0,2) (1,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,2) (1,1) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,1) (1,1) 
+
+                                                                                Q9 finished at: 2022-4-2 14:20:24:202:347
+                                                                                Q10-T3 execute opt: 'COMMIT';
+                                                                                Q10 finished at: 2022-4-2 14:20:24:208:528
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

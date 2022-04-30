@@ -1,0 +1,55 @@
+#### db_type: oracle ####
+#### test_type: dda_read_skew_predicate_based_insert ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------rat_dda_read_skew_predicate_based_insert test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_dda_read_skew_predicate_based_insert test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-1 16:25:58:713:362
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     null 
+  *(1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,0) (1,0) 
+
+Q2 finished at: 2022-4-1 16:25:58:717:943
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-1 16:25:58:813:407
+                                        Q4-T2 execute sql: 'INSERT into t1 VALUES(1,0);'
+                                        Q4 finished at: 2022-4-1 16:25:58:816:615
+                                        Q5-T2 execute sql: 'INSERT into t1 VALUES(0,0);'
+                                        Q5 finished at: 2022-4-1 16:25:58:819:645
+                                        Q6-T2 execute opt: 'COMMIT';
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     (1,0) (0,0) 
+   (1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,0) (1,0) 
+
+Q7 finished at: 2022-4-1 16:25:58:915:130
+Q8-T1 execute opt: 'COMMIT';
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (0,0) (1,0) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,0) (1,0) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,0) (1,0) 
+
+                                                                                Q9 finished at: 2022-4-1 16:25:58:920:321
+                                                                                Q10-T3 execute opt: 'COMMIT';
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

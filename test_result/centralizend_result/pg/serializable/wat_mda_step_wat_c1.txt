@@ -1,0 +1,42 @@
+#### db_type: pg ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-1 12:58:27:274:890
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-1 12:58:27:277:17
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-1 12:58:27:371:941
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-1 12:58:27:373:948
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                                                                Q6-T3 execute opt: 'BEGIN;'
+                                                                                Q6 finished at: 2022-4-1 12:58:27:471:960
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-1 12:58:27:474:121
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+                                                                                Q8 failed reason: ERROR: deadlock detected; errcode: 40P01
+                                                                                Q8 failed at: 2022-4-1 12:58:29:276:14
+                                        Q5 failed reason: ERROR: canceling statement due to lock timeout; errcode: 55P03
+                                        Q5 failed at: 2022-4-1 12:58:48:73:265
+Q9 failed reason: ERROR: canceling statement due to lock timeout; errcode: 55P03
+Q9 failed at: 2022-4-1 12:58:48:473:207
+
+Test Result: Rollback
+Reason: ERROR: deadlock detected;
+

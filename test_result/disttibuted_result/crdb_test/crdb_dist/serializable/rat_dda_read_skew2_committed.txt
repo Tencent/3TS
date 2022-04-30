@@ -1,0 +1,75 @@
+#### db_type: crdb ####
+#### test_type: dda_read_skew2_committed ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------rat_dda_read_skew2_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t2;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES FROM (MINVALUE) TO (2), PARTITION p1 VALUES FROM (2) TO (MAXVALUE));'
+Q0-T1 execute sql: 'CREATE TABLE t2 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES FROM (MINVALUE) TO (2), PARTITION p1 VALUES FROM (2) TO (MAXVALUE));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1, 0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t2 VALUES (1, 3, 1, 0);'
+
+----------rat_dda_read_skew2_committed test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-13 11:30:26:235:807
+Q2-T1 execute sql: 'UPDATE t1 SET value2=3 WHERE value1=0;'
+Q2 finished at: 2022-4-13 11:30:26:290:607
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-13 11:30:36:236:16
+                                        Q4-T2 execute sql: 'SELECT * FROM t2 WHERE k=1;'
+                                           current_result: 
+                                             (1,3,1,0) 
+                                           (1) expected_result: 
+                                             (1,3,1,1) 
+                                          *(2) expected_result: 
+                                             (1,3,1,0) 
+
+                                        Q4 finished at: 2022-4-13 11:30:36:893:813
+                                        Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+Q7-T1 execute sql: 'UPDATE t2 SET value2=1 WHERE value1=1;'
+Q7 finished at: 2022-4-13 11:30:46:244:942
+Q8-T1 execute sql: 'COMMIT TRANSACTION;'
+Q8 finished at: 2022-4-13 11:30:46:297:395
+                                           current_result: 
+                                             (0,1,0,0) 
+                                           (1) expected_result: 
+                                             (0,1,0,3) 
+                                          *(2) expected_result: 
+                                             (0,1,0,0) 
+
+                                        Q5 finished at: 2022-4-13 11:30:46:905:362
+                                        Q6-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q6 finished at: 2022-4-13 11:30:46:954:509
+                                                                                Q9-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q9 finished at: 2022-4-13 11:30:56:236:151
+                                                                                Q10-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (0,1,0,3) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,1,0,3) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,1,0,3) 
+
+                                                                                Q10 finished at: 2022-4-13 11:30:56:853:44
+                                                                                Q11-T3 execute sql: 'SELECT * FROM t2 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,3,1,1) 
+
+                                                                                Q11 finished at: 2022-4-13 11:30:57:495:301
+                                                                                Q12-T3 execute sql: 'COMMIT TRANSACTION;'
+                                                                                Q12 finished at: 2022-4-13 11:30:57:544:933
+
+The current result is consistent with the [(2) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

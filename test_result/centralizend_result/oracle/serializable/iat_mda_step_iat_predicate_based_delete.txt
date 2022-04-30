@@ -1,0 +1,86 @@
+#### db_type: oracle ####
+#### test_type: mda_step_iat_predicate_based_delete ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------iat_mda_step_iat_predicate_based_delete test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_mda_step_iat_predicate_based_delete test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-1 16:36:9:707:231
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
+   current_result: 
+     (2,0) 
+  *(1) expected_result: 
+     (2,0) 
+  *(2) expected_result: 
+     (2,0) 
+  *(3) expected_result: 
+     (2,0) 
+   (4) expected_result: 
+     null 
+   (5) expected_result: 
+     null 
+   (6) expected_result: 
+     null 
+
+Q2 finished at: 2022-4-1 16:36:9:710:824
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-1 16:36:9:807:303
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
+                                             null 
+                                           (2) expected_result: 
+                                             null 
+                                          *(3) expected_result: 
+                                             (0,0) 
+                                          *(4) expected_result: 
+                                             (0,0) 
+                                           (5) expected_result: 
+                                             null 
+                                          *(6) expected_result: 
+                                             (0,0) 
+
+                                        Q4 finished at: 2022-4-1 16:36:9:811:161
+                                                                                Q5-T3 execute opt: 'BEGIN;'
+                                                                                Q5 finished at: 2022-4-1 16:36:9:907:235
+                                                                                Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                   current_result: 
+                                                                                     (1,0) 
+                                                                                   (1) expected_result: 
+                                                                                     null 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (3) expected_result: 
+                                                                                     null 
+                                                                                   (4) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (1,0) 
+
+                                                                                Q6 finished at: 2022-4-1 16:36:9:910:902
+Q7-T1 execute sql: 'DELETE FROM t1 WHERE k=0;'
+Q7 finished at: 2022-4-1 16:36:10:10:136
+                                        Q8-T2 execute sql: 'DELETE FROM t1 WHERE k=1;'
+                                                                                Q9-T3 execute sql: 'DELETE FROM t1 WHERE k=2;'
+Q10-T1 execute opt: 'COMMIT';
+                                        Q8 failed reason: [Oracle][ODBC][Ora]ORA-08177: can't serialize access for this transaction errcode: HY000
+                                        Q8 failed at: 2022-4-1 16:36:10:911:7
+                                                                                Q9 failed reason: [Oracle][ODBC][Ora]ORA-08177: can't serialize access for this transaction errcode: HY000
+                                                                                Q9 failed at: 2022-4-1 16:36:11:110:467
+
+Test Result: Rollback
+Reason: [Oracle][ODBC][Ora]ORA-08177: can't serialize access for this transaction
+

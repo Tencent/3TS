@@ -1,7 +1,4 @@
-Authors ordered by first contribution.
-
+Yuxing Chen <axingguchen@tencent.com>
+Yu Li <farrisli@tencent.com>
 Chang Liu <williamcliu@tencent.com>
-ZhanHao Zhao <zhanhaozhao@ruc.edu.cn>
-HongYao Zhao <hongyaozhao@ruc.edu.cn>
-GuangLin Ma <moggma@tencent.com>
-Ming Yan <elioyan@tencent.com>
+Xinpeng Chen <xenitchen@tencent.com>

@@ -1,0 +1,33 @@
+#### db_type: ob ####
+#### test_type: dda_full_write_skew_c2 ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_dda_full_write_skew_c2 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_full_write_skew_c2 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-14 10:54:30:469:829
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-14 10:54:30:474:557
+                                        Q3-T2 execute sql: 'BEGIN;'
+                                        Q3 finished at: 2022-4-14 10:54:31:480:926
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-14 10:54:31:484:310
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q5 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]Lock wait timeout exceeded; try restarting transaction errcode: HY000
+                                        Q5 failed at: 2022-4-14 10:54:41:896:316
+Q6 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]Lock wait timeout exceeded; try restarting transaction errcode: HY000
+Q6 failed at: 2022-4-14 10:54:42:975:719
+
+Test Result: Timeout
+Reason: Transaction execution timeout
+

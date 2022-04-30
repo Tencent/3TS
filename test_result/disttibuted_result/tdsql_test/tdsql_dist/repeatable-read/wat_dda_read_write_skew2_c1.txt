@@ -1,0 +1,66 @@
+#### db_type: tdsql ####
+#### test_type: dda_read_write_skew2_c1 ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = repeatable-read for each session
+----------wat_dda_read_write_skew2_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t2;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'CREATE TABLE t2 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1, 0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t2 VALUES (1, 3, 1, 0);'
+
+----------wat_dda_read_write_skew2_c1 test run----------
+Q1-T1 execute opt: 'BEGIN'
+Q1 finished at: 2022-4-24 12:51:17:99:452
+Q2-T1 execute sql: 'UPDATE t1 SET value2=3 WHERE value1=0;'
+Q2 finished at: 2022-4-24 12:51:17:133:133
+                                        Q3-T2 execute opt: 'BEGIN'
+                                        Q3 finished at: 2022-4-24 12:51:18:103:241
+                                        Q4-T2 execute sql: 'SELECT * FROM t2 WHERE value1=1;'
+                                           current_result: 
+                                             (1,3,1,0) 
+                                           (1) expected_result: 
+                                             (1,3,1,1) 
+                                          *(2) expected_result: 
+                                             (1,3,1,0) 
+
+                                        Q4 finished at: 2022-4-24 12:51:18:177:818
+                                        Q5-T2 execute sql: 'UPDATE t1 SET value2=2 WHERE value1=0;'
+Q6-T1 execute sql: 'UPDATE t2 SET value2=1 WHERE value1=1;'
+Q6 finished at: 2022-4-24 12:51:19:100:174
+Q7-T1 execute opt: 'COMMIT';
+Q7 finished at: 2022-4-24 12:51:19:133:936
+                                        Q5 finished at: 2022-4-24 12:51:19:138:184
+                                        Q8-T2 execute opt: 'COMMIT';
+                                        Q8 finished at: 2022-4-24 12:51:20:104:1
+                                                                                Q9-T3 execute opt: 'BEGIN'
+                                                                                Q9 finished at: 2022-4-24 12:51:30:103:26
+                                                                                Q10-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (0,1,0,2) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,1,0,2) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,1,0,3) 
+
+                                                                                Q10 finished at: 2022-4-24 12:51:30:177:253
+                                                                                Q11-T3 execute sql: 'SELECT * FROM t2 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,3,1,1) 
+
+                                                                                Q11 finished at: 2022-4-24 12:51:30:214:450
+                                                                                Q12-T3 execute opt: 'COMMIT';
+                                                                                Q12 finished at: 2022-4-24 12:51:30:255:744
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

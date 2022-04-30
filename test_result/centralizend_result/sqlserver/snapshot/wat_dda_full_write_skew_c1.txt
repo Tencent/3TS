@@ -1,0 +1,35 @@
+#### db_type: sqlserver ####
+#### test_type: dda_full_write_skew_c1 ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------wat_dda_full_write_skew_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_full_write_skew_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-2 15:10:25:772:221
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-2 15:10:25:817:158
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-2 15:10:25:872:364
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-2 15:10:25:947:10
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q5 finished at: 2022-4-2 15:10:28:422:459
+                                        Q8-T2 execute opt: 'COMMIT';
+                                        Q8 finished at: 2022-4-2 15:10:28:469:100
+Q6 failed reason: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Transaction (Process ID 51) was deadlocked on lock resources with another process and has been chosen as the deadlock victim. Rerun the transaction. errcode: 40001
+Q6 failed at: 2022-4-2 15:10:29:26:165
+
+Test Result: Rollback
+Reason: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Transaction (Process ID 51) was deadlocked on lock resources with another process and has been chosen as the deadlock victim. Rerun the transaction.
+

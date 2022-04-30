@@ -1,0 +1,33 @@
+#### db_type: ob ####
+#### test_type: dda_full_write_skew_c1 ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_dda_full_write_skew_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_full_write_skew_c1 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-1 15:35:25:64:861
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-1 15:35:25:68:626
+                                        Q3-T2 execute sql: 'BEGIN;'
+                                        Q3 finished at: 2022-4-1 15:35:25:166:391
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-1 15:35:25:168:187
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q6 failed reason: [MySQL][ODBC 8.0(w) Driver][mysqld-5.7.25]resource busy; acquire with WAIT timeout expired errcode: HY000
+Q6 failed at: 2022-4-1 15:35:45:883:846
+                                        Q5 failed reason: [MySQL][ODBC 8.0(w) Driver][mysqld-5.7.25]resource busy; acquire with WAIT timeout expired errcode: HY000
+                                        Q5 failed at: 2022-4-1 15:35:46:531:512
+
+Test Result: Timeout
+Reason: Transaction execution timeout
+

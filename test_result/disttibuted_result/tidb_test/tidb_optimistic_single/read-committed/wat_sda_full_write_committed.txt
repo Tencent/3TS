@@ -1,0 +1,34 @@
+#### db_type: tidb ####
+#### test_type: sda_full_write_committed ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------wat_sda_full_write_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_full_write_committed test run----------
+Q1-T1 execute sql: 'BEGIN OPTIMISTIC;'
+Q1 finished at: 2022-4-24 11:34:40:336:875
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-24 11:34:40:337:619
+                                        Q3-T2 execute sql: 'BEGIN OPTIMISTIC;'
+                                        Q3 finished at: 2022-4-24 11:34:41:336:816
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2022-4-24 11:34:41:337:438
+                                        Q5-T2 execute opt: 'COMMIT';
+                                        Q5 finished at: 2022-4-24 11:34:41:337:996
+Q6-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q6 finished at: 2022-4-24 11:34:42:337:4
+Q7-T1 execute opt: 'COMMIT';
+Q7 failed reason: [MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739786512400384, conflictStartTS=432739786774544384, conflictCommitTS=432739786774806528, key={tableID=3350, handle=0} primary=[]byte(nil) [try again later] errcode: HY000
+Q7 failed at: 2022-4-24 11:34:43:37:998
+
+Test Result: Rollback
+[MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739786512400384, conflictStartTS=432739786774544384, conflictCommitTS=432739786774806528, key={tableID=3350, handle=0} primary=[]byte(nil) [try again later]
+

@@ -1,0 +1,90 @@
+#### db_type: crdb ####
+#### test_type: mda_step_iat_predicate_based_delete ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_mda_step_iat_predicate_based_delete test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+
+----------iat_mda_step_iat_predicate_based_delete test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-2 16:53:14:846:121
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
+   current_result: 
+     (2,0) 
+  *(1) expected_result: 
+     (2,0) 
+  *(2) expected_result: 
+     (2,0) 
+  *(3) expected_result: 
+     (2,0) 
+   (4) expected_result: 
+     null 
+   (5) expected_result: 
+     null 
+   (6) expected_result: 
+     null 
+
+Q2 finished at: 2022-4-2 16:53:14:849:986
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-2 16:53:14:945:358
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
+                                             null 
+                                           (2) expected_result: 
+                                             null 
+                                          *(3) expected_result: 
+                                             (0,0) 
+                                          *(4) expected_result: 
+                                             (0,0) 
+                                           (5) expected_result: 
+                                             null 
+                                          *(6) expected_result: 
+                                             (0,0) 
+
+                                        Q4 finished at: 2022-4-2 16:53:14:949:504
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q5 finished at: 2022-4-2 16:53:15:45:108
+                                                                                Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                   current_result: 
+                                                                                     (1,0) 
+                                                                                   (1) expected_result: 
+                                                                                     null 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (3) expected_result: 
+                                                                                     null 
+                                                                                   (4) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (1,0) 
+
+                                                                                Q6 finished at: 2022-4-2 16:53:15:49:342
+Q7-T1 execute sql: 'DELETE FROM t1 WHERE k=0;'
+Q7 finished at: 2022-4-2 16:53:15:151:612
+                                        Q8-T2 execute sql: 'DELETE FROM t1 WHERE k=1;'
+                                        Q8 finished at: 2022-4-2 16:53:15:248:369
+                                                                                Q9-T3 execute sql: 'DELETE FROM t1 WHERE k=2;'
+                                                                                Q9 finished at: 2022-4-2 16:53:15:348:54
+Q10-T1 execute sql: 'COMMIT TRANSACTION;'
+Q10 finished at: 2022-4-2 16:53:15:448:324
+                                        Q11-T2 execute sql: 'COMMIT TRANSACTION;'
+                                                                                Q12-T3 execute sql: 'COMMIT TRANSACTION;'
+                                                                                Q12 finished at: 2022-4-2 16:53:15:647:444
+                                        Q11 failed reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: TransactionRetryError: retry txn (RETRY_SERIALIZABLE): "sql txn" id=28793754 key=/Table/335/1/1 rw=true pri=0.03177472 stat=PENDING epo=0 ts=1648889595.044727208, errcode: HY000
+                                        Q11 failed at: 2022-4-2 16:53:16:650:0
+
+Test Result: Rollback
+Reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: TransactionRetryError: retry txn (RETRY_SERIALIZABLE): "sql txn" id=28793754 key=/Table/335/1/1 rw=true pri=0.03177472 stat=PENDING epo=0 ts=1648889595.044727208,
+

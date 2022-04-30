@@ -1,0 +1,210 @@
+#### db_type: crdb ####
+#### test_type: mda_step_rat_long_fork ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------rat_mda_step_rat_long_fork test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 3);'
+
+----------rat_mda_step_rat_long_fork test run----------
+                                                                                                                        Q1-T4 execute sql: 'BEGIN TRANSACTION;'
+                                                                                                                        Q1 finished at: 2022-4-10 23:9:58:523:358
+                                                                                                                        Q2-T4 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                                                                                                           current_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (2) expected_result: 
+                                                                                                                             (0,3) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (4) expected_result: 
+                                                                                                                             (0,3) 
+                                                                                                                           (5) expected_result: 
+                                                                                                                             (0,3) 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (7) expected_result: 
+                                                                                                                             (0,3) 
+                                                                                                                           (8) expected_result: 
+                                                                                                                             (0,3) 
+                                                                                                                          *(9) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (10) expected_result: 
+                                                                                                                             (0,3) 
+                                                                                                                          *(11) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (12) expected_result: 
+                                                                                                                             (0,3) 
+                                                                                                                          *(13) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(14) expected_result: 
+                                                                                                                             (0,1) 
+
+                                                                                                                        Q2 finished at: 2022-4-10 23:9:59:239:564
+Q3-T1 execute sql: 'BEGIN TRANSACTION;'
+Q3 finished at: 2022-4-10 23:9:59:522:529
+Q4-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q4 finished at: 2022-4-10 23:9:59:580:174
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q5 finished at: 2022-4-10 23:10:0:519:813
+                                                                                Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                   current_result: 
+                                                                                     (1,3) 
+                                                                                  *(1) expected_result: 
+                                                                                     (1,3) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,3) 
+                                                                                   (3) expected_result: 
+                                                                                     (1,1) 
+                                                                                   (4) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,3) 
+                                                                                   (6) expected_result: 
+                                                                                     (1,1) 
+                                                                                   (7) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(8) expected_result: 
+                                                                                     (1,3) 
+                                                                                   (9) expected_result: 
+                                                                                     (1,1) 
+                                                                                   (10) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(11) expected_result: 
+                                                                                     (1,3) 
+                                                                                  *(12) expected_result: 
+                                                                                     (1,3) 
+                                                                                  *(13) expected_result: 
+                                                                                     (1,3) 
+                                                                                   (14) expected_result: 
+                                                                                     (1,1) 
+
+                                                                                Q6 finished at: 2022-4-10 23:10:1:293:13
+                                                                                Q7-T3 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                        Q8-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q8 finished at: 2022-4-10 23:10:1:527:401
+                                        Q9-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q9 finished at: 2022-4-10 23:10:1:590:756
+                                                                                                                        Q10-T4 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                                                           current_result: 
+                                                                                                                             (1,3) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (1,3) 
+                                                                                                                           (2) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (1,3) 
+                                                                                                                           (4) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(5) expected_result: 
+                                                                                                                             (1,3) 
+                                                                                                                           (6) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(7) expected_result: 
+                                                                                                                             (1,3) 
+                                                                                                                           (8) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                           (9) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                           (10) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                           (11) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(12) expected_result: 
+                                                                                                                             (1,3) 
+                                                                                                                          *(13) expected_result: 
+                                                                                                                             (1,3) 
+                                                                                                                          *(14) expected_result: 
+                                                                                                                             (1,3) 
+
+                                                                                                                        Q10 finished at: 2022-4-10 23:10:3:164:683
+Q11-T1 execute sql: 'COMMIT TRANSACTION;'
+Q11 finished at: 2022-4-10 23:10:3:525:64
+                                                                                   current_result: 
+                                                                                     (0,3) 
+                                                                                   (1) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(3) expected_result: 
+                                                                                     (0,3) 
+                                                                                  *(4) expected_result: 
+                                                                                     (0,3) 
+                                                                                  *(5) expected_result: 
+                                                                                     (0,3) 
+                                                                                   (6) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(7) expected_result: 
+                                                                                     (0,3) 
+                                                                                  *(8) expected_result: 
+                                                                                     (0,3) 
+                                                                                  *(9) expected_result: 
+                                                                                     (0,3) 
+                                                                                   (10) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (11) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (12) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(13) expected_result: 
+                                                                                     (0,3) 
+                                                                                  *(14) expected_result: 
+                                                                                     (0,3) 
+
+                                                                                Q7 finished at: 2022-4-10 23:10:4:188:691
+                                        Q12-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q12 finished at: 2022-4-10 23:10:4:525:429
+                                                                                Q13-T3 execute sql: 'COMMIT TRANSACTION;'
+                                                                                Q13 finished at: 2022-4-10 23:10:5:526:4
+                                                                                                                        Q14-T4 execute sql: 'COMMIT TRANSACTION;'
+                                                                                                                        Q14 finished at: 2022-4-10 23:10:6:525:131
+                                                                                                                                                                Q15-T5 execute sql: 'BEGIN TRANSACTION;'
+                                                                                                                                                                Q15 finished at: 2022-4-10 23:10:16:523:708
+                                                                                                                                                                Q16-T5 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                                                                                                   current_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(1) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(2) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(3) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(4) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(5) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(6) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(7) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(8) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(9) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(10) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(11) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(12) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(13) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+                                                                                                                                                                  *(14) expected_result: 
+                                                                                                                                                                     (0,3) (1,1) 
+
+                                                                                                                                                                Q16 finished at: 2022-4-10 23:10:17:239:194
+                                                                                                                                                                Q17-T5 execute sql: 'COMMIT TRANSACTION;'
+                                                                                                                                                                Q17 finished at: 2022-4-10 23:10:17:302:353
+
+The current result is consistent with the [(13) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

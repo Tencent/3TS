@@ -1,0 +1,34 @@
+#### db_type: tidb ####
+#### test_type: sda_full_write_committed ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = repeatable-read for each session
+----------wat_sda_full_write_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_full_write_committed test run----------
+Q1-T1 execute sql: 'BEGIN OPTIMISTIC;'
+Q1 finished at: 2022-4-24 10:56:18:551:915
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-24 10:56:18:557:526
+                                        Q3-T2 execute sql: 'BEGIN OPTIMISTIC;'
+                                        Q3 finished at: 2022-4-24 10:56:19:551:768
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2022-4-24 10:56:19:552:942
+                                        Q5-T2 execute opt: 'COMMIT';
+                                        Q5 finished at: 2022-4-24 10:56:19:553:533
+Q6-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q6 finished at: 2022-4-24 10:56:20:552:602
+Q7-T1 execute opt: 'COMMIT';
+Q7 failed reason: [MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739183113273344, conflictStartTS=432739183375417344, conflictCommitTS=432739183375941632, key={tableID=2971, handle=1} primary=[]byte(nil) [try again later] errcode: HY000
+Q7 failed at: 2022-4-24 10:56:21:253:505
+
+Test Result: Rollback
+[MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739183113273344, conflictStartTS=432739183375417344, conflictCommitTS=432739183375941632, key={tableID=2971, handle=1} primary=[]byte(nil) [try again later]
+

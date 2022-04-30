@@ -1,0 +1,32 @@
+#### db_type: gp ####
+#### test_type: sda_full_write ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_sda_full_write test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_full_write test run----------
+Q1-T1 execute opt: 'BEGIN'
+Q1 finished at: 2022-4-11 12:10:34:60:675
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-11 12:10:34:73:32
+                                        Q3-T2 execute opt: 'BEGIN'
+                                        Q3 finished at: 2022-4-11 12:10:35:60:848
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q5-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q5 finished at: 2022-4-11 12:10:36:67:372
+Q6-T1 execute opt: 'COMMIT';
+Q6 finished at: 2022-4-11 12:10:36:90:348
+                                        Q4 failed reason: ERROR: could not serialize access due to concurrent update  (seg1 9.135.218.12:6001 pid=20625); errcode: 40001
+                                        Q4 failed at: 2022-4-11 12:10:36:500:936
+
+Test Result: Rollback
+Reason: ERROR: could not serialize access due to concurrent update  (seg1 9.135.218.12:6001 pid=20625);
+

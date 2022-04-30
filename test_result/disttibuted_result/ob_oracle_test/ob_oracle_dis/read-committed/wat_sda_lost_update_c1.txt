@@ -1,0 +1,51 @@
+#### db_type: ob ####
+#### test_type: sda_lost_update_c1 ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_sda_lost_update_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+
+----------wat_sda_lost_update_c1 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-3-30 15:56:3:444:45
+                                        Q2-T2 execute sql: 'BEGIN;'
+                                        Q2 finished at: 2022-3-30 15:56:4:444:853
+Q3-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,2) 
+
+Q3 finished at: 2022-3-30 15:56:5:488:962
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2022-3-30 15:56:6:447:120
+Q5-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q7-T2 execute opt: 'COMMIT';
+                                        Q7 finished at: 2022-3-30 15:56:8:446:765
+Q5 finished at: 2022-3-30 15:56:8:447:546
+Q6-T1 execute opt: 'COMMIT';
+Q6 finished at: 2022-3-30 15:56:8:491:54
+                                                                                Q8-T3 execute sql: 'BEGIN;'
+                                                                                Q8 finished at: 2022-3-30 15:56:18:448:313
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1;'
+                                                                                   current_result: 
+                                                                                     (0,1) 
+                                                                                   (1) expected_result: 
+                                                                                     (0,2) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,1) 
+
+                                                                                Q9 finished at: 2022-3-30 15:56:18:540:167
+                                                                                Q10-T3 execute opt: 'COMMIT';
+                                                                                Q10 finished at: 2022-3-30 15:56:18:584:276
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

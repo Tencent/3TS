@@ -1,0 +1,44 @@
+#### db_type: myrocks ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: read-uncommitted ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-uncommitted for each session
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-2 11:7:3:605:341
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-2 11:7:3:606:70
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-2 11:7:3:705:355
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-2 11:7:3:706:130
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                                                                Q6-T3 execute opt: 'BEGIN;'
+                                                                                Q6 finished at: 2022-4-2 11:7:3:805:393
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-2 11:7:3:806:180
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+                                        Q5 finished at: 2022-4-2 11:7:3:906:14
+                                        Q11-T2 execute opt: 'COMMIT';
+                                                                                Q8 finished at: 2022-4-2 11:7:4:9:947
+                                        Q11 finished at: 2022-4-2 11:7:4:13:179
+                                                                                Q12-T3 execute opt: 'COMMIT';
+                                                                                Q12 finished at: 2022-4-2 11:7:4:117:98
+Q9 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.7.35-38]Deadlock found when trying to get lock; try restarting transaction errcode: HY000
+Q9 failed at: 2022-4-2 11:7:4:812:768
+
+Test Result: Rollback
+Reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.7.35-38]Deadlock found when trying to get lock; try restarting transaction
+

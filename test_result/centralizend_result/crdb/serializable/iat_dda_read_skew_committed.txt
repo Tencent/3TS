@@ -1,0 +1,60 @@
+#### db_type: crdb ####
+#### test_type: dda_read_skew_committed ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_dda_read_skew_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+
+----------iat_dda_read_skew_committed test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-2 16:53:6:619:49
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,1) 
+
+Q2 finished at: 2022-4-2 16:53:6:622:619
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-2 16:53:6:720:978
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q4 finished at: 2022-4-2 16:53:6:724:491
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q5 finished at: 2022-4-2 16:53:6:727:692
+                                        Q6-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q6 finished at: 2022-4-2 16:53:6:730:895
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+   current_result: 
+     (1,0) 
+  *(1) expected_result: 
+     (1,0) 
+   (2) expected_result: 
+     (1,1) 
+
+Q7 finished at: 2022-4-2 16:53:6:823:571
+Q8-T1 execute sql: 'COMMIT TRANSACTION;'
+Q8 finished at: 2022-4-2 16:53:6:825:405
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (0,1) (1,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,1) (1,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,1) (1,1) 
+
+                                                                                Q9 finished at: 2022-4-2 16:53:6:828:827
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

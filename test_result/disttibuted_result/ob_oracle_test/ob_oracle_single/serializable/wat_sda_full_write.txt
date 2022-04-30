@@ -1,0 +1,31 @@
+#### db_type: ob ####
+#### test_type: sda_full_write ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_sda_full_write test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_full_write test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-3-30 21:38:54:267:720
+                                        Q2-T2 execute sql: 'BEGIN;'
+                                        Q2 finished at: 2022-3-30 21:38:55:269:968
+Q3-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q3 finished at: 2022-3-30 21:38:56:270:504
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q5-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q5 finished at: 2022-3-30 21:38:58:268:336
+Q6-T1 execute opt: 'COMMIT';
+Q6 finished at: 2022-3-30 21:38:58:284:133
+                                        Q4 failed reason: [ma-2.0.3][5.6.25]ORA-08177: can't serialize access for this transaction errcode: 25000
+                                        Q4 failed at: 2022-3-30 21:38:58:687:33
+
+Test Result: Rollback
+Reason: [ma-2.0.3][5.6.25]ORA-08177: can't serialize access for this transaction
+

@@ -1,0 +1,56 @@
+#### db_type: oracle ####
+#### test_type: sda_non_repeatable_read_predicate_based-phantom_delete ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------rat_sda_non_repeatable_read_predicate_based-phantom_delete test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_sda_non_repeatable_read_predicate_based-phantom_delete test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-1 16:28:36:131:358
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     (0,0) 
+   (1) expected_result: 
+     null 
+  *(2) expected_result: 
+     (0,0) 
+
+Q2 finished at: 2022-4-1 16:28:36:136:155
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-1 16:28:36:231:383
+                                        Q4-T2 execute sql: 'DELETE FROM t1 WHERE k=0;'
+                                        Q4 finished at: 2022-4-1 16:28:36:234:890
+                                        Q5-T2 execute opt: 'COMMIT';
+Q6-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     (0,0) 
+   (1) expected_result: 
+     null 
+  *(2) expected_result: 
+     (0,0) 
+
+Q6 finished at: 2022-4-1 16:28:36:333:365
+Q7-T1 execute opt: 'COMMIT';
+                                                                                Q8-T3 execute sql: 'SELECT * FROM t1;'
+                                                                                   current_result: 
+                                                                                     null 
+                                                                                   (1) expected_result: 
+                                                                                     (0,0) 
+                                                                                  *(2) expected_result: 
+                                                                                     null 
+
+                                                                                Q8 finished at: 2022-4-1 16:28:36:338:738
+                                                                                Q9-T3 execute opt: 'COMMIT';
+
+The current result is consistent with the [(2) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

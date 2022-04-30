@@ -1,0 +1,48 @@
+#### db_type: tdsql ####
+#### test_type: dda_write_skew_predicate_based-overdraft_protection ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_dda_write_skew_predicate_based-overdraft_protection test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS account;'
+Q0-T1 execute sql: 'create table account (name varchar(255) not null, type varchar(255) not null, balance int not null default 0.00, primary key (name, type));'
+Q0-T1 execute sql: 'INSERT into account VALUES ('kevin','saving', 500);'
+Q0-T1 execute sql: 'INSERT into account VALUES ('kevin','checking', 500);'
+
+----------iat_dda_write_skew_predicate_based-overdraft_protection test run----------
+Q1-T1 execute opt: 'BEGIN'
+Q1 finished at: 2022-4-24 14:28:39:675:478
+Q2-T1 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+   current_result: 
+     (checking,500,) (saving,500,) 
+  *(1) expected_result: 
+     (checking,500,) (saving,500,) 
+   (2) expected_result: 
+     (checking,1400,) (saving,500,) 
+
+Q2 finished at: 2022-4-24 14:28:39:715:593
+                                        Q3-T2 execute opt: 'BEGIN'
+                                        Q3 finished at: 2022-4-24 14:28:40:668:462
+                                        Q4-T2 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+                                           current_result: 
+                                             (checking,500,) (saving,500,) 
+                                           (1) expected_result: 
+                                             (checking,500,) (saving,1400,) 
+                                          *(2) expected_result: 
+                                             (checking,500,) (saving,500,) 
+
+                                        Q4 finished at: 2022-4-24 14:28:40:734:518
+                                        Q5-T2 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'saving';'
+Q7-T1 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'checking';'
+                                        Q5 finished at: 2022-4-24 14:28:41:674:329
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2022-4-24 14:28:41:707:273
+Q7 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-8.0.22-v18-txsql-2.0.1-V2.0R710D002-20210517-2251]Got an error in the state of 'ABORTING', xid='2-99-1c7-6264ee17-0', errmsg='XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected' errcode: HY000
+Q7 failed at: 2022-4-24 14:28:42:377:195
+
+Test Result: Rollback
+Reason: [MySQL][ODBC 5.2(w) Driver][mysqld-8.0.22-v18-txsql-2.0.1-V2.0R710D002-20210517-2251]Got an error in the state of 'ABORTING', xid='2-99-1c7-6264ee17-0', errmsg='XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected'
+

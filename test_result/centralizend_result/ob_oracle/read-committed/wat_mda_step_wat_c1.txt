@@ -1,0 +1,41 @@
+#### db_type: ob ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-1 15:32:53:325:567
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-1 15:32:53:329:406
+                                        Q3-T2 execute sql: 'BEGIN;'
+                                        Q3 finished at: 2022-4-1 15:32:53:425:500
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-1 15:32:53:427:404
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                                                                Q6-T3 execute sql: 'BEGIN;'
+                                                                                Q6 finished at: 2022-4-1 15:32:53:527:853
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-1 15:32:53:529:882
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+                                        Q5 failed reason: [MySQL][ODBC 8.0(w) Driver][mysqld-5.7.25]resource busy; acquire with WAIT timeout expired errcode: HY000
+                                        Q5 failed at: 2022-4-1 15:33:14:172:722
+Q9 failed reason: [MySQL][ODBC 8.0(w) Driver][mysqld-5.7.25]resource busy; acquire with WAIT timeout expired errcode: HY000
+Q9 failed at: 2022-4-1 15:33:14:712:924
+                                                                                Q8 failed reason: [MySQL][ODBC 8.0(w) Driver][mysqld-5.7.25]resource busy; acquire with WAIT timeout expired errcode: HY000
+                                                                                Q8 failed at: 2022-4-1 15:33:15:168:895
+
+Test Result: Timeout
+Reason: Transaction execution timeout
+

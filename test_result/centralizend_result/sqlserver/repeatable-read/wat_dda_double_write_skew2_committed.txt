@@ -1,0 +1,35 @@
+#### db_type: sqlserver ####
+#### test_type: dda_double_write_skew2_committed ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = repeatable-read for each session
+----------wat_dda_double_write_skew2_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_double_write_skew2_committed test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-2 14:54:2:484:879
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-2 14:54:2:525:938
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-2 14:54:2:584:871
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q4 finished at: 2022-4-2 14:54:2:626:297
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                        Q5 finished at: 2022-4-2 14:54:5:995:684
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2022-4-2 14:54:6:53:593
+Q7 failed reason: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Transaction (Process ID 55) was deadlocked on lock resources with another process and has been chosen as the deadlock victim. Rerun the transaction. errcode: 40001
+Q7 failed at: 2022-4-2 14:54:6:693:631
+
+Test Result: Rollback
+Reason: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Transaction (Process ID 55) was deadlocked on lock resources with another process and has been chosen as the deadlock victim. Rerun the transaction.
+

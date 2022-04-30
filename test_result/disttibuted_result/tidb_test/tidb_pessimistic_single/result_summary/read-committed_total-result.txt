@@ -1,0 +1,108 @@
+rat_sda_dirty_read: Avoid
+
+rat_sda_non_repeatable_read: Avoid
+
+rat_sda_intermediate_read: Avoid
+
+rat_sda_intermediate_read_committed: Avoid
+
+rat_sda_non_repeatable_read_predicate_based-phantom_delete: Anomaly
+
+rat_sda_non_repeatable_read_predicate_based-phantom_insert: Anomaly
+
+rat_sda_lost_self_update: Avoid
+
+rat_dda_write_read_skew: Anomaly
+
+rat_dda_write_read_skew_committed: Avoid
+
+rat_dda_double_write_skew1: Avoid
+
+rat_dda_double_write_skew1_committed: Avoid
+
+rat_dda_double_write_skew2: Avoid
+
+rat_dda_read_skew: Avoid
+
+rat_dda_read_skew_predicate_based_delete: Anomaly
+
+rat_dda_read_skew_predicate_based_insert: Anomaly
+
+rat_dda_read_skew2: Avoid
+
+rat_dda_read_skew2_committed: Avoid
+
+rat_mda_step_rat: Anomaly
+
+rat_mda_step_rat_long_fork: Avoid
+
+rat_mda_step_rat_predicate_based_delete: Anomaly
+
+rat_mda_step_rat_predicate_based_insert: Anomaly
+
+wat_sda_dirty_write_1abort: Avoid
+
+wat_sda_dirty_write_2commit: Avoid
+
+wat_sda_full_write: Avoid
+
+wat_sda_full_write_committed: Avoid
+
+wat_sda_lost_update_c1: Anomaly
+
+wat_sda_lost_update_c2: Anomaly
+
+wat_sda_lost_self_update_committed: Avoid
+
+wat_dda_double_write_skew2_committed: Avoid
+
+wat_dda_full_write_skew_c1: Rollback
+
+wat_dda_full_write_skew_c2: Rollback
+
+wat_dda_full_write_skew_committed: Rollback
+
+wat_dda_read_write_skew1_c1: Anomaly
+
+wat_dda_read_write_skew1_c2: Anomaly
+
+wat_dda_read_write_skew2_c1: Anomaly
+
+wat_dda_read_write_skew2_c2: Anomaly
+
+wat_dda_read_write_skew2_committed: Anomaly
+
+wat_mda_step_wat_c1: Rollback
+
+wat_mda_step_wat_c2: Rollback
+
+iat_sda_non_repeatable_read_committed: Anomaly
+
+iat_sda_lost_update_committed: Anomaly
+
+iat_dda_read_skew_committed: Anomaly
+
+iat_dda_read_write_skew1_committed: Anomaly
+
+iat_dda_write_skew: Anomaly
+
+iat_dda_write_skew_predicate_based-intersecting_data: Anomaly
+
+iat_dda_write_skew_predicate_based-overdraft_protection: Anomaly
+
+iat_dda_write_skew_committed: Anomaly
+
+iat_mda_step_iat: Anomaly
+
+iat_mda_step_iat_predicate_based_delete: Anomaly
+
+iat_mda_step_iat_predicate_based_insert: Anomaly
+
+iat_mda_step_iat_uname_anomaly: Anomaly
+
+iat_mda_step_iat_cross_phenomenon: Anomaly
+
+iat_mda_step_iat_causality_violation_anomaly: Anomaly
+
+iat_mda_step_iat_read_only_transaction_anomaly: Anomaly
+

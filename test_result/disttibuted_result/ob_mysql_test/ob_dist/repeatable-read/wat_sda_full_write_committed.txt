@@ -1,0 +1,31 @@
+#### db_type: ob ####
+#### test_type: sda_full_write_committed ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_sda_full_write_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_full_write_committed test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-14 10:52:48:943:853
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-14 10:52:48:951:538
+                                        Q3-T2 execute sql: 'BEGIN;'
+                                        Q3 finished at: 2022-4-14 10:52:49:944:672
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q6 finished at: 2022-4-14 10:52:50:946:968
+Q7-T1 execute opt: 'COMMIT';
+Q7 finished at: 2022-4-14 10:52:50:995:798
+                                        Q4 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]can't serialize access for this transaction errcode: HY000
+                                        Q4 failed at: 2022-4-14 10:52:51:414:694
+
+Test Result: Rollback
+Reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]can't serialize access for this transaction
+

@@ -1,0 +1,34 @@
+#### db_type: crdb ####
+#### test_type: dda_full_write_skew_c1 ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_dda_full_write_skew_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+
+----------wat_dda_full_write_skew_c1 test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-2 16:52:51:31:130
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-2 16:52:51:34:372
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-2 16:52:51:131:333
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-2 16:52:51:135:368
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q5 finished at: 2022-4-2 16:52:51:251:927
+                                        Q8-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q8 finished at: 2022-4-2 16:52:51:334:959
+Q6 failed reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: TransactionAbortedError(ABORT_REASON_PUSHER_ABORTED): "sql txn" id=a169cc1e key=/Table/316/1/0/0 rw=true pri=0.00752718 stat=ABORTED epo=0 ts=1648889571.030721457 errcode: HY000
+Q6 failed at: 2022-4-2 16:52:51:846:79
+
+Test Result: Rollback
+Reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: TransactionAbortedError(ABORT_REASON_PUSHER_ABORTED): "sql txn" id=a169cc1e key=/Table/316/1/0/0 rw=true pri=0.00752718 stat=ABORTED epo=0 ts=1648889571.030721457
+

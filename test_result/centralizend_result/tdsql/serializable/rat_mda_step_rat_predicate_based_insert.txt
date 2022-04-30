@@ -1,0 +1,67 @@
+#### db_type: tdsql ####
+#### test_type: mda_step_rat_predicate_based_insert ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------rat_mda_step_rat_predicate_based_insert test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_mda_step_rat_predicate_based_insert test run----------
+Q1-T1 execute opt: 'BEGIN'
+Q1 finished at: 2022-4-23 21:10:13:531:113
+Q2-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1);'
+Q2 finished at: 2022-4-23 21:10:13:567:618
+                                        Q3-T2 execute opt: 'BEGIN'
+                                        Q3 finished at: 2022-4-23 21:10:14:531:106
+                                        Q4-T2 execute sql: 'INSERT INTO t1 VALUES (1, 1);'
+                                        Q4 finished at: 2022-4-23 21:10:14:569:933
+                                        Q5-T2 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 0;'
+                                                                                Q6-T3 execute opt: 'BEGIN'
+                                                                                Q6 finished at: 2022-4-23 21:10:15:531:102
+                                                                                Q7-T3 execute sql: 'INSERT INTO t1 VALUES (2, 1);'
+                                                                                Q7 finished at: 2022-4-23 21:10:15:567:279
+                                                                                Q8-T3 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 1;'
+Q9-T1 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 2;'
+                                           current_result: 
+                                             (,) 
+                                          *(1) expected_result: 
+                                             (,) 
+                                          *(2) expected_result: 
+                                             (,) 
+                                          *(3) expected_result: 
+                                             (,) 
+                                           (4) expected_result: 
+                                             (1,) 
+                                           (5) expected_result: 
+                                             (1,) 
+                                           (6) expected_result: 
+                                             (1,) 
+
+                                        Q5 finished at: 2022-4-23 21:10:16:570:892
+Q9 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-8.0.22-v18-txsql-2.0.1-V2.0R710D002-20210517-2251]Got an error in the state of 'ABORTING', xid='4-95-56-6263fab5-0', errmsg='XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected' errcode: HY000
+Q9 failed at: 2022-4-23 21:10:17:467:517
+                                                                                   current_result: 
+                                                                                     (,) 
+                                                                                   (1) expected_result: 
+                                                                                     (1,) 
+                                                                                   (2) expected_result: 
+                                                                                     (1,) 
+                                                                                  *(3) expected_result: 
+                                                                                     (,) 
+                                                                                  *(4) expected_result: 
+                                                                                     (,) 
+                                                                                   (5) expected_result: 
+                                                                                     (1,) 
+                                                                                  *(6) expected_result: 
+                                                                                     (,) 
+
+                                                                                Q8 finished at: 2022-4-23 21:10:17:539:32
+
+Test Result: Rollback
+Reason: [MySQL][ODBC 5.2(w) Driver][mysqld-8.0.22-v18-txsql-2.0.1-V2.0R710D002-20210517-2251]Got an error in the state of 'ABORTING', xid='4-95-56-6263fab5-0', errmsg='XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected'
+

@@ -1,0 +1,47 @@
+#### db_type: tidb ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute sql: 'BEGIN OPTIMISTIC;'
+Q1 finished at: 2022-4-24 11:38:20:654:445
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-24 11:38:20:655:24
+                                        Q3-T2 execute sql: 'BEGIN OPTIMISTIC;'
+                                        Q3 finished at: 2022-4-24 11:38:21:654:325
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-24 11:38:21:654:925
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q5 finished at: 2022-4-24 11:38:21:655:404
+                                                                                Q6-T3 execute sql: 'BEGIN OPTIMISTIC;'
+                                                                                Q6 finished at: 2022-4-24 11:38:22:654:400
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-24 11:38:22:655:33
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+                                                                                Q8 finished at: 2022-4-24 11:38:22:655:541
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+Q9 finished at: 2022-4-24 11:38:23:654:639
+Q10-T1 execute opt: 'COMMIT';
+Q10 finished at: 2022-4-24 11:38:23:655:922
+                                        Q11-T2 execute opt: 'COMMIT';
+                                                                                Q12-T3 execute opt: 'COMMIT';
+                                        Q11 failed reason: [MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739844529586176, conflictStartTS=432739844267442176, conflictCommitTS=432739845054136320, key={tableID=3389, handle=0} primary=[]byte(nil) [try again later] errcode: HY000
+                                        Q11 failed at: 2022-4-24 11:38:25:755:66
+                                                                                Q12 failed reason: [MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739844791730176, conflictStartTS=432739844267442176, conflictCommitTS=432739845054136320, key={tableID=3389, handle=2} primary=[]byte(nil) [try again later] errcode: HY000
+                                                                                Q12 failed at: 2022-4-24 11:38:26:855:107
+
+Test Result: Rollback
+[MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739844529586176, conflictStartTS=432739844267442176, conflictCommitTS=432739845054136320, key={tableID=3389, handle=0} primary=[]byte(nil) [try again later]
+

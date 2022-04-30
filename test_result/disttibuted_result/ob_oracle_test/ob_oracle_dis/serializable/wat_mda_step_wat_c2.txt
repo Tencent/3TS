@@ -1,0 +1,42 @@
+#### db_type: ob ####
+#### test_type: mda_step_wat_c2 ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_mda_step_wat_c2 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'DROP TABLE t2;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'CREATE TABLE t2 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1, 0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t2 VALUES (1, 3, 1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0, 2, 0);'
+
+----------wat_mda_step_wat_c2 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-3-30 19:13:29:302:362
+                                        Q2-T2 execute sql: 'BEGIN;'
+                                        Q2 finished at: 2022-3-30 19:13:30:305:861
+                                                                                Q3-T3 execute sql: 'BEGIN;'
+                                                                                Q3 finished at: 2022-3-30 19:13:31:305:688
+Q4-T1 execute sql: 'UPDATE t1 SET value2=1 WHERE value1=0;'
+Q4 finished at: 2022-3-30 19:13:32:307:395
+                                        Q5-T2 execute sql: 'UPDATE t2 SET value2=2 WHERE value1=1;'
+                                        Q5 finished at: 2022-3-30 19:13:33:308:38
+                                        Q6-T2 execute sql: 'UPDATE t1 SET value2=2 WHERE value1=0;'
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET value2=3 WHERE value1=2;'
+                                                                                Q7 finished at: 2022-3-30 19:13:34:304:700
+                                                                                Q8-T3 execute sql: 'UPDATE t2 SET value2=3 WHERE value1=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET value2=1 WHERE value1=2;'
+                                        Q6 failed reason: [ma-2.0.3][5.6.25]ORA-30006: resource busy; acquire with WAIT timeout expired errcode: HY000
+                                        Q6 failed at: 2022-3-30 19:13:43:913:998
+                                                                                Q8 failed reason: [ma-2.0.3][5.6.25]ORA-30006: resource busy; acquire with WAIT timeout expired errcode: HY000
+                                                                                Q8 failed at: 2022-3-30 19:13:45:113:180
+Q9 failed reason: [ma-2.0.3][5.6.25]ORA-30006: resource busy; acquire with WAIT timeout expired errcode: HY000
+Q9 failed at: 2022-3-30 19:13:46:161:32
+
+Test Result: Timeout
+Reason: Transaction execution timeout
+

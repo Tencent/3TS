@@ -1,0 +1,41 @@
+#### db_type: ob ####
+#### test_type: dda_double_write_skew1_committed ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------rat_dda_double_write_skew1_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_dda_double_write_skew1_committed test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-3-30 11:3:53:445:5
+                                        Q2-T2 execute sql: 'BEGIN;'
+                                        Q2 finished at: 2022-3-30 11:3:54:442:807
+Q3-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q3 finished at: 2022-3-30 11:3:55:447:680
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q4 finished at: 2022-3-30 11:3:56:443:638
+                                        Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
+                                             (0,1) 
+                                          *(2) expected_result: 
+                                             (0,0) 
+
+                                        Q5 finished at: 2022-3-30 11:3:56:475:429
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2022-3-30 11:3:56:492:91
+Q7-T1 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+Q7 failed reason: [ma-2.0.3][5.6.25]ORA-08177: can't serialize access for this transaction errcode: 25000
+Q7 failed at: 2022-3-30 11:3:58:145:911
+
+Test Result: Rollback
+Reason: [ma-2.0.3][5.6.25]ORA-08177: can't serialize access for this transaction
+

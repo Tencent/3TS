@@ -1,0 +1,41 @@
+#### db_type: ob ####
+#### test_type: dda_read_write_skew1_c1 ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_dda_read_write_skew1_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_read_write_skew1_c1 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-14 10:55:5:926:404
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,1) 
+
+Q2 finished at: 2022-4-14 10:55:5:933:316
+                                        Q3-T2 execute sql: 'BEGIN;'
+                                        Q3 finished at: 2022-4-14 10:55:6:937:377
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-14 10:55:6:942:383
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q5 finished at: 2022-4-14 10:55:6:946:393
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q8-T2 execute opt: 'COMMIT';
+                                        Q8 finished at: 2022-4-14 10:55:8:945:752
+Q6 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]can't serialize access for this transaction errcode: HY000
+Q6 failed at: 2022-4-14 10:55:9:663:460
+
+Test Result: Rollback
+Reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]can't serialize access for this transaction
+

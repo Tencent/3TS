@@ -1,0 +1,50 @@
+#### db_type: crdb ####
+#### test_type: dda_write_skew_predicate_based-overdraft_protection ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_dda_write_skew_predicate_based-overdraft_protection test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS account;'
+Q0-T1 execute sql: 'create table account (name varchar(255) not null, type varchar(255) not null, balance int not null, primary key (name, type))'
+Q0-T1 execute sql: 'INSERT into account VALUES ('kevin','saving', 500);'
+Q0-T1 execute sql: 'INSERT into account VALUES ('kevin','checking', 500);'
+
+----------iat_dda_write_skew_predicate_based-overdraft_protection test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-2 16:53:10:48:555
+Q2-T1 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+   current_result: 
+     (checking,500,) (saving,500,) 
+  *(1) expected_result: 
+     (checking,500,) (saving,500,) 
+   (2) expected_result: 
+     (checking,1400,) (saving,500,) 
+
+Q2 finished at: 2022-4-2 16:53:10:52:730
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-2 16:53:10:148:628
+                                        Q4-T2 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+                                           current_result: 
+                                             (checking,500,) (saving,500,) 
+                                           (1) expected_result: 
+                                             (checking,500,) (saving,1400,) 
+                                          *(2) expected_result: 
+                                             (checking,500,) (saving,500,) 
+
+                                        Q4 finished at: 2022-4-2 16:53:10:153:630
+                                        Q5-T2 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'saving';'
+                                        Q5 finished at: 2022-4-2 16:53:10:170:832
+                                        Q6-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q6 finished at: 2022-4-2 16:53:10:174:944
+Q7-T1 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'checking';'
+Q7 finished at: 2022-4-2 16:53:10:250:997
+Q8-T1 execute sql: 'COMMIT TRANSACTION;'
+Q8 failed reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: TransactionRetryError: retry txn (RETRY_SERIALIZABLE): "sql txn" id=c6ca7478 key=/Table/332/1/"kevin"/"checking"/0 rw=true pri=0.06037639 stat=PENDING epo=0 ts=16 errcode: HY000
+Q8 failed at: 2022-4-2 16:53:11:55:114
+
+Test Result: Rollback
+Reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: TransactionRetryError: retry txn (RETRY_SERIALIZABLE): "sql txn" id=c6ca7478 key=/Table/332/1/"kevin"/"checking"/0 rw=true pri=0.06037639 stat=PENDING epo=0 ts=16
+

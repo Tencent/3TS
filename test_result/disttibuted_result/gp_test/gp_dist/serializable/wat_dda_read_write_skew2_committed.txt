@@ -1,0 +1,42 @@
+#### db_type: gp ####
+#### test_type: dda_read_write_skew2_committed ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_dda_read_write_skew2_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) DISTRIBUTED RANDOMLY PARTITION BY RANGE(v) (PARTITION p0 START (0) INCLUSIVE END (2) EXCLUSIVE, PARTITION p1 START (2) INCLUSIVE END (4) EXCLUSIVE);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_read_write_skew2_committed test run----------
+Q1-T1 execute opt: 'BEGIN'
+Q1 finished at: 2022-4-11 13:47:56:256:35
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-11 13:47:56:268:679
+                                        Q3-T2 execute opt: 'BEGIN'
+                                        Q3 finished at: 2022-4-11 13:47:57:256:25
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                           current_result: 
+                                             (1,0) 
+                                           (1) expected_result: 
+                                             (1,1) 
+                                          *(2) expected_result: 
+                                             (1,0) 
+
+                                        Q4 finished at: 2022-4-11 13:47:57:269:408
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q7-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q7 finished at: 2022-4-11 13:47:58:262:862
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2022-4-11 13:47:58:275:74
+                                        Q5 failed reason: ERROR: could not serialize access due to concurrent update  (seg2 9.134.190.63:6000 pid=26711); errcode: 40001
+                                        Q5 failed at: 2022-4-11 13:47:58:781:950
+
+Test Result: Rollback
+Reason: ERROR: could not serialize access due to concurrent update  (seg2 9.134.190.63:6000 pid=26711);
+

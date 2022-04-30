@@ -1,0 +1,44 @@
+#### db_type: tidb ####
+#### test_type: dda_read_write_skew1_c2 ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = repeatable-read for each session
+----------wat_dda_read_write_skew1_c2 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_read_write_skew1_c2 test run----------
+Q1-T1 execute sql: 'BEGIN OPTIMISTIC;'
+Q1 finished at: 2022-4-24 10:58:49:781:347
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,1) 
+
+Q2 finished at: 2022-4-24 10:58:49:786:723
+                                        Q3-T2 execute sql: 'BEGIN OPTIMISTIC;'
+                                        Q3 finished at: 2022-4-24 10:58:50:781:346
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-24 10:58:50:782:639
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q5 finished at: 2022-4-24 10:58:50:783:553
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q6 finished at: 2022-4-24 10:58:51:782:103
+                                        Q7-T2 execute opt: 'COMMIT';
+                                        Q7 finished at: 2022-4-24 10:58:52:781:675
+Q8-T1 execute opt: 'COMMIT';
+Q8 failed reason: [MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739222757310464, conflictStartTS=432739223019454464, conflictCommitTS=432739223543742464, key={tableID=3016, handle=2} primary=[]byte(nil) [try again later] errcode: HY000
+Q8 failed at: 2022-4-24 10:58:54:581:905
+
+Test Result: Rollback
+[MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739222757310464, conflictStartTS=432739223019454464, conflictCommitTS=432739223543742464, key={tableID=3016, handle=2} primary=[]byte(nil) [try again later]
+

@@ -1,0 +1,26 @@
+ParamNum:3
+0-1-DROP TABLE IF EXISTS account;
+0-1-create table account (name varchar(255) not null, type varchar(255) not null, balance int not null, primary key (name, type))
+0-1-insert into account values ('kevin','saving', 500);
+0-1-insert into account values ('kevin','checking', 500);
+0-1-COMMIT;
+1-1-BEGIN;
+2-1-select type, balance from account where name = 'kevin';
+3-2-BEGIN;
+4-2-select type, balance from account where name = 'kevin';
+5-2-update account set balance = balance + 900 where name = 'kevin' and type = 'saving';
+6-2-COMMIT;
+7-1-update account set balance = balance + 900 where name = 'kevin' and type = 'checking';
+8-1-COMMIT:
+9-3-select * from account;
+10-3-COMMIT;
+
+serializable {
+2-checking,500, saving,500,
+4-checking,500, saving,1400,
+9-kevin,checking,1400 kevin,saving,1400
+
+2-checking,1400, saving,500,
+4-checking,500, saving,500,
+9-kevin,checking,1400 kevin,saving,1400
+}

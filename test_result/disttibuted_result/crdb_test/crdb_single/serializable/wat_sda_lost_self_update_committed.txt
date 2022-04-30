@@ -1,0 +1,54 @@
+#### db_type: crdb ####
+#### test_type: sda_lost_self_update_committed ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_sda_lost_self_update_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+
+----------wat_sda_lost_self_update_committed test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-10 23:23:46:181:809
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-10 23:23:46:507:193
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-10 23:23:47:186:8
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,1) 
+  *(1) expected_result: 
+     (0,1) 
+  *(2) expected_result: 
+     (0,1) 
+
+Q6 finished at: 2022-4-10 23:23:49:86:703
+Q7-T1 execute sql: 'COMMIT TRANSACTION;'
+Q7 finished at: 2022-4-10 23:23:49:147:991
+                                        Q4 finished at: 2022-4-10 23:23:49:153:491
+                                        Q5-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q5 finished at: 2022-4-10 23:23:49:216:432
+                                                                                Q8-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q8 finished at: 2022-4-10 23:23:58:179:55
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1;'
+                                                                                   current_result: 
+                                                                                     (0,2) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,2) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,1) 
+
+                                                                                Q9 finished at: 2022-4-10 23:23:58:869:472
+                                                                                Q10-T3 execute sql: 'COMMIT TRANSACTION;'
+                                                                                Q10 finished at: 2022-4-10 23:23:58:926:495
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

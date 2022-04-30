@@ -1,0 +1,38 @@
+#### db_type: ob ####
+#### test_type: sda_lost_self_update_committed ####
+#### isolation: repeatable-read ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_sda_lost_self_update_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_lost_self_update_committed test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-13 21:3:44:68:665
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-13 21:3:44:72:845
+                                        Q3-T2 execute sql: 'BEGIN;'
+                                        Q3 finished at: 2022-4-13 21:3:45:68:643
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,1) 
+  *(1) expected_result: 
+     (0,1) 
+  *(2) expected_result: 
+     (0,1) 
+
+Q6 finished at: 2022-4-13 21:3:46:72:143
+Q7-T1 execute opt: 'COMMIT';
+Q7 finished at: 2022-4-13 21:3:46:76:561
+                                        Q4 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]can't serialize access for this transaction errcode: HY000
+                                        Q4 failed at: 2022-4-13 21:3:46:479:573
+
+Test Result: Rollback
+Reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]can't serialize access for this transaction
+

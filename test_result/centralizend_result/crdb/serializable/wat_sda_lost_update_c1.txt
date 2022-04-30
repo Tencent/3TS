@@ -1,0 +1,38 @@
+#### db_type: crdb ####
+#### test_type: sda_lost_update_c1 ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_sda_lost_update_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+
+----------wat_sda_lost_update_c1 test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-2 16:52:47:611:890
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,2) 
+
+Q2 finished at: 2022-4-2 16:52:47:616:239
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-2 16:52:47:712:408
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2022-4-2 16:52:47:716:327
+Q5-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q7-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q7 finished at: 2022-4-2 16:52:47:914:368
+Q5 failed reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: WriteTooOldError: write at timestamp 1648889567.611475606,0 too old; wrote at 1648889567.711824399,1 errcode: HY000
+Q5 failed at: 2022-4-2 16:52:48:423:981
+
+Test Result: Rollback
+Reason: Server error [SQL state: 40001]: restart transaction: TransactionRetryWithProtoRefreshError: WriteTooOldError: write at timestamp 1648889567.611475606,0 too old; wrote at 1648889567.711824399,1
+

@@ -1,0 +1,33 @@
+#### db_type: ob ####
+#### test_type: dda_full_write_skew_c1 ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_dda_full_write_skew_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_full_write_skew_c1 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-3-30 2:29:55:164:733
+                                        Q2-T2 execute sql: 'BEGIN;'
+                                        Q2 finished at: 2022-3-30 2:29:56:163:81
+Q3-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q3 finished at: 2022-3-30 2:29:57:166:866
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-3-30 2:29:58:163:864
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q5 failed reason: [ma-2.0.3][5.6.25]ORA-30006: resource busy; acquire with WAIT timeout expired errcode: HY000
+                                        Q5 failed at: 2022-3-30 2:30:8:610:322
+Q6 failed reason: [ma-2.0.3][5.6.25]ORA-30006: resource busy; acquire with WAIT timeout expired errcode: HY000
+Q6 failed at: 2022-3-30 2:30:9:670:156
+
+Test Result: Timeout
+Reason: Transaction execution timeout
+

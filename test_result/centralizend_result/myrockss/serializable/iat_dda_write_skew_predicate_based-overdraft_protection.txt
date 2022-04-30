@@ -1,0 +1,49 @@
+#### db_type: myrocks ####
+#### test_type: dda_write_skew_predicate_based-overdraft_protection ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_dda_write_skew_predicate_based-overdraft_protection test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS account;'
+Q0-T1 execute sql: 'create table account (name varchar(255) not null, type varchar(255) not null, balance int not null, primary key (name, type))'
+Q0-T1 execute sql: 'INSERT into account VALUES ('kevin','saving', 500);'
+Q0-T1 execute sql: 'INSERT into account VALUES ('kevin','checking', 500);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_dda_write_skew_predicate_based-overdraft_protection test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-2 11:9:15:751:986
+Q2-T1 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+   current_result: 
+     (checking,500,) (saving,500,) 
+  *(1) expected_result: 
+     (checking,500,) (saving,500,) 
+   (2) expected_result: 
+     (checking,1400,) (saving,500,) 
+
+Q2 finished at: 2022-4-2 11:9:15:752:955
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-2 11:9:15:851:984
+                                        Q4-T2 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+                                           current_result: 
+                                             (checking,500,) (saving,500,) 
+                                           (1) expected_result: 
+                                             (checking,500,) (saving,1400,) 
+                                          *(2) expected_result: 
+                                             (checking,500,) (saving,500,) 
+
+                                        Q4 finished at: 2022-4-2 11:9:15:853:12
+                                        Q5-T2 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'saving';'
+Q7-T1 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'checking';'
+                                        Q5 finished at: 2022-4-2 11:9:15:952:625
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2022-4-2 11:9:15:963:630
+Q7 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.7.35-38]Deadlock found when trying to get lock; try restarting transaction errcode: HY000
+Q7 failed at: 2022-4-2 11:9:16:652:723
+
+Test Result: Rollback
+Reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.7.35-38]Deadlock found when trying to get lock; try restarting transaction
+

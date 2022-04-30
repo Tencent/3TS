@@ -1,0 +1,32 @@
+#### db_type: tidb ####
+#### test_type: sda_dirty_write_2commit ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------wat_sda_dirty_write_2commit test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_dirty_write_2commit test run----------
+Q1-T1 execute sql: 'BEGIN OPTIMISTIC;'
+Q1 finished at: 2022-4-1 17:25:49:456:757
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-1 17:25:49:458:596
+                                        Q3-T2 execute sql: 'BEGIN OPTIMISTIC;'
+                                        Q3 finished at: 2022-4-1 17:25:49:556:694
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2022-4-1 17:25:49:558:374
+Q5-T1 execute opt: 'COMMIT';
+Q5 finished at: 2022-4-1 17:25:49:656:932
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 failed reason: [MySQL][ODBC 8.0(w) Driver]Write conflict, txnStartTS=432224377125208064, conflictStartTS=432224377098993664, conflictCommitTS=432224377151422464, key={tableID=2610, handle=0} primary=[]byte(nil) [try again later] errcode: HY000
+                                        Q6 failed at: 2022-4-1 17:25:50:357:539
+
+Test Result: Rollback
+[MySQL][ODBC 8.0(w) Driver]Write conflict, txnStartTS=432224377125208064, conflictStartTS=432224377098993664, conflictCommitTS=432224377151422464, key={tableID=2610, handle=0} primary=[]byte(nil) [try again later]
+

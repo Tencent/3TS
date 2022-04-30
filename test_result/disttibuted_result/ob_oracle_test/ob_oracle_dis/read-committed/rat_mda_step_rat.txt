@@ -1,0 +1,128 @@
+#### db_type: ob ####
+#### test_type: mda_step_rat ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------rat_mda_step_rat test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'DROP TABLE t2;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'CREATE TABLE t2 (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1, 0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t2 VALUES (1, 3, 1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0, 2, 0);'
+
+----------rat_mda_step_rat test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-3-30 15:50:34:446:44
+                                        Q2-T2 execute sql: 'BEGIN;'
+                                        Q2 finished at: 2022-3-30 15:50:35:445:315
+                                                                                Q3-T3 execute sql: 'BEGIN;'
+                                                                                Q3 finished at: 2022-3-30 15:50:36:438:973
+Q4-T1 execute sql: 'UPDATE t1 SET value2=3 WHERE value1=0;'
+Q4 finished at: 2022-3-30 15:50:37:450:933
+                                        Q5-T2 execute sql: 'UPDATE t2 SET value2=1 WHERE value1=1;'
+                                        Q5 finished at: 2022-3-30 15:50:38:469:611
+                                        Q6-T2 execute sql: 'SELECT * FROM t1 WHERE value1=0;'
+                                           current_result: 
+                                             (0,1,0,0) 
+                                           (1) expected_result: 
+                                             (0,1,0,3) 
+                                           (2) expected_result: 
+                                             (0,1,0,3) 
+                                          *(3) expected_result: 
+                                             (0,1,0,0) 
+                                          *(4) expected_result: 
+                                             (0,1,0,0) 
+                                           (5) expected_result: 
+                                             (0,1,0,3) 
+                                          *(6) expected_result: 
+                                             (0,1,0,0) 
+
+                                        Q6 finished at: 2022-3-30 15:50:38:578:456
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET value2=1 WHERE value1=2;'
+                                                                                Q7 finished at: 2022-3-30 15:50:39:442:110
+                                                                                Q8-T3 execute sql: 'SELECT * FROM t2 WHERE value1=1;'
+                                                                                   current_result: 
+                                                                                     (1,3,1,0) 
+                                                                                   (1) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,3,1,0) 
+                                                                                   (3) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                   (4) expected_result: 
+                                                                                     (1,3,1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,3,1,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (1,3,1,0) 
+
+                                                                                Q8 finished at: 2022-3-30 15:50:39:522:184
+Q9-T1 execute sql: 'SELECT * FROM t1 WHERE value1=2;'
+   current_result: 
+     (2,0,2,0) 
+  *(1) expected_result: 
+     (2,0,2,0) 
+  *(2) expected_result: 
+     (2,0,2,0) 
+  *(3) expected_result: 
+     (2,0,2,0) 
+   (4) expected_result: 
+     (2,0,2,1) 
+   (5) expected_result: 
+     (2,0,2,1) 
+   (6) expected_result: 
+     (2,0,2,1) 
+
+Q9 finished at: 2022-3-30 15:50:40:494:74
+Q10-T1 execute opt: 'COMMIT';
+Q10 finished at: 2022-3-30 15:50:40:540:435
+                                        Q11-T2 execute opt: 'COMMIT';
+                                        Q11 finished at: 2022-3-30 15:50:41:451:574
+                                                                                Q12-T3 execute opt: 'COMMIT';
+                                                                                Q12 finished at: 2022-3-30 15:50:42:441:757
+                                                                                                                        Q13-T4 execute sql: 'BEGIN;'
+                                                                                                                        Q13 finished at: 2022-3-30 15:50:52:442:367
+                                                                                                                        Q14-T4 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                                                           current_result: 
+                                                                                                                             (0,1,0,3) (2,0,2,1) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (0,1,0,3) (2,0,2,1) 
+                                                                                                                          *(2) expected_result: 
+                                                                                                                             (0,1,0,3) (2,0,2,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (0,1,0,3) (2,0,2,1) 
+                                                                                                                          *(4) expected_result: 
+                                                                                                                             (0,1,0,3) (2,0,2,1) 
+                                                                                                                          *(5) expected_result: 
+                                                                                                                             (0,1,0,3) (2,0,2,1) 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             (0,1,0,3) (2,0,2,1) 
+
+                                                                                                                        Q14 finished at: 2022-3-30 15:50:52:527:460
+                                                                                                                        Q15-T4 execute sql: 'SELECT * FROM t2 ORDER BY k;'
+                                                                                                                           current_result: 
+                                                                                                                             (1,3,1,1) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (1,3,1,1) 
+                                                                                                                          *(2) expected_result: 
+                                                                                                                             (1,3,1,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (1,3,1,1) 
+                                                                                                                          *(4) expected_result: 
+                                                                                                                             (1,3,1,1) 
+                                                                                                                          *(5) expected_result: 
+                                                                                                                             (1,3,1,1) 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             (1,3,1,1) 
+
+                                                                                                                        Q15 finished at: 2022-3-30 15:50:52:611:774
+                                                                                                                        Q16-T4 execute opt: 'COMMIT';
+                                                                                                                        Q16 finished at: 2022-3-30 15:50:52:652:169
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

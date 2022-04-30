@@ -1,0 +1,109 @@
+#### db_type: tdsql ####
+#### test_type: mda_step_rat_predicate_based_delete ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------rat_mda_step_rat_predicate_based_delete test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 1);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 1);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 1);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_mda_step_rat_predicate_based_delete test run----------
+Q1-T1 execute opt: 'BEGIN'
+Q1 finished at: 2022-4-18 14:57:32:576:60
+Q2-T1 execute sql: 'DELETE FROM t1 WHERE k=0;'
+Q2 finished at: 2022-4-18 14:57:32:609:998
+                                        Q3-T2 execute opt: 'BEGIN'
+                                        Q3 finished at: 2022-4-18 14:57:35:581:748
+                                        Q4-T2 execute sql: 'DELETE FROM t1 WHERE k=1;'
+                                        Q4 finished at: 2022-4-18 14:57:35:621:711
+                                        Q5-T2 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 0;'
+                                           current_result: 
+                                             (1,) 
+                                           (1) expected_result: 
+                                             (,) 
+                                           (2) expected_result: 
+                                             (,) 
+                                          *(3) expected_result: 
+                                             (1,) 
+                                          *(4) expected_result: 
+                                             (1,) 
+                                           (5) expected_result: 
+                                             (,) 
+                                          *(6) expected_result: 
+                                             (1,) 
+
+                                        Q5 finished at: 2022-4-18 14:57:35:661:482
+                                                                                Q6-T3 execute opt: 'BEGIN'
+                                                                                Q6 finished at: 2022-4-18 14:57:38:586:149
+                                                                                Q7-T3 execute sql: 'DELETE FROM t1 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-18 14:57:38:627:911
+                                                                                Q8-T3 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 1;'
+                                                                                   current_result: 
+                                                                                     (1,) 
+                                                                                   (1) expected_result: 
+                                                                                     (,) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,) 
+                                                                                   (3) expected_result: 
+                                                                                     (,) 
+                                                                                  *(4) expected_result: 
+                                                                                     (1,) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,) 
+                                                                                  *(6) expected_result: 
+                                                                                     (1,) 
+
+                                                                                Q8 finished at: 2022-4-18 14:57:38:669:317
+Q9-T1 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 2;'
+   current_result: 
+     (1,) 
+  *(1) expected_result: 
+     (1,) 
+  *(2) expected_result: 
+     (1,) 
+  *(3) expected_result: 
+     (1,) 
+   (4) expected_result: 
+     (,) 
+   (5) expected_result: 
+     (,) 
+   (6) expected_result: 
+     (,) 
+
+Q9 finished at: 2022-4-18 14:57:41:576:867
+Q10-T1 execute opt: 'COMMIT';
+Q10 finished at: 2022-4-18 14:57:41:611:120
+                                        Q11-T2 execute opt: 'COMMIT';
+                                        Q11 finished at: 2022-4-18 14:57:44:582:405
+                                                                                Q12-T3 execute opt: 'COMMIT';
+                                                                                Q12 finished at: 2022-4-18 14:57:47:583:981
+                                                                                                                        Q13-T4 execute sql: 'SELECT * FROM t1;'
+                                                                                                                           current_result: 
+                                                                                                                             null 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             null 
+                                                                                                                          *(2) expected_result: 
+                                                                                                                             null 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             null 
+                                                                                                                          *(4) expected_result: 
+                                                                                                                             null 
+                                                                                                                          *(5) expected_result: 
+                                                                                                                             null 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             null 
+
+                                                                                                                        Q13 finished at: 2022-4-18 14:58:17:583:297
+                                                                                                                        Q14-T4 execute opt: 'COMMIT';
+                                                                                                                        Q14 finished at: 2022-4-18 14:58:17:622:798
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

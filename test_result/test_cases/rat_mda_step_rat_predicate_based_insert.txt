@@ -1,0 +1,50 @@
+ParamNum:2
+0-1-DROP TABLE IF EXISTS t1;
+0-1-CREATE TABLE t1 (k INT PRIMARY KEY, v INT);
+0-1-COMMIT;
+1-1-BEGIN;
+2-1-INSERT INTO t1 VALUES (0, 1);
+3-2-BEGIN;
+4-2-INSERT INTO t1 VALUES (1, 1);
+5-2-SELECT SUM(v) FROM t1 WHERE k = 0;
+6-3-BEGIN;
+7-3-INSERT INTO t1 VALUES (2, 1);
+8-3-SELECT SUM(v) FROM t1 WHERE k = 1;
+9-1-SELECT SUM(v) FROM t1 WHERE k = 2;
+10-1-COMMIT;
+11-2-COMMIT;
+12-3-COMMIT;
+13-4-select * from t1 ORDER BY k;
+14-4-COMMIT;
+
+serializable {
+5-,
+8-1,
+9-1,
+13-0,1 1,1 2,1
+
+5-,
+8-1,
+9-,
+13-0,1 1,1 2,1
+
+5-,
+8-,
+9-1,
+13-0,1 1,1 2,1
+
+5-1,
+8-,
+9-1,
+13-0,1 1,1 2,1
+
+5-1,
+8-1,
+9-,
+13-0,1 1,1 2,1
+
+5-1,
+8-,
+9-,
+13-0,1 1,1 2,1
+}

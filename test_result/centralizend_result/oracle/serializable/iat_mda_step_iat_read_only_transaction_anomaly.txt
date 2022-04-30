@@ -1,0 +1,117 @@
+#### db_type: oracle ####
+#### test_type: mda_step_iat_read_only_transaction_anomaly ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------iat_mda_step_iat_read_only_transaction_anomaly test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_mda_step_iat_read_only_transaction_anomaly test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-1 16:36:14:290:191
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+  *(2) expected_result: 
+     (0,0) 
+  *(3) expected_result: 
+     (0,0) 
+  *(4) expected_result: 
+     (0,0) 
+  *(5) expected_result: 
+     (0,0) 
+  *(6) expected_result: 
+     (0,0) 
+
+Q2 finished at: 2022-4-1 16:36:14:294:29
+Q3-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+   current_result: 
+     (1,0) 
+  *(1) expected_result: 
+     (1,0) 
+  *(2) expected_result: 
+     (1,0) 
+   (3) expected_result: 
+     (1,20) 
+   (4) expected_result: 
+     (1,20) 
+  *(5) expected_result: 
+     (1,0) 
+   (6) expected_result: 
+     (1,20) 
+
+Q3 finished at: 2022-4-1 16:36:14:296:988
+                                        Q4-T2 execute opt: 'BEGIN;'
+                                        Q4 finished at: 2022-4-1 16:36:14:390:227
+                                        Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                           current_result: 
+                                             (1,0) 
+                                          *(1) expected_result: 
+                                             (1,0) 
+                                          *(2) expected_result: 
+                                             (1,0) 
+                                          *(3) expected_result: 
+                                             (1,0) 
+                                          *(4) expected_result: 
+                                             (1,0) 
+                                          *(5) expected_result: 
+                                             (1,0) 
+                                          *(6) expected_result: 
+                                             (1,0) 
+
+                                        Q5 finished at: 2022-4-1 16:36:14:392:888
+                                        Q6-T2 execute sql: 'UPDATE t1 SET v=20 WHERE k=1;'
+                                        Q6 finished at: 2022-4-1 16:36:14:395:996
+                                        Q7-T2 execute opt: 'COMMIT';
+                                                                                Q8-T3 execute opt: 'BEGIN;'
+                                                                                Q8 finished at: 2022-4-1 16:36:14:490:302
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                                                                   current_result: 
+                                                                                     (0,0) 
+                                                                                   (1) expected_result: 
+                                                                                     (0,11) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,11) 
+                                                                                  *(3) expected_result: 
+                                                                                     (0,0) 
+                                                                                   (4) expected_result: 
+                                                                                     (0,11) 
+                                                                                  *(5) expected_result: 
+                                                                                     (0,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (0,0) 
+
+                                                                                Q9 finished at: 2022-4-1 16:36:14:493:11
+                                                                                Q10-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                   current_result: 
+                                                                                     (1,20) 
+                                                                                  *(1) expected_result: 
+                                                                                     (1,20) 
+                                                                                   (2) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(3) expected_result: 
+                                                                                     (1,20) 
+                                                                                  *(4) expected_result: 
+                                                                                     (1,20) 
+                                                                                   (5) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (6) expected_result: 
+                                                                                     (1,0) 
+
+                                                                                Q10 finished at: 2022-4-1 16:36:14:495:268
+                                                                                Q11-T3 execute opt: 'COMMIT';
+Q12-T1 execute sql: 'UPDATE t1 SET v=11 WHERE k=0;'
+Q12 failed reason: [Oracle][ODBC][Ora]ORA-08177: can't serialize access for this transaction errcode: HY000
+Q12 failed at: 2022-4-1 16:36:15:794:442
+
+Test Result: Rollback
+Reason: [Oracle][ODBC][Ora]ORA-08177: can't serialize access for this transaction
+

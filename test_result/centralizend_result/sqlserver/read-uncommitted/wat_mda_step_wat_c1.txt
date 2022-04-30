@@ -1,0 +1,44 @@
+#### db_type: sqlserver ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: read-uncommitted ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-uncommitted for each session
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2022-4-2 14:51:26:687:291
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-2 14:51:26:728:300
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2022-4-2 14:51:26:787:244
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-2 14:51:26:823:465
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                                                                Q6-T3 execute opt: 'BEGIN;'
+                                                                                Q6 finished at: 2022-4-2 14:51:26:887:477
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-2 14:51:26:930:954
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+Q9 finished at: 2022-4-2 14:51:31:593:312
+Q10-T1 execute opt: 'COMMIT';
+Q10 finished at: 2022-4-2 14:51:31:659:907
+                                        Q5 finished at: 2022-4-2 14:51:31:660:130
+                                        Q11-T2 execute opt: 'COMMIT';
+                                        Q11 finished at: 2022-4-2 14:51:31:711:380
+                                                                                Q8 failed reason: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Transaction (Process ID 58) was deadlocked on lock resources with another process and has been chosen as the deadlock victim. Rerun the transaction. errcode: 40001
+                                                                                Q8 failed at: 2022-4-2 14:51:32:397:272
+
+Test Result: Rollback
+Reason: [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Transaction (Process ID 58) was deadlocked on lock resources with another process and has been chosen as the deadlock victim. Rerun the transaction.
+

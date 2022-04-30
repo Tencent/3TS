@@ -1,0 +1,41 @@
+#### db_type: tidb ####
+#### test_type: sda_lost_update_c1 ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------wat_sda_lost_update_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_lost_update_c1 test run----------
+Q1-T1 execute sql: 'BEGIN OPTIMISTIC;'
+Q1 finished at: 2022-4-24 11:34:56:360:560
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,2) 
+
+Q2 finished at: 2022-4-24 11:34:56:361:236
+                                        Q3-T2 execute sql: 'BEGIN OPTIMISTIC;'
+                                        Q3 finished at: 2022-4-24 11:34:57:360:514
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2022-4-24 11:34:57:361:140
+Q5-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q5 finished at: 2022-4-24 11:34:58:360:785
+Q6-T1 execute opt: 'COMMIT';
+Q6 finished at: 2022-4-24 11:34:58:361:369
+                                        Q7-T2 execute opt: 'COMMIT';
+                                        Q7 failed reason: [MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739790975139840, conflictStartTS=432739790712995840, conflictCommitTS=432739791237545984, key={tableID=3353, handle=0} primary=[]byte(nil) [try again later] errcode: HY000
+                                        Q7 failed at: 2022-4-24 11:35:0:61:198
+
+Test Result: Rollback
+[MySQL][ODBC 5.2(w) Driver]Write conflict, txnStartTS=432739790975139840, conflictStartTS=432739790712995840, conflictCommitTS=432739791237545984, key={tableID=3353, handle=0} primary=[]byte(nil) [try again later]
+

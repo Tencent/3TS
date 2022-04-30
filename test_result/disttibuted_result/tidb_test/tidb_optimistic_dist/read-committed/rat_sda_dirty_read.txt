@@ -1,0 +1,47 @@
+#### db_type: tidb ####
+#### test_type: sda_dirty_read ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------rat_sda_dirty_read test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_sda_dirty_read test run----------
+Q1-T1 execute sql: 'BEGIN OPTIMISTIC;'
+Q1 finished at: 2022-4-24 10:30:44:706:921
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-24 10:30:44:712:283
+                                        Q3-T2 execute sql: 'BEGIN OPTIMISTIC;'
+                                        Q3 finished at: 2022-4-24 10:30:45:706:938
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k = 0;'
+                                           current_result: 
+                                             (0,0) 
+                                          *(1) expected_result: 
+                                             (0,0) 
+
+                                        Q4 finished at: 2022-4-24 10:30:45:708:170
+Q5-T1 execute opt: 'ROLLBACK';
+Q5 finished at: 2022-4-24 10:30:46:706:968
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2022-4-24 10:30:47:706:828
+                                                                                Q7-T3 execute sql: 'SELECT * FROM t1;'
+                                                                                   current_result: 
+                                                                                     (0,0) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,0) 
+
+                                                                                Q7 finished at: 2022-4-24 10:30:57:707:625
+                                                                                Q8-T3 execute opt: 'COMMIT';
+                                                                                Q8 finished at: 2022-4-24 10:30:57:707:945
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

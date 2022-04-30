@@ -1,0 +1,41 @@
+#### db_type: ob ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-4-14 10:38:24:854:516
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2022-4-14 10:38:24:859:676
+                                        Q3-T2 execute sql: 'BEGIN;'
+                                        Q3 finished at: 2022-4-14 10:38:25:854:476
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2022-4-14 10:38:25:862:202
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                                                                Q6-T3 execute sql: 'BEGIN;'
+                                                                                Q6 finished at: 2022-4-14 10:38:26:854:552
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2022-4-14 10:38:26:858:658
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+                                        Q5 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]Lock wait timeout exceeded; try restarting transaction errcode: HY000
+                                        Q5 failed at: 2022-4-14 10:38:36:335:324
+                                                                                Q8 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]Lock wait timeout exceeded; try restarting transaction errcode: HY000
+                                                                                Q8 failed at: 2022-4-14 10:38:37:639:543
+Q9 failed reason: [MySQL][ODBC 5.2(w) Driver][mysqld-5.6.25]Lock wait timeout exceeded; try restarting transaction errcode: HY000
+Q9 failed at: 2022-4-14 10:38:38:667:912
+
+Test Result: Timeout
+Reason: Transaction execution timeout
+

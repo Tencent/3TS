@@ -1,0 +1,206 @@
+#### db_type: crdb ####
+#### test_type: mda_step_iat_cross_phenomenon ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_mda_step_iat_cross_phenomenon test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+
+----------iat_mda_step_iat_cross_phenomenon test run----------
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2022-4-2 16:53:19:677:63
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+  *(2) expected_result: 
+     (0,0) 
+  *(3) expected_result: 
+     (0,0) 
+  *(4) expected_result: 
+     (0,0) 
+  *(5) expected_result: 
+     (0,0) 
+   (6) expected_result: 
+     (0,1) 
+   (7) expected_result: 
+     (0,1) 
+  *(8) expected_result: 
+     (0,0) 
+   (9) expected_result: 
+     (0,1) 
+   (10) expected_result: 
+     (0,1) 
+  *(11) expected_result: 
+     (0,0) 
+   (12) expected_result: 
+     (0,1) 
+   (13) expected_result: 
+     (0,1) 
+   (14) expected_result: 
+     (0,1) 
+
+Q2 finished at: 2022-4-2 16:53:19:681:657
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2022-4-2 16:53:19:776:517
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                           current_result: 
+                                             (1,0) 
+                                          *(1) expected_result: 
+                                             (1,0) 
+                                           (2) expected_result: 
+                                             (1,1) 
+                                          *(3) expected_result: 
+                                             (1,0) 
+                                           (4) expected_result: 
+                                             (1,1) 
+                                          *(5) expected_result: 
+                                             (1,0) 
+                                          *(6) expected_result: 
+                                             (1,0) 
+                                          *(7) expected_result: 
+                                             (1,0) 
+                                           (8) expected_result: 
+                                             (1,1) 
+                                          *(9) expected_result: 
+                                             (1,0) 
+                                           (10) expected_result: 
+                                             (1,1) 
+                                           (11) expected_result: 
+                                             (1,1) 
+                                           (12) expected_result: 
+                                             (1,1) 
+                                           (13) expected_result: 
+                                             (1,1) 
+                                          *(14) expected_result: 
+                                             (1,0) 
+
+                                        Q4 finished at: 2022-4-2 16:53:19:780:669
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q5 finished at: 2022-4-2 16:53:19:873:76
+                                                                                Q6-T3 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                                                                Q6 finished at: 2022-4-2 16:53:19:876:915
+                                                                                Q7-T3 execute sql: 'COMMIT TRANSACTION;'
+                                                                                Q7 finished at: 2022-4-2 16:53:19:880:466
+                                                                                                                        Q8-T4 execute sql: 'BEGIN TRANSACTION;'
+                                                                                                                        Q8 finished at: 2022-4-2 16:53:19:976:338
+                                                                                                                        Q9-T4 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                                                                                                        Q9 finished at: 2022-4-2 16:53:19:979:715
+                                                                                                                        Q10-T4 execute sql: 'COMMIT TRANSACTION;'
+                                                                                                                        Q10 finished at: 2022-4-2 16:53:19:982:881
+                                        Q11-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                          *(1) expected_result: 
+                                             (0,0) 
+                                          *(2) expected_result: 
+                                             (0,0) 
+                                           (3) expected_result: 
+                                             (0,1) 
+                                           (4) expected_result: 
+                                             (0,1) 
+                                          *(5) expected_result: 
+                                             (0,0) 
+                                          *(6) expected_result: 
+                                             (0,0) 
+                                          *(7) expected_result: 
+                                             (0,0) 
+                                          *(8) expected_result: 
+                                             (0,0) 
+                                           (9) expected_result: 
+                                             (0,1) 
+                                           (10) expected_result: 
+                                             (0,1) 
+                                           (11) expected_result: 
+                                             (0,1) 
+                                          *(12) expected_result: 
+                                             (0,0) 
+                                           (13) expected_result: 
+                                             (0,1) 
+                                           (14) expected_result: 
+                                             (0,1) 
+
+                                        Q11 finished at: 2022-4-2 16:53:20:75:321
+                                        Q12-T2 execute sql: 'COMMIT TRANSACTION;'
+                                        Q12 finished at: 2022-4-2 16:53:20:77:211
+Q13-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+   current_result: 
+     (1,0) 
+  *(1) expected_result: 
+     (1,0) 
+  *(2) expected_result: 
+     (1,0) 
+  *(3) expected_result: 
+     (1,0) 
+  *(4) expected_result: 
+     (1,0) 
+   (5) expected_result: 
+     (1,1) 
+  *(6) expected_result: 
+     (1,0) 
+   (7) expected_result: 
+     (1,1) 
+   (8) expected_result: 
+     (1,1) 
+  *(9) expected_result: 
+     (1,0) 
+   (10) expected_result: 
+     (1,1) 
+   (11) expected_result: 
+     (1,1) 
+   (12) expected_result: 
+     (1,1) 
+  *(13) expected_result: 
+     (1,0) 
+   (14) expected_result: 
+     (1,1) 
+
+Q13 finished at: 2022-4-2 16:53:20:173:706
+Q14-T1 execute sql: 'COMMIT TRANSACTION;'
+Q14 finished at: 2022-4-2 16:53:20:175:621
+                                                                                                                                                                Q15-T5 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                                                                                                   current_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(1) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(2) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(3) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(4) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(5) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(6) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(7) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(8) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(9) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(10) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(11) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(12) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(13) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+                                                                                                                                                                  *(14) expected_result: 
+                                                                                                                                                                     (0,1) (1,1) 
+
+                                                                                                                                                                Q15 finished at: 2022-4-2 16:53:20:180:642
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

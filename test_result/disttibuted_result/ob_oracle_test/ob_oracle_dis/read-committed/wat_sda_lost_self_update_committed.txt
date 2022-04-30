@@ -1,0 +1,53 @@
+#### db_type: ob ####
+#### test_type: sda_lost_self_update_committed ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+----------wat_sda_lost_self_update_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+
+----------wat_sda_lost_self_update_committed test run----------
+Q1-T1 execute sql: 'BEGIN;'
+Q1 finished at: 2022-3-30 15:57:34:660:276
+                                        Q2-T2 execute sql: 'BEGIN;'
+                                        Q2 finished at: 2022-3-30 15:57:35:659:370
+Q3-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q3 finished at: 2022-3-30 15:57:36:662:728
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,1) 
+  *(1) expected_result: 
+     (0,1) 
+  *(2) expected_result: 
+     (0,1) 
+
+Q6 finished at: 2022-3-30 15:57:38:701:973
+Q7-T1 execute opt: 'COMMIT';
+                                        Q4 finished at: 2022-3-30 15:57:38:742:395
+                                        Q5-T2 execute opt: 'COMMIT';
+Q7 finished at: 2022-3-30 15:57:38:743:801
+                                        Q5 finished at: 2022-3-30 15:57:38:783:950
+                                                                                Q8-T3 execute sql: 'BEGIN;'
+                                                                                Q8 finished at: 2022-3-30 15:57:48:662:492
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1;'
+                                                                                   current_result: 
+                                                                                     (0,2) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,2) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,1) 
+
+                                                                                Q9 finished at: 2022-3-30 15:57:48:751:496
+                                                                                Q10-T3 execute opt: 'COMMIT';
+                                                                                Q10 finished at: 2022-3-30 15:57:48:794:135
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+
