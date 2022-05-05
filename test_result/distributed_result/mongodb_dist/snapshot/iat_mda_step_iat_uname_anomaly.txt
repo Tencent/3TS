@@ -1,0 +1,69 @@
+#### db_type: mongodb ####
+#### test_type: mda_step_iat_uname_anomaly ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+T1 execute stmt: 't1.put(0, 0)'
+T1 execute stmt: 't1.put(1, 0)'
+T1 execute stmt: 't1.put(2, 0)'
+T1 start transaction success
+T1 execute stmt: 't1.get(1)'
+   current_result: 
+     (1,0) 
+  *(1) expected_result: 
+     (1,0) 
+  *(2) expected_result: 
+     (1,0) 
+   (3) expected_result: 
+     (1,1) 
+   (4) expected_result: 
+     (1,1) 
+  *(5) expected_result: 
+     (1,0) 
+   (6) expected_result: 
+     (1,1) 
+
+                                        T2 start transaction success
+                                        T2 execute stmt: 't1.get(0)'
+                                           current_result: 
+                                             (0,0) 
+                                          *(1) expected_result: 
+                                             (0,0) 
+                                           (2) expected_result: 
+                                             (0,2) 
+                                          *(3) expected_result: 
+                                             (0,0) 
+                                          *(4) expected_result: 
+                                             (0,0) 
+                                           (5) expected_result: 
+                                             (0,2) 
+                                           (6) expected_result: 
+                                             (0,2) 
+
+                                        T2 execute stmt: 't1.put(0, 1)'
+                                        T2 execute stmt: 't1.get(1)'
+                                           current_result: 
+                                             (1,0) 
+                                          *(1) expected_result: 
+                                             (1,0) 
+                                          *(2) expected_result: 
+                                             (1,0) 
+                                           (3) expected_result: 
+                                             
+                                          *(4) expected_result: 
+                                             (1,0) 
+                                          *(5) expected_result: 
+                                             (1,0) 
+                                          *(6) expected_result: 
+                                             (1,0) 
+
+                                        T2 execute stmt: 't1.put(1,1)'
+                                                                                T3 start transaction success
+                                                                                T3 execute stmt: 't1.put(0, 2)'
+                                                                                [ERROR] in MongoConnector::ExecUpdatekV ->WriteConflict error: this operation conflicted with another operation. Please retry your operation or multi-document transaction.: generic server error
+
+Test Result: Rollback
+Reason: WriteConflict error: this operation conflicted with another operation. Please retry your operation or multi-document transaction.: generic server error
+

@@ -1,0 +1,43 @@
+#### db_type: mongodb ####
+#### test_type: dda_read_skew ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+T1 start transaction success
+T1 execute stmt: 't1.getpred(0)'
+   current_result: 
+     null 
+  *(1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,1) (601,1) 
+
+                                        T2 start transaction success
+                                        T2 execute stmt: 't1.put(601, 1)'
+                                        T2 execute stmt: 't1.put(0, 1)'
+T1 execute stmt: 't1.getpred(601)'
+   current_result: 
+     null 
+  *(1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,1) (601,1) 
+
+                                        T2 COMMIT transaction success
+T1 COMMIT transaction success
+                                                                                T3 execute stmt: 't1.get(*)'
+                                                                                   current_result: 
+                                                                                     (601,1) (0,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (601,1) (0,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (601,1) (0,1) 
+
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

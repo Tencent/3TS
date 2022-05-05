@@ -1,0 +1,25 @@
+#### db_type: mongodb ####
+#### test_type: sda_non_repeatable_read_predicate_based-phantom_insert ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+T1 start transaction success
+T1 execute stmt: 't1.getpred(0)'
+   current_result: 
+     null 
+  *(1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,0) 
+
+                                        T2 start transaction success
+                                        T2 execute stmt: 't1.put(0, 0)'
+                                        T2 COMMIT transaction success
+T1 execute stmt: 't1.getpred(0)'
+[ERROR] in MongoConnector::ExecFindkV ->Unable to read from a snapshot due to pending collection catalog changes; please retry the operation. Snapshot timestamp is Timestamp(1651677643, 3). Collection minimum is Timestamp(1651677643, 4): generic server error
+
+Test Result: Rollback
+Reason: Unable to read from a snapshot due to pending collection catalog changes; please retry the operation. Snapshot timestamp is Timestamp(1651677643, 3). Collection minimum is Timestamp(1651677643, 4): generic server error
+
