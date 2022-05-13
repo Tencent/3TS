@@ -1,0 +1,101 @@
+# Setup PostgreSQL 12.4
+
+0. Download and install PostgreSQL
+
+
+We refer to a decent document for detailed setups as follows.
+https://www.cnblogs.com/kcxg/p/10718211.html
+
+
+Remember to setup the environment:
+```
+// edit /etc/profile if root user, or edit ~/.bash_profile if other suers
+export PGHOME=/usr/local/pgsql/
+export PGUSER=test123
+export PGPORT=5432
+export PGDATA=$PGHOME/data
+export PATH=$PGHOME/bin:$PATH:$HOME/bin
+export LD_LIBRARY_PATH=$PGHOME/lib:$LD_LIBRARY_PATH
+// Source it
+source /etc/profile
+```
+
+
+1. install UnixODBC
+
+Once database is up, we also need to install client to connect databases. The typical clients are sqlplus and isql(odbc-oracle), we will deploy the latter one in our tests.
+
+```
+// install UnixODBC
+yum install unixODBC
+yum install unixODBC-devel
+
+// to check out the installed rpm package
+rpm -qa | grep unixodbc
+
+// find the installed location
+rpm -ql [rpm_package_name]
+
+
+// add it to enviroments at /etc/profile if root user, otherwise edit ~/.bash_profile 
+export ODBCSYSINI=/etc
+export ODBCINI=/etc/odbc.ini
+
+// make it work：
+source /etc/profile
+```
+
+
+2. install odbc-pg
+
+Download site: http://rpmfind.net/linux/rpm2html/search.php?query=postgresql-odbc(x86-64)
+Here is the example package name: postgresql-odbc-10.03.0000-2.el8.x86_64.rpm
+
+
+```
+// yum install for rpm package
+yum install postgresql-odbc-10.03.0000-2.el8.x86_64
+
+// set up environment 
+// edit /etc/profile if root user,  ~/.bash_profile if other users
+ORACLE_HOME=/usr/lib/oracle/21/client64
+export ORACLE_HOME
+TNS_ADMIN=/usr/lib/oracle/21/client64/network/admin
+export TNS_ADMIN
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH: /usr/lib/oracle/21/client64/lib
+
+// source it：
+source /etc/profile
+
+// // to check out the installed rpm package
+rpm -qa | grep [rpm_name]
+
+// find the installed location
+rpm -ql [rpm_package_name]
+```
+
+3. configure unixODBC
+
+```
+// /etc/odbc.ini
+[pg]
+Driver=PG
+USER=test123
+Password=[your_password_here]
+PORT=5432
+SERVER=[your_pg_service_ip_address]
+
+// /etc/odbcinst.ini
+[PG]
+Description=ODBC for PostgreSQL
+Driver=/usr/lib64/psqlodbcw.so
+Setup=/usr/lib64/psqlodbcw.so
+FileUsage=1
+```
+
+4. Test isql connection 
+
+```
+isql pg -v
+```
+You will connect to SQL command line once succeed.

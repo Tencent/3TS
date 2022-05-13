@@ -1,0 +1,22 @@
+# Database environment
+
+We are using Unix ODBC to connect databases. The following are the general steps to set up the environment for successfully connecting to databases.
+
+
+0. Setup database service (e.g., by docker)
+1. Install the UnixODBC
+2. Install the ODBC driver for specific databases
+3. Configure unixODBC by /etc/odbc.ini (e.g., ip, port, username, password, database name) and /etc/odbcinst.ini (e.g., drivers)
+4. Test isql connection 
+
+
+The following are examples we set up databases (Oracle 12c, PostgreSQL, SQL Server, Oceanbase, CockroachDB, TiDB, MySQL) by dockers in Centos systems. 
+
+
+====== Copyright && Authorship ======
+
+Original from farrisli at Tencent Inc. Check it out the Chinese version: by fishheader from JianShu, link: https://www.jianshu.com/u/e9202bc75c4e
+
+Author: axingguchen at Tencent Inc.
+
+

@@ -13,7 +13,7 @@ If you want to better understand the aims of our project, please view [3TS opens
 To test the consistency of real databases.
 We generate the anomaly history, and simulate multi-users transcation reqeusting to databases.
 
-Check out some test cases (e.g., [dirty write](test_result/test_cases/wat_sda_dirty_write_2commit.txt)) and result (e.g., [passed by MySQL](test_result/centralizend_result/mysql/serializable/wat_sda_dirty_write_2commit.txt)).
+Check out some test cases (e.g., [Dirty Write](test_result/test_cases/wat_sda_dirty_write_2commit.txt)) and result (e.g., [passed by MySQL](test_result/centralizend_result/mysql/serializable/wat_sda_dirty_write_2commit.txt) at Serializable Level).
 
 
 ## Usage
@@ -50,6 +50,33 @@ To run the test (under '3TS/src/dbtest'):
 ```
 ./auto_test_all.sh
 ```
+
+## Analyze an anomaly case run by PostgreSQL
+
+### Setup PostgreSQL
+Please check out the general environment [setup](doc/en/setup_db_environment) and PostgreSQL [setup](doc/en/setup_db_postgresql).
+
+Check if it successfully connects to PostgreSQL server by isql, 
+```
+isql pg -v
+```
+Once the connected information showed, we are able to run our code to test designed anomaly schedules.
+
+The anomaly test cases are Write-read Skew and Write-read Skew Committed, the schedules are as follows:
+Write-read Skew : $W_1[x_1]W_2[y_1]R_2[x_1]R_1[y_1]$
+Write-read Skew Committed : $W_1[x_1]W_2[y_1]R_2[x_1]C_2R_1[y_1]$
+
+The test result are in the following:
+| Isolation level      | Write-read Skew ([SQL](test_result/test_cases/rat_dda_write_read_skew.txt)) | Write-read Skew Committed ([SQL](test_result/test_cases/rat_dda_write_read_skew_committed.txt)) |
+| ----------- | ----------- | ----------- |
+| Serializable      | Rollback ([result](test_result/centralizend_result/pg/serializable/rat_dda_write_read_skew.txt)) | Rollback ([result](test_result/centralizend_result/pg/serializable/rat_dda_write_read_skew_committed.txt)) |
+| Repeatable Read   | Anomaly reported ([result](test_result/centralizend_result/pg/repeatable-read/rat_dda_write_read_skew.txt)) | Anomaly reported ([result](test_result/centralizend_result/pg/repeatable-read/rat_dda_write_read_skew_committed.txt)) |
+| Read (Un)Committed   | Anomaly reported ([result](test_result/centralizend_result/pg/read-committed/rat_dda_write_read_skew.txt)) | Pass the test ([result](test_result/centralizend_result/pg/read-committed/rat_dda_write_read_skew_committed.txt)) |
+
+At serializbale level, both tested cases detected consecutive RW conflicts.
+At Repeatable Read level, both generated two consecutive RW confilcts and allowed.
+At Read (Un)Committed level, Write-read Skew test case generated two consecutive RW ($R_2W_1,R_1W_2$) conflicts while Write-read Skew Committed test case read the newest committed version and executed into non-anomaly schedule ($R_2W_1,W_2C_2R_1$).
+
 
 ## License
 
