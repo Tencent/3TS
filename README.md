@@ -63,10 +63,20 @@ isql pg -v
 Once the connected information showed, we are able to run our code to test designed anomaly schedules.
 
 The anomaly test cases are Write-read Skew and Write-read Skew Committed, the schedules are as follows:
-Write-read Skew : $W_1[x_1]W_2[y_1]R_2[x_1]R_1[y_1]$
-Write-read Skew Committed : $W_1[x_1]W_2[y_1]R_2[x_1]C_2R_1[y_1]$
 
-The test result are in the following:
+Write-read Skew : <img src="https://render.githubusercontent.com/render/math?math=W_1[x_1]W_2[y_1]R_2[x_1]R_1[y_1]">
+
+Write-read Skew Committed : <img src="https://render.githubusercontent.com/render/math?math=W_1[x_1]W_2[y_1]R_2[x_1]C_2R_1[y_1]">
+
+Under "src/dbtest/" folder, add rat_dda_write_read_skew and rat_dda_write_read_skew_committed to "do_test_list.txt".
+Add the following to "auto_test_all.sh" for runing PostgreSQL with four isolation levels:
+```
+./auto_test.sh "pg" "read-uncommitted"
+./auto_test.sh "pg" "read-committed"
+./auto_test.sh "pg" "repeatable-read"
+./auto_test.sh "pg" "serializable"
+```
+Run test by "./auto_test_all.sh". The test result are in the following:
 | Isolation level      | Write-read Skew ([SQL](test_result/test_cases/rat_dda_write_read_skew.txt)) | Write-read Skew Committed ([SQL](test_result/test_cases/rat_dda_write_read_skew_committed.txt)) |
 | ----------- | ----------- | ----------- |
 | Serializable      | Rollback ([result](test_result/centralizend_result/pg/serializable/rat_dda_write_read_skew.txt)) | Rollback ([result](test_result/centralizend_result/pg/serializable/rat_dda_write_read_skew_committed.txt)) |
