@@ -148,6 +148,8 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     if (!err_info_stmt.empty()) {
         std::cout << "get stmt failed in DBConnector::ExecWriteSql" << std::endl;
         std::cout << __TIMESTAMP__ << std::endl;
+        SQLFreeStmt( m_hStatement, SQL_DROP);
+        SQLFreeStmt( m_hStatement, SQL_UNBIND);
         return false;
     }
     // execute sql
@@ -163,7 +165,9 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     }
     ret = SQLExecDirect(m_hStatement, (SQLCHAR*)sql.c_str(), SQL_NTS);
     std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
-
+    SQLFreeStmt( m_hStatement, SQL_DROP);
+    SQLFreeStmt( m_hStatement, SQL_UNBIND);
+    
     if (!err_info_sql.empty()) {
         auto index_timeout1 = err_info_sql.find("timeout");
         auto index_timeout2 = err_info_sql.find("Timeout");
@@ -207,6 +211,8 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
     std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
     if (!err_info_stmt.empty()) {
         std::cout << "get stmt failed in DBConnector::ExecReadSql2Int" << std::endl;
+        SQLFreeStmt( m_hStatement, SQL_DROP);
+        SQLFreeStmt( m_hStatement, SQL_UNBIND);
         return false;
     }
     SQLLEN length;
@@ -260,8 +266,12 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
             std::ofstream test_process(test_process_file, std::ios::app);
             test_process << output_time_info << std::endl;
         }
+        SQLFreeStmt( m_hStatement, SQL_DROP);
+        SQLFreeStmt( m_hStatement, SQL_UNBIND);
         return true;
     } else {
+        SQLFreeStmt( m_hStatement, SQL_DROP);
+        SQLFreeStmt( m_hStatement, SQL_UNBIND);
         auto index_timeout1 = err_info_sql.find("timeout");
         auto index_timeout2 = err_info_sql.find("Timeout");
         auto index_timeout3 = err_info_sql.find("time out");
@@ -269,6 +279,7 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
             if (test_result_set.ResultType() == ""){
                 test_result_set.SetResultType("Timeout\nReason: Transaction execution timeout");
             }
+            
             return true;
         } else {
             if (test_result_set.ResultType().empty()) { 
