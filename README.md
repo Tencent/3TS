@@ -32,9 +32,9 @@ If you want to better understand the aims of our project, please view [3TS opens
 ## Usage
 
 - Run `make.sh` to compile the code. The `3ts` binary will be generated if compiling successfully.
-- Run `cp config/config.cfg.template config.cfg` to copy the configuration file.
+- Run `cp config.cfg.template config.cfg` to copy the configuration file.
 - Run `vi config.cfg` to modify the configuration file to determine the behavior of the testbed.
-- Run `./t3s --conf_path=config.cfg` to execute test. The test result file will be generated when test is over.
+- Run `./3TS --conf_path=config.cfg` to execute test. The test result file will be generated when test is over.
 
 ## Principle
 
