@@ -361,15 +361,16 @@ int main(int argc, char* argv[]) {
     std::cout << "  user: " + FLAGS_user << std::endl;
     std::cout << "  passwd: " + FLAGS_passwd << std::endl;
     std::cout << "  isolation: " + FLAGS_isolation << std::endl;
-    // // mutex for txn
-    // //for(int i=0;i<FLAGS_conn_pool_size;++i) mutex_txn[i] = new std::mutex();
+
+    // mutex for txn
     for(int i=0;i<FLAGS_conn_pool_size;++i) {
         mutex_txn[i] = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         pthread_mutex_init(mutex_txn[i], NULL);
     }
+
     // read test sequence
     CaseReader case_reader;
-    std::string test_path_base = "t/"; // test folder
+    std::string test_path_base = "t/";
     // std::string test_path = test_path_base + FLAGS_db_type;
     std::string test_path = test_path_base + "pg";
     if (!case_reader.InitTestSequenceAndTestResultSetList(test_path, FLAGS_db_type)) {
@@ -379,49 +380,73 @@ int main(int argc, char* argv[]) {
     std::vector<TestSequence> test_sequence_list = case_reader.TestSequenceList();
     std::vector<TestResultSet> test_result_set_list = case_reader.TestResultSetList();
 
-    // init db_connector
-    std::cout << dash + "init db_connector start" + dash << std::endl;
-    DBConnector db_connector;
-    if (!db_connector.InitDBConnector(FLAGS_user, FLAGS_passwd, FLAGS_db_type, FLAGS_conn_pool_size)) {
-        std::cout << "init db_connector failed" << std::endl;
-    }
-    // init database if not exists
-    /*
-    if (FLAGS_db_type != "crdb") {
-        if (FLAGS_db_type != "oracle" && FLAGS_db_type != "ob") {
-            std::cout << dash + "init database start" + dash << std::endl;
-            TestResultSet test_rs__;
-            db_connector.ExecWriteSql(0, "create database if not exists " + FLAGS_db_name, test_rs__, 1);
-            db_connector.ExecWriteSql(0, "use " + FLAGS_db_name, test_rs__, 1);
-        }
-    }
-    */
 
-    // set TXN_ISOLATION
-    // crdb has only one isolation level, which is serializable by default
-    if (FLAGS_db_type != "crdb" && FLAGS_db_type != "mongodb") {
-        std::cout << dash + "set TXN_ISOLATION = " + FLAGS_isolation + dash << std::endl;
-        //std::cout << dash + "set TIMEOUT = " + FLAGS_timeout + dash << std::endl;
-        int idx = 1;
-        for (auto hdbc : db_connector.DBConnPool()) {
-            // set timeout
-            if (!db_connector.SetTimeout(idx, FLAGS_timeout, FLAGS_db_type)) {
-                return false;
-            }
-            if(!db_connector.SetIsolationLevel(hdbc, FLAGS_isolation, idx, FLAGS_db_type)) {
-                return false;
-            }
-        idx++;
-        }
-        std::cout << "set TXN_ISOLATION = " + FLAGS_isolation + " success"<< std::endl;
-    }
+    // // one session for all
+    // // init db_connector
+    // std::cout << dash + "init db_connector start" + dash << std::endl;
+    // DBConnector db_connector;
+    // if (!db_connector.InitDBConnector(FLAGS_user, FLAGS_passwd, FLAGS_db_type, FLAGS_conn_pool_size)) {
+    //     std::cout << "init db_connector failed" << std::endl;
+    // }
+    // // set TXN_ISOLATION
+    // // crdb has only one isolation level, which is serializable by default
+    // if (FLAGS_db_type != "crdb" && FLAGS_db_type != "mongodb") {
+    //     std::cout << dash + "set TXN_ISOLATION = " + FLAGS_isolation + dash << std::endl;
+    //     //std::cout << dash + "set TIMEOUT = " + FLAGS_timeout + dash << std::endl;
+    //     int idx = 1;
+    //     for (auto hdbc : db_connector.DBConnPool()) {
+    //         // set timeout
+    //         if (!db_connector.SetTimeout(idx, FLAGS_timeout, FLAGS_db_type)) {
+    //             return false;
+    //         }
+    //         if(!db_connector.SetIsolationLevel(hdbc, FLAGS_isolation, idx, FLAGS_db_type)) {
+    //             return false;
+    //         }
+    //     idx++;
+    //     }
+    //     std::cout << "set TXN_ISOLATION = " + FLAGS_isolation + " success"<< std::endl;
+    // }
 
+    // // create test_process_output_file's dir
+    // if (access(FLAGS_db_type.c_str(), 0) == -1) {
+    //     mkdir(FLAGS_db_type.c_str(), S_IRWXU);
+    // }
+    // // create isolation dir
+    // // std::vector<std::string> iso_list = {"read-uncommitted", "read-committed", "repeatable-read", "serializable", "result_summary"};
+    // std::vector<std::string> iso_list = {"read-committed", "serializable", "result_summary"};
+    // for (auto iso : iso_list) {
+    //     std::string iso_dir = FLAGS_db_type + "/" + iso;
+    //     if (access(iso_dir.c_str(), 0) == -1) {
+    //         mkdir(iso_dir.c_str(), S_IRWXU);
+    //     }
+    // }
+
+    // // send sql
+    // JobExecutor job_executor;
+    // int len = test_sequence_list.size();
+    // for (int i = 0; i < len; i++) {
+
+    //     if (!job_executor.ExecTestSequence(test_sequence_list[i], test_result_set_list[i], db_connector)) {
+    //         std::cout << "test sequence " + test_sequence_list[i].TestCaseType() + " execute failed" << std::endl;
+    //     } else {
+    //         std::string result_type = test_result_set_list[i].ResultType();
+    //         std::cout << "Test Result: " << result_type + "\n" << std::endl;
+    //     }
+    // }
+    // // output result and release connection 
+    // std::string ret_file = "./" + FLAGS_db_type + "/result_summary" + "/" +  FLAGS_isolation + "_total-result.txt";
+    // outputter.WriteResultTotal(test_result_set_list, ret_file);
+    // db_connector.ReleaseConn();
+
+    
+    // one case one intialization
     // create test_process_output_file's dir
     if (access(FLAGS_db_type.c_str(), 0) == -1) {
         mkdir(FLAGS_db_type.c_str(), S_IRWXU);
     }
     // create isolation dir
-    std::vector<std::string> iso_list = {"read-uncommitted", "read-committed", "repeatable-read", "serializable", "result_summary"};
+    std::vector<std::string> iso_list = {"read-committed", "repeatable-read", "serializable", "result_summary"};
+    //std::vector<std::string> iso_list = {"read-uncommitted", "read-committed", "repeatable-read", "serializable", "result_summary"};
     for (auto iso : iso_list) {
         std::string iso_dir = FLAGS_db_type + "/" + iso;
         if (access(iso_dir.c_str(), 0) == -1) {
@@ -433,17 +458,49 @@ int main(int argc, char* argv[]) {
     int len = test_sequence_list.size();
     for (int i = 0; i < len; i++) {
 
+        // init db_connector
+        std::cout << dash + "init db_connector start" + dash << std::endl;
+        DBConnector db_connector;
+        if (!db_connector.InitDBConnector(FLAGS_user, FLAGS_passwd, FLAGS_db_type, FLAGS_conn_pool_size)) {
+            std::cout << "init db_connector failed" << std::endl;
+        }
+        // set TXN_ISOLATION
+        // crdb has only one isolation level, which is serializable by default
+        if (FLAGS_db_type != "crdb" && FLAGS_db_type != "mongodb") {
+            std::cout << dash + "set TXN_ISOLATION = " + FLAGS_isolation + dash << std::endl;
+            //std::cout << dash + "set TIMEOUT = " + FLAGS_timeout + dash << std::endl;
+            int idx = 1;
+            for (auto hdbc : db_connector.DBConnPool()) {
+                // set timeout
+                if (!db_connector.SetTimeout(idx, FLAGS_timeout, FLAGS_db_type)) {
+                    return false;
+                }
+                if(!db_connector.SetIsolationLevel(hdbc, FLAGS_isolation, idx, FLAGS_db_type)) {
+                    return false;
+                }
+                idx++;
+            }
+            std::cout << "set TXN_ISOLATION = " + FLAGS_isolation + " success"<< std::endl;
+        }
+
+        // exec
         if (!job_executor.ExecTestSequence(test_sequence_list[i], test_result_set_list[i], db_connector)) {
             std::cout << "test sequence " + test_sequence_list[i].TestCaseType() + " execute failed" << std::endl;
         } else {
             std::string result_type = test_result_set_list[i].ResultType();
             std::cout << "Test Result: " << result_type + "\n" << std::endl;
-        }
+        }  
+
+        // db release
+        db_connector.ReleaseConn();
     }
-    // std::string ret_file = "./" + FLAGS_db_type + "/" + FLAGS_db_type + "_" + FLAGS_isolation + "_total-result.txt";
     std::string ret_file = "./" + FLAGS_db_type + "/result_summary" + "/" +  FLAGS_isolation + "_total-result.txt";
     outputter.WriteResultTotal(test_result_set_list, ret_file);
-    db_connector.ReleaseConn();
 
+
+    // remove mutex for txn
+    for(int i=0;i<FLAGS_conn_pool_size;++i) {
+        free(mutex_txn[i] );
+    } 
     return 0;
 }

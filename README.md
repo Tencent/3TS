@@ -15,6 +15,7 @@ We generate the anomaly history, and simulate multi-users transcation reqeusting
 
 Check out some test cases (e.g., [Dirty Write](test_result/test_cases/wat_sda_dirty_write_2commit.txt)) and result (e.g., [passed by MySQL](test_result/centralizend_result/mysql/serializable/wat_sda_dirty_write_2commit.txt) at Serializable Level).
 
+Check out the full [report](https://axingguchen.github.io/3TS/){:target="_blank"}.
 
 ## Usage
 To generate Makefile (all commands are executed under '3TS/src/dbtest'):
