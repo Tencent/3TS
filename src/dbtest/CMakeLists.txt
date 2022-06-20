@@ -29,7 +29,7 @@ list(APPEND SOURCE_FILES_SQL
 add_executable(3ts_dbtest ${SOURCE_FILES_SQL})
 # ld:odbc
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
-find_package(odbc REQUIRED)
+find_package(ODBC REQUIRED)
 list(APPEND ODBC_LD odbc)
 # link ld
 target_link_libraries(3ts_dbtest ${THIRD_PARTIES})
