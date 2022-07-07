@@ -52,6 +52,7 @@ public:
                 std::cerr << "connected failed" << std::endl;
 		        return false;
             }*/
+            SQLFreeHandle( SQL_HANDLE_ENV, m_hEnviroment);
             conn_pool_.push_back(m_hDatabaseConnection);
         }
         std::cout << "init db_connector success" << std::endl;
@@ -74,7 +75,10 @@ public:
 
     void ReleaseConn() {
         for (int i = 0; i < (int)conn_pool_.size(); i++) {
-            SQLFreeHandle(SQL_HANDLE_DBC, conn_pool_[i]);
+            if (conn_pool_[i]){
+                SQLDisconnect( conn_pool_[i] ); 
+                SQLFreeHandle(SQL_HANDLE_DBC, conn_pool_[i]);
+            }
         }
     };
     void ReleaseEnv();
