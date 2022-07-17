@@ -16,7 +16,13 @@ If you want to better understand the aims of our project, please view [3TS opens
 
 ## Dependence
 
+### 3TS-Coo
+A consistency verification system. Please check out the newest update on branch ['coo-consistency-check'](https://github.com/Tencent/3TS/tree/coo-consistency-check).
+
+We update our result on [report webpage](https://axingguchen.github.io/3TS/).
+
 ### 3TS-DA
+A static random history generator.  Please check out the newest update on branch ['dev'](https://github.com/Tencent/3TS/tree/dev).
 
 - a compilter supporting C++17 or upper versions (recommend g++8)
 - libconfig 1.7.2
@@ -24,6 +30,7 @@ If you want to better understand the aims of our project, please view [3TS opens
 - gtest 1.6.0
 
 ### Deneva
+A performance verification system. A consistency verification system. Please check out the newest update on branch ['dev'](https://github.com/Tencent/3TS/tree/dev).
 
 - protobuf 3.9.1
 - curl 7.29.0
@@ -31,10 +38,10 @@ If you want to better understand the aims of our project, please view [3TS opens
 
 ## Usage
 
-- Run `make.sh` to compile the code. The `3ts` binary will be generated if compiling successfully.
+- Run `make.sh` to compile the code. The `3TS` binary will be generated if compiling successfully.
 - Run `cp config/config.cfg.template config.cfg` to copy the configuration file.
 - Run `vi config.cfg` to modify the configuration file to determine the behavior of the testbed.
-- Run `./t3s --conf_path=config.cfg` to execute test. The test result file will be generated when test is over.
+- Run `./3TS --conf_path=config.cfg` to execute test. The test result file will be generated when test is over.
 
 ## Principle
 
