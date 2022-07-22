@@ -11,7 +11,7 @@ runcl
 3ts_dbtest
 *.swp
 CMakeCache.txt
-CMakeFiles/*
+CMakeFiles/
 *.cmake
 Makefile
 cmake/*
