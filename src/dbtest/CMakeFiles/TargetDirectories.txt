@@ -1,2 +1,0 @@
-/data1/farrisli/3TS/src/dbtest/CMakeFiles/3ts_kvtest.dir
-/data1/farrisli/3TS/src/dbtest/CMakeFiles/3ts_dbtest.dir
