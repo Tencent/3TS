@@ -220,13 +220,13 @@ bool Outputter::PrintAndWriteTxnSqlResult(std::vector<std::string> cur_result,
     std::string blank(blank_base*(session_id - 1), ' ');
     std::ofstream test_process(test_process_file, std::ios::app);
     if (test_process) {
-        std::cout << blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " return result: ";
-        std::copy(cur_result.begin(), cur_result.end(), std::ostream_iterator<std::string> (std::cout, " "));
-        std::cout << "" << std::endl;
-        //test_process << blank + "T" + std::to_string(session_id) + " sql_id: " + std::to_string(sql_id) + " sql: " + sql << std::endl;
-        test_process <<  blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " return result: ";
-        std::copy(cur_result.begin(), cur_result.end(), std::ostream_iterator<std::string> (test_process, " "));
-        test_process << "" << std::endl;
+        std::string read_output = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " return result: ";
+        for(const auto& result: cur_result) {
+            read_output = read_output + result + " ";
+        }
+        read_output += "\n";
+        std::cout << read_output;
+        test_process << read_output;
         // int idx = 1;
         // for (auto& expected_result_set : expected_result_set_list) {
         //     std::vector<std::string> sql_expected_result = expected_result_set[sql_id];
@@ -255,7 +255,6 @@ bool Outputter::PrintAndWriteTxnSqlResult(std::vector<std::string> cur_result,
         //     }
         //     idx++;
         // }
-        test_process << "" << std::endl;
         return true;
     } else {
         std::cerr << test_process_file + "has not found" << std::endl;
