@@ -523,7 +523,7 @@ for popg in lines:
             op_num = int(ops[i][2:])
         if IsPredicate and not visit[op_num]:
             visit[op_num] = True
-            if ops[i][0] == "R":
+            if ops[i][0] == "R" or ops[i][0] == "P":
                 if ops[i].find("I") == -1:
                     insert_data(file_name, sql_count, txn_count, 2*op_num+1, partition_num, insert_table, data_num, exist, data_value)
             elif ops[i][0] == "D" or ops[i][0] == "W":

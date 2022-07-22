@@ -406,7 +406,7 @@ bool DBConnector::SQLStartTxn(int session_id, int sql_id, std::string test_proce
 	//     test_process << output_info << std::endl;
 	// }
     if (sql_id != 1024 && sql_id !=0) {
-        std::string output_time_info = blank + "Q" + std::to_string(sql_id) + " finished at: " + get_current_time() ;
+        std::string output_time_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " finished at: " + get_current_time() ;
         std::cout << output_time_info << std::endl;
         test_process << output_time_info << std::endl;
     }

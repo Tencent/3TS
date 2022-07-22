@@ -81,7 +81,8 @@ std::string DBConnector::SqlExecuteErr(int session_id, int sql_id, const std::st
     std::string blank(blank_base*(session_id - 1), ' ');
     if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
         return "";
-    } else if (ret == SQL_ERROR) {
+    } 
+    else if (ret == SQL_ERROR) {
         SQLCHAR ErrInfo[256];
         SQLCHAR SQLState[256];
         DBConnector::ErrInfoWithStmt(handle_type, handle, ErrInfo, SQLState);
@@ -105,9 +106,10 @@ std::string DBConnector::SqlExecuteErr(int session_id, int sql_id, const std::st
             // if (!test_process) {
             //     test_process << output_time_info << std::endl;
             // }
-            return err_info;
+            std::cout << err_info << std::endl;
+            return "Err:"+err_info;
         } else {
-            return "";
+            return "Failed with no reason";
         }
 
         return err_info;
@@ -167,7 +169,7 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
     SQLFreeStmt( m_hStatement, SQL_DROP);
     SQLFreeStmt( m_hStatement, SQL_UNBIND);
-    
+
     if (!err_info_sql.empty()) {
         auto index_timeout1 = err_info_sql.find("timeout");
         auto index_timeout2 = err_info_sql.find("Timeout");
