@@ -1,0 +1,42 @@
+#### db_type: mariadb ####
+#### test_type: dda_double_write_skew1_committed ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------rat_dda_double_write_skew1_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_dda_double_write_skew1_committed test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-20 21:36:7:325:698
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-9-20 21:36:7:328:253
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-20 21:36:7:425:910
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q4 finished at: 2023-9-20 21:36:7:428:709
+                                        Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+Q7-T1 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                           current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
+                                             (0,1) 
+                                          *(2) expected_result: 
+                                             (0,0) 
+
+                                        Q5 finished at: 2023-9-20 21:36:7:527:770
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2023-9-20 21:36:7:529:640
+Q7 failed reason: [ma-3.1.7][10.5.22-MariaDB-1:10.5.22+maria~ubu2004]Deadlock found when trying to get lock; try restarting transaction errcode: 40001
+Q7 failed at: 2023-9-20 21:36:8:227:921
+
+Test Result: Rollback
+Reason: Err:[ma-3.1.7][10.5.22-MariaDB-1:10.5.22+maria~ubu2004]Deadlock found when trying to get lock; try restarting transaction
+

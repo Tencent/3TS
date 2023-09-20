@@ -1,0 +1,61 @@
+#### db_type: mariadb ####
+#### test_type: dda_write_read_skew ####
+#### isolation: read-uncommitted ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-uncommitted for each session
+----------rat_dda_write_read_skew test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_dda_write_read_skew test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-20 21:33:42:610:941
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-9-20 21:33:42:614:116
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-20 21:33:42:709:835
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q4 finished at: 2023-9-20 21:33:42:711:569
+                                        Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,1) 
+                                          *(1) expected_result: 
+                                             (0,1) 
+                                           (2) expected_result: 
+                                             (0,0) 
+
+                                        Q5 finished at: 2023-9-20 21:33:42:713:207
+Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=1; '
+   current_result: 
+     (1,1) 
+   (1) expected_result: 
+     (1,0) 
+  *(2) expected_result: 
+     (1,1) 
+
+Q6 finished at: 2023-9-20 21:33:42:812:621
+                                        Q7-T2 execute opt: 'COMMIT';
+                                        Q7 finished at: 2023-9-20 21:33:42:910:867
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2023-9-20 21:33:43:10:231
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (0,1) (1,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,1) (1,1) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,1) (1,1) 
+
+                                                                                Q9 finished at: 2023-9-20 21:33:43:12:207
+                                                                                Q10-T3 execute opt: 'COMMIT';
+                                                                                Q10 finished at: 2023-9-20 21:33:43:12:725
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+
