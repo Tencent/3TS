@@ -34,7 +34,15 @@ class Txn:
         self.begin_ts = -1
         self.end_ts = 99999999999999999999
 
+"""
+Find the total variable number.
 
+Args:
+- lines (list): A list of queries.
+
+Returns:
+int: The maximum variable number found in the queries.
+"""
 # find total variable number
 def get_total(lines):
     num = 0
@@ -49,6 +57,16 @@ def get_total(lines):
     return num
 
 
+"""
+Extract the data we need from a query.
+
+Args:
+- query (str): The input query string.
+- target (str): The target substring to search for.
+
+Returns:
+int: The extracted data value, or -1 if not found.
+"""
 # extract the data we need in query
 def find_data(query, target):
     pos = query.find(target)
@@ -67,6 +85,20 @@ def find_data(query, target):
     return data_value
 
 
+"""
+When a statement is executed, this function sets the end time, modifies the transaction list,
+and updates the version list as needed.
+
+Args:
+- op_time (int): The operation time of the statement.
+- data_op_list (list): A list of data operations.
+- query (str): The query string containing information about the statement execution.
+- txn (list): A list of transaction objects.
+- version_list (list): A list of version lists for data operations.
+
+Returns:
+None
+"""
 # when a statement is executed, set the end time and modify the version list
 def set_finish_time(op_time, data_op_list, query, txn, version_list):
     pos = query.find("finishedat:")
@@ -103,6 +135,17 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
                     op.value = len(version_list[i]) - 1
 
 
+"""
+Check if two transactions are concurrent based on their start and end times.
+
+Args:
+- data1: Information about the first transaction.
+- data2: Information about the second transaction.
+- txn: A list of transaction objects.
+
+Returns:
+bool: True if the transactions are concurrent, False otherwise.
+"""
 # if both transactions are running
 # or the start time of the second transaction is less than the end time of the first transaction
 # we think they are concurrent
@@ -115,6 +158,20 @@ def check_concurrency(data1, data2, txn):
         return False
 
 
+"""
+Determine the type of edge between two operations based on their read or write versions.
+
+Args:
+- data1: Information about the first operation.
+- data2: Information about the second operation.
+- txn: A list of transaction objects.
+
+Returns:
+tuple: A tuple containing three values:
+    - A string indicating the edge type ('R', 'W', 'CR', 'CW').
+    - Information about the operation that comes first.
+    - Information about the operation that comes second.
+"""
 # decide which operation comes first depending on the read or write version
 # if later operation happened after the first txn commit time, edge type will add "C"
 def get_edge_type(data1, data2, txn):
@@ -134,6 +191,22 @@ def get_edge_type(data1, data2, txn):
     return before.op_type + state + after.op_type, before, after
 
 
+"""
+Build a directed graph representing the concurrency relationships between operations.
+
+Args:
+- data_op_list: A list of lists, where each inner list contains information about operations for a specific transaction.
+- indegree: A list representing the in-degrees of each operation node in the graph.
+- edge: A list representing the edges (concurrency relationships) between operations.
+- txn: A list of transaction objects.
+
+This function constructs a directed graph where nodes represent operations, and edges represent concurrency relationships
+between operations. It iterates through the list of operations for each transaction and calls the 'insert_edge' function 
+to create edges in the graph based on concurrency relationships.
+
+Returns:
+None
+"""
 def build_graph(data_op_list, indegree, edge, txn):
     for list1 in data_op_list:
         for i, data in enumerate(list1):
@@ -141,6 +214,25 @@ def build_graph(data_op_list, indegree, edge, txn):
                 insert_edge(list1[j], data, indegree, edge, txn)
 
 
+"""
+Insert an edge into the directed graph representing concurrency relationships between operations.
+
+Args:
+- data1: An operation object representing the first operation.
+- data2: An operation object representing the second operation.
+- indegree: A list representing the in-degrees of each transaction in the graph.
+- edge: A list representing the edges (concurrency relationships) between operations for each transaction.
+- txn: A list of transaction objects.
+
+This function inserts an edge into the directed graph to represent the concurrency relationship between 'data1' and 'data2'. 
+It first checks if the two operations are concurrent by calling the 'check_concurrency' function. If they are concurrent, it 
+determines the edge type using the 'get_edge_type' function and adds the edge to the 'edge' list.
+
+The 'indegree' list is updated to reflect the in-degree of the target transaction node when an edge is inserted.
+
+Returns:
+None
+"""
 def insert_edge(data1, data2, indegree, edge, txn):
     if check_concurrency(data1, data2, txn):
         edge_type, data1, data2 = get_edge_type(data1, data2, txn)
@@ -149,12 +241,42 @@ def insert_edge(data1, data2, indegree, edge, txn):
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
 
 
+"""
+Initialize a record in the version list based on the information in the query.
+
+Args:
+- query: A query string that contains information about a record.
+- version_list: A list of lists representing versioned records.
+
+This function initializes a record in the 'version_list' based on the information provided in the 'query'. It extracts the 'key'
+and 'value' of the record from the query using the 'find_data' function and appends the 'value' to the corresponding version list.
+
+Returns:
+None
+"""
 def init_record(query, version_list):
     key = find_data(query, "(")
     value = find_data(query, ",")
     version_list[key].append(value)
 
 
+"""
+Read the versioned record based on the information in the query.
+
+Args:
+- query (str): A query string that contains information about reading a versioned record.
+- op_time (int): The operation time of the read operation.
+- data_op_list (list): A list of lists representing data operations.
+- version_list (list): A list of lists representing versioned records.
+
+This function reads the versioned record specified in the 'query'. It extracts the 'key' and 'value' from the query, which are 
+used to identify the record and version to read. The function checks if the specified version exists in the version list and 
+updates the 'op.value' accordingly. If the version doesn't exist or if the read operation is not successful, an error message 
+is returned.
+
+Returns:
+str: An error message indicating the result of the read operation. An empty string means the read was successful.
+"""
 def readVersion_record(query, op_time, data_op_list, version_list):
     error_message = ""
     data = query.split(")")
@@ -201,6 +323,27 @@ def readVersion_record(query, op_time, data_op_list, version_list):
 
 
 
+"""
+Read records based on the information in the query and update data operations.
+
+Args:
+- op_time (int): The operation time of the read operation.
+- txn_num (int): The transaction number.
+- total_num (int): The total number of records.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of lists representing data operations.
+
+This function reads records specified in the query and updates the 'data_op_list' accordingly. It extracts information from 
+the 'query' to determine which records to read and what type of operation to perform (read or predicate). The function also 
+sets the 'begin_ts' of the transaction if it's not already set.
+
+The 'query' is analyzed to identify specific record keys or predicates and create corresponding 'Operation' objects in the 
+'data_op_list'. Depending on the structure of the query, this function handles various cases, such as reading single records,
+handling predicates, and selecting all rows in a table.
+
+Returns:
+None
+"""
 def read_record(op_time, txn_num, total_num, txn, data_op_list):
     if txn[txn_num].begin_ts == -1:
         txn[txn_num].begin_ts = op_time
@@ -229,6 +372,24 @@ def read_record(op_time, txn_num, total_num, txn, data_op_list):
             data_op_list[i].append(Operation("R", txn_num, op_time, i))
 
 
+"""
+Write records based on the information in the query and update data operations.
+
+Args:
+- op_time (int): The operation time of the write operation.
+- txn_num (int): The transaction number.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of lists representing data operations.
+
+This function writes records specified in the query and updates the 'data_op_list' accordingly. It extracts information from the 
+'query' to determine which records to write and what type of operation to perform (write). The function also sets the 'begin_ts' 
+of the transaction if it's not already set.
+
+The 'query' is analyzed to identify specific record keys and values, and it creates corresponding 'Operation' objects in the 'data_op_list'.
+
+Returns:
+None
+"""
 def write_record(op_time, txn_num, txn, data_op_list):
     if txn[txn_num].begin_ts == -1:
         txn[txn_num].begin_ts = op_time
@@ -242,6 +403,24 @@ def write_record(op_time, txn_num, txn, data_op_list):
         data_op_list[op_data].append(Operation("W", txn_num, op_time, op_value))
 
 
+"""
+Delete records based on the information in the query and update data operations.
+
+Args:
+- op_time (int): The operation time of the delete operation.
+- txn_num (int): The transaction number.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of lists representing data operations.
+
+This function deletes records specified in the query and updates the 'data_op_list' accordingly. It extracts information from the 
+'query' to determine which records to delete and what type of operation to perform (delete). The function also sets the 'begin_ts' 
+of the transaction if it's not already set.
+
+The 'query' is analyzed to identify specific record keys, and it creates corresponding 'Operation' objects in the 'data_op_list'.
+
+Returns:
+None
+"""
 def delete_record(op_time, txn_num, txn, data_op_list):
     if txn[txn_num].begin_ts == -1:
         txn[txn_num].begin_ts = op_time
@@ -253,6 +432,25 @@ def delete_record(op_time, txn_num, txn, data_op_list):
         data_op_list[op_data].append(Operation("D", txn_num, op_time, op_data))
 
 
+"""
+Insert records based on the information in the query and update data operations.
+
+Args:
+- op_time (int): The operation time of the insert operation.
+- txn_num (int): The transaction number.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of lists representing data operations.
+
+This function inserts records specified in the query and updates the 'data_op_list' accordingly. It extracts information from the 
+'query' to determine which records to insert and what type of operation to perform (insert). The function also sets the 'begin_ts' 
+of the transaction if it's not already set.
+
+The 'query' is analyzed to identify specific record keys and their corresponding values, and it creates corresponding 'Operation' 
+objects in the 'data_op_list'.
+
+Returns:
+None
+"""
 def insert_record(op_time, txn_num, txn, data_op_list):
     if txn[txn_num].begin_ts == -1 and op_time != 0:
         txn[txn_num].begin_ts = op_time
@@ -261,10 +459,40 @@ def insert_record(op_time, txn_num, txn, data_op_list):
     data_op_list[key].append(Operation("I", txn_num, op_time, value))
 
 
+"""
+Set the end timestamp for a transaction.
+
+Args:
+- op_time (int): The operation time when the transaction ends.
+- txn_num (int): The transaction number.
+- txn (list): A list of transactions.
+
+This function sets the 'end_ts' attribute of a transaction specified by 'txn_num' to the given 'op_time'. It marks the end of the 
+transaction's execution.
+
+Returns:
+None
+"""
 def end_record(op_time, txn_num, txn):
     txn[txn_num].end_ts = op_time
 
 
+"""
+Record and process database operations.
+
+Args:
+- total_num (int): The total number of database operations.
+- query (str): The SQL query representing a database operation.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of data operations.
+- version_list (list): A list of version information for data operations.
+
+This function records and processes database operations based on the provided SQL query. It updates the transaction list, data 
+operation list, and version list accordingly. The 'total_num' parameter specifies the total number of database operations.
+
+Returns:
+str: An error message (if any), or an empty string if the operation is successful.
+"""
 def operation_record(total_num, query, txn, data_op_list, version_list):
     error_message = ""
     op_time = find_data(query, "Q")
@@ -300,6 +528,18 @@ def operation_record(total_num, query, txn, data_op_list, version_list):
     
 
 
+"""
+Remove unfinished operations from the data operation list.
+
+Args:
+- data_op_list (list): A list of data operations.
+
+This function iterates through the data operation list and removes any unfinished operations based on their operation time. 
+Unfinished operations are those with an operation time less than 10,000,000.
+
+Returns:
+None
+"""
 # remove failed statements to prevent redundant edges from being built
 def remove_unfinished_operation(data_op_list):
     for list1 in data_op_list:
@@ -307,6 +547,20 @@ def remove_unfinished_operation(data_op_list):
             if op.op_time < 10000000:
                 list1.pop(i)
 
+"""
+Check for cycles in a directed graph using topological sorting.
+
+Args:
+- edge (List[List[Edge]]): A list representing the directed edges in the graph.
+- indegree (List[int]): A list representing the in-degrees of nodes in the graph.
+- total (int): The total number of nodes in the graph.
+
+This function checks for cycles in a directed graph by performing topological sorting. It takes as input the directed edges (`edge`), 
+in-degrees of nodes (`indegree`), and the total number of nodes in the graph (`total`).
+
+Returns:
+bool: True if a cycle is detected, False otherwise.
+"""
 # toposort to determine whether there is a cycle
 def check_cycle(edge, indegree, total):
     q = Queue.Queue()
@@ -326,6 +580,25 @@ def check_cycle(edge, indegree, total):
     return True
 
 
+"""
+Perform depth-first search (DFS) to find and print loops in a directed graph.
+
+Args:
+- result_folder (str): The path to the folder where the results will be saved.
+- ts_now (str): The current timestamp or identifier for result file naming.
+- now (int): The current node being visited.
+- type (str): The type of edge leading to the current node ('C' for commit, 'R' for read, 'W' for write, etc.).
+
+This function performs depth-first search (DFS) to find and print loops in a directed graph. It takes as input the result folder 
+path (`result_folder`), the current timestamp or identifier for result file naming (`ts_now`), the current node being visited (`now`),
+and the type of edge leading to the current node (`type`).
+
+The function recursively explores the graph, tracking the visited nodes and edges to detect loops. When a loop is found, it is printed
+to a result file in the specified result folder.
+
+Note: This function assumes that global variables like 'visit', 'visit1', 'path', 'edge_type', and 'edge' are defined elsewhere.
+
+"""
 # for loop graphs, print the loop
 def dfs(result_folder, ts_now, now, type):
     visit1[now] = 1
@@ -351,6 +624,21 @@ def dfs(result_folder, ts_now, now, type):
     visit[now] = 0
 
 
+"""
+Print the paths in a directed graph to a result file.
+
+Args:
+- result_folder (str): The path to the folder where the results will be saved.
+- ts_now (str): The current timestamp or identifier for result file naming.
+- edge (list of lists): A list of lists representing the directed edges in the graph.
+
+This function prints the paths in a directed graph to a result file. It takes as input the result folder path (`result_folder`), 
+the current timestamp or identifier for result file naming (`ts_now`), and a list of lists (`edge`) representing the directed edges 
+in the graph.
+
+The function iterates through the edges and writes the paths to the result file in the specified result folder.
+
+"""
 def print_path(result_folder, ts_now, edge):
     with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
         flag = 0
@@ -364,11 +652,41 @@ def print_path(result_folder, ts_now, edge):
         f.write("\n\n")
 
 
+"""
+Output the result of cycle detection to a result file.
+
+Args:
+- file (str): The name of the file or input source being analyzed.
+- result_folder (str): The path to the folder where the results will be saved.
+- ts_now (str): The current timestamp or identifier for result file naming.
+- IsCyclic (str): A string indicating whether a cycle was detected.
+
+This function outputs the result of cycle detection to a result file. It takes as input the name of the file or input source being 
+analyzed (`file`), the result folder path (`result_folder`), the current timestamp or identifier for result file naming (`ts_now`),
+and a string (`IsCyclic`) indicating whether a cycle was detected.
+
+The function writes the result, including the file name and the cyclic status, to the specified result file in the result folder.
+
+"""
 def output_result(file, result_folder, ts_now, IsCyclic):
     with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
         f.write(file + ": " + IsCyclic + "\n")
 
 
+"""
+Print an error message to a result file.
+
+Args:
+- result_folder (str): The path to the folder where the results will be saved.
+- ts_now (str): The current timestamp or identifier for result file naming.
+- error_message (str): The error message to be printed.
+
+This function prints an error message to a result file. It takes as input the result folder path (`result_folder`), the current 
+timestamp or identifier for result file naming (`ts_now`), and the error message (`error_message`) to be printed.
+
+The function appends the error message to the specified result file in the result folder and adds a newline for separation.
+
+"""
 def print_error(result_folder, ts_now, error_message):
     with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
         f.write(error_message + "\n")

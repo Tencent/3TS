@@ -15,7 +15,7 @@
 #include <mutex>
 #include <regex>
 
-// 基于Google's gflags库来实现命令行参数解析
+// Implement command-line argument parsing based on Google's gflags library
 DEFINE_string(db_type, "mysql", "data resource name, please see /etc/odbc.ini, such as mysql pg oracle ob tidb sqlserver crdb");
 DEFINE_string(user, "test123", "username");
 DEFINE_string(passwd, "Ly.123456", "password");
