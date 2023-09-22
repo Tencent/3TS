@@ -12,9 +12,13 @@
 
 class TestResultSet {
 private:
+    // Type of the test cases
     std::string test_case_type_;
+    // Transaction isolation level
     std::string isolation_;
+    // Test result type
     std::string result_type_;
+    // Expected result set list
     std::vector<std::unordered_map<int, std::vector<std::string>>> expected_result_set_list_;
 public:
     TestResultSet() {};
@@ -38,9 +42,13 @@ public:
 // The sql with txn_id in test case
 class TxnSql {
 private:
+    // Transaction ID
     int txn_id_;
+    // ID of the SQL statement
     int sql_id_;
+    // SQL statement
     std::string sql_;
+    // Type of the test case
     std::string test_case_type_;
 public:
     TxnSql(const int sql_id, const int txn_id, const std::string& sql,
@@ -56,9 +64,11 @@ public:
 // TestSequence->exception test case, include a series of TxnSql
 class TestSequence {
 private:
-    // such as mysql_dirty-read
+    // Type of the test cases, such as mysql_dirty-read
     std::string test_case_type_;
+    // List of test sequences
     std::vector<TxnSql> txn_sql_list_;
+    // The number of columns in the result set.
     int param_num_;
 public:
     TestSequence() {};
@@ -75,7 +85,9 @@ public:
 //read and parse sql from file
 class CaseReader {
 private:
+    // Store test sequences read from the file
     std::vector<TestSequence> test_sequence_list_;
+    // Store the expected test results read from the file
     std::vector<TestResultSet> test_result_set_list_;
 public:
     bool InitTestSequenceAndTestResultSetList(const std::string& test_path, const std::string& db_type);
@@ -89,17 +101,23 @@ public:
 
     std::pair<TestSequence, TestResultSet> TestSequenceAndTestResultSetFromFile(const std::string& test_file, const std::string& db_type);
 
+    // Parse execution order ID, transaction ID and SQL from the given line
     std::vector<std::string> TxnIdAndSql(const std::string& line);
+    // Parse SQL ID and result from the given line
     std::pair<int, std::string> SqlIdAndResult(const std::string& line);
+    // Parse isolation level from the given line
     std::string Isolation(const std::string& line);
 
     std::vector<TestSequence> TestSequenceList() {return test_sequence_list_;};
     std::vector<TestResultSet> TestResultSetList() {return test_result_set_list_;};
 };
 
+// Process and validate the expected test results
 class ResultHandler {
 public:
+    // Compare the current result of a single SQL query with its expected result
     bool IsSqlExpectedResult(std::vector<std::string> cur_result, std::vector<std::string> expected_result, const int sql_id, const std::string& sql);
+    // Verify if the current result set of SQL queries matches any of the expected results in the result set list
     bool IsTestExpectedResult(std::unordered_map<int, std::vector<std::string>>& cur_result,
                               std::vector<std::unordered_map<int, std::vector<std::string>>> expected_result_set_list,
                               std::unordered_map<int, std::string> sql_map, const std::string& test_process_file);
@@ -107,12 +125,16 @@ public:
 
 class Outputter {
 public:
+    // Write the overall test results to the specified file
     void WriteResultTotal(std::vector<TestResultSet> test_result_set_list, const std::string& ret_file);
 
+    // Print the results of the transaction SQL
     bool PrintAndWriteTxnSqlResult(std::vector<std::string> cur_result,
                                    std::vector<std::unordered_map<int, std::vector<std::string>>> expected_result_set_list,
                                    const int sql_id, const std::string& sql, const int session_id, const std::string& test_process_file);
+    // Write the test case type to the specified file
     bool WriteTestCaseTypeToFile(const std::string& test_case_type, const std::string& test_process_file);
+    // Write the result type to the specified file
     bool WriteResultType(const std::string& result_type, const std::string& test_process_file);
 };
 
