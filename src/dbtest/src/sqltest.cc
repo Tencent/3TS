@@ -15,6 +15,7 @@
 #include <mutex>
 #include <regex>
 
+// 基于Google's gflags库来实现命令行参数解析
 DEFINE_string(db_type, "mysql", "data resource name, please see /etc/odbc.ini, such as mysql pg oracle ob tidb sqlserver crdb");
 DEFINE_string(user, "test123", "username");
 DEFINE_string(passwd, "Ly.123456", "password");
@@ -27,6 +28,14 @@ DEFINE_string(timeout, "20", "timeout");
 // std::vector<std::mutex *> mutex_txn(5); // same as conn_pool_size
 std::vector<pthread_mutex_t *> mutex_txn(FLAGS_conn_pool_size);  // same as conn_pool_size
 
+/**
+ * Tries to lock the specified mutex within the given timeout.
+ * 
+ * @param wait_second The timeout in seconds.
+ * @param wait_nanosecond The timeout in nanoseconds.
+ * @param txn_id The transaction ID.
+ * @return True if the lock is acquired within the timeout, false otherwise.
+ */
 bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
 {
     struct timespec timeoutTime;
@@ -36,6 +45,18 @@ bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
 }
 
 
+/**
+ * Executes multiple SQL transactions in a multi-threaded environment.
+ *
+ * @param txn_sql_list The list of transaction SQL to execute.
+ * @param test_sequence Represents the test sequence object.
+ * @param test_result_set Represents the expected test result set object.
+ * @param db_connector The object used for database interactions.
+ * @param test_process_file The file for logging or recording the test process.
+ * @param cur_result_set A map to store the current result set.
+ * @param sleeptime The sleep time between transaction executions. Note: Different threads may have different sleep times to stagger their execution.
+ * @return True if the transactions are executed successfully, false otherwise.
+ */
 bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_sequence, TestResultSet& test_result_set, 
     DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
     
@@ -45,6 +66,7 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
     
     std::ofstream test_process(test_process_file, std::ios::app);
     int txn_id;
+    // If txn_sql_list is not empty, attempt to acquire a mutex lock associated with the current transaction ID.
     if (txn_sql_list.size() && txn_sql_list[0].TxnId()){
         txn_id = txn_sql_list[0].TxnId();
         pthread_mutex_lock(mutex_txn[txn_id]);
@@ -63,6 +85,7 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
         return false;
     }
 
+    // Iterate through each transaction SQL in txn_sql_list.
     for (auto& txn_sql : txn_sql_list) {
         
         // for test purpose
@@ -217,10 +240,20 @@ jump:
 
 };
 
+/**
+ * Executes a series of database test transactions and writes the results to a file.
+ *
+ * @param test_sequence A TestSequence object containing a series of database transactions to execute.
+ * @param test_result_set A TestResultSet object used to store test results.
+ * @param db_connector A DBConnector object providing database connectivity.
+ * @return True if the transactions are executed successfully, false otherwise.
+ */
 bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& test_result_set, DBConnector db_connector) {
+    // Define the path and name of the test result file.
     std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType()  + ".txt";
     // std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType() + "_" + FLAGS_isolation + ".txt";
     std::cout << test_process_file << std::endl;
+    // Open an output file stream named "test_process" for writing test process information.
     std::ifstream test_process_tmp(test_process_file);
     if (test_process_tmp) {
         std::remove(test_process_file.c_str());
@@ -231,6 +264,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
         std::cout << "create test_process_file failed" << std::endl;
     }
 
+    // Print the database type and isolation level to both the file and the console.
     test_process << "#### db_type: " + FLAGS_db_type + " ####" << std::endl;
     std::cout << "#### db_type: " + FLAGS_db_type + " ####" << std::endl;
 
@@ -260,6 +294,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
         test_process << "set TXN_ISOLATION = " + FLAGS_isolation + " for each session"<< std::endl;
     }
 
+    // Get the list of transaction SQLs from test_sequence.
     std::vector<TxnSql> txn_sql_list = test_sequence.TxnSqlList();
     std::cout << dash + test_sequence.TestCaseType() + " test prepare" + dash << std::endl;
     test_process << dash + test_sequence.TestCaseType() + " test prepare" + dash << std::endl;
@@ -281,6 +316,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     // std::cout << " SQLID: " << txn_sql_list[0].SqlId() << " TXNID: " <<  txn_sql_list[0].TxnId() << " SQL: " << txn_sql_list[0].Sql() <<  std::endl;
     int txn_id_old;
     int thread_cnt = 0;
+    // Group transactions based on SQL ID and transaction ID.
     for (auto& txn_sql : txn_sql_list) {   
         // split into anther group
         if (txn_sql.SqlId() == 1 || txn_sql.TxnId() != txn_id_old){
@@ -305,6 +341,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     split_groups.push_back(group);
     thread_cnt = thread_cnt + 1;
     
+   // Special handling for "crdb" database type.
     if (FLAGS_db_type == "crdb"){
         // remove non transaction commit
         // remove the first commit at the prepraration

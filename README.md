@@ -18,17 +18,57 @@ Check out some test cases (e.g., [Dirty Write](test_result/test_cases/wat_sda_di
 You can explore all results on [report webpage](https://axingguchen.github.io/3TS/).
 
 ## Usage
-To generate Makefile (all commands are executed under '3TS/src/dbtest'):
+Provide two installation methods for the project environment: **Docker** and **Compilation**, and you can freely choose the installation method.
+
+### Docker installation
+
+If you have not installed Docker, you can use the following command to install it with one click.
+
+```shell
+curl -s https://get.docker.com/ | sh  
+```
+
+Obtain Mirror
+
+```shell
+docker pull registry.cn-hangzhou.aliyuncs.com/open_projects/3ts_coo:1.0
+```
+
+Obtain Mirror to view the image ID and generate a container based on the image ID
+
+```shell
+docker images
+docker run -it [image_id] /bin/bash
+```
+
+View all containers and enter the generated container
+
+```shell
+docker ps -a
+docker exec -it [container_id] /bin/bash
+```
+
+### Compile Installation
+
+ To generate Makefile (all commands are executed under '3TS/src/dbtest'):
+
 ```
 cmake -S ./
 ```
 
 To complie the code:
+
 ```
 make
 ```
 
 ## Example
+
+If using Docker installation, the container defaults to installing and configuring the database PostgreSQL，Start it using the following command (if you choose to compile the installation method, you need to install the database and configure it):
+
+```shell
+/etc/init.d/postgresql start
+```
 
 For test cases, it specify in "do_test_list.txt". Use "#" to exclude (comment) the test case.
 We provide three levels of test cases, i.e., the basic cases (33 anomalies in the paper), the predicate cases, and the MDA cases (with multiple transactions and objects). For specific test cases to evaluate, we specify it in do_test_list.txt. 
