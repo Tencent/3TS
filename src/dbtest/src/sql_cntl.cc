@@ -557,6 +557,47 @@ bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string o
     // Set the transaction isolation level based on the 'opt' value (e.g., "read-uncommitted," "read-committed," "repeatable-read," etc.)
     // Use SQLSetConnectAttr method to set the appropriate transaction isolation level.
     // "snapshot" and "rcsnapshot" options require additional SQL commands to be executed for specific isolation levels.
+    
+    // https://cassandra.apache.org/doc/4.1/cassandra/tools/cqlsh.html#consistency
+    if (db_type == "cassandra") {
+        std::string iso;
+        if (opt == "any") {
+            iso = "any";
+        } else if (opt == "one") {
+	        iso = "one";
+        } else if (opt == "two") {
+            iso = "two";
+        } else if (opt == "three") {
+            iso = "three";
+        } else if (opt == "quorum") {
+            iso = "quorum";
+        } else if (opt == "all") {
+            iso = "all";
+        } else if (opt == "local_quorum") {
+            iso = "local_quorum";
+        } else if (opt == "local_one") {
+            iso = "local_one";
+        } else if (opt == "serial") {
+            iso = "serial";
+        } else if (opt == "local_serial") {
+            iso = "local_serial";
+        } else {
+            std::cout << "unknow isolation level" << std::endl;
+            return false;
+        }
+        TestResultSet test_result_set;
+        std::string sql;
+        if (opt == "serial" || opt == "local_serial") {
+            sql = "serial consistency " + iso + ";";
+        } else {
+            sql = "consistency " + iso + ";";
+        }
+        if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+            return false;
+        }
+        return true;
+    }
+
     if (db_type != "oracle" && db_type != "ob") {
     // for ob mysql mode
     // if (db_type != "oracle") {

@@ -482,7 +482,12 @@ int main(int argc, char* argv[]) {
         mkdir(FLAGS_db_type.c_str(), S_IRWXU);
     }
     // create isolation dir
-    std::vector<std::string> iso_list = {"read-committed", "repeatable-read", "serializable", "result_summary"};
+    std::vector<std::string> iso_list;
+    if (FLAGS_db_type == "cassandra") {
+        iso_list = std::vector<std::string>({"any", "one", "two", "three", "quorum", "all", "local_quorum", "local_one", "serial", "local_serial"});
+    } else {
+        iso_list = std::vector<std::string>({"read-uncommitted", "read-committed", "repeatable-read", "serializable", "result_summary"});
+    }
     //std::vector<std::string> iso_list = {"read-uncommitted", "read-committed", "repeatable-read", "serializable", "result_summary"};
     for (auto iso : iso_list) {
         std::string iso_dir = FLAGS_db_type + "/" + iso;

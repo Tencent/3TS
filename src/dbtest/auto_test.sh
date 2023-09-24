@@ -36,5 +36,8 @@ then
 elif [ $db == "mariadb" ]
 then
     ./3ts_dbtest -isolation=$2 -db_type="mariadb" -user="username" -passwd="password" -case_dir="mariadb"
+elif [ $db == "cassandra" ]
+then
+    ./3ts_dbtest -isolation=$2 -db_type="cassandra" -user="username" -passwd="password" -case_dir="cassandra"
 fi
 
