@@ -9,6 +9,7 @@
  *
  */
 #include "sql_cntl.h"
+// Executor class for managing and executing test sequences.
 class JobExecutor {
 public:
     bool ExecAllTestSequence(std::vector<TestSequence> test_sequence_list);

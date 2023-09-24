@@ -4,6 +4,7 @@ PROJECT(dbtest)
 set(CMAKE_BUILD_TYPE "Debug") 
 set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb") 
 set(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall") 
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 message("cmake moudle ${CMAKE_MODULE_PATH}")
  
 set(CMAKE_CXX_FLAGS "-std=c++17 ${CMAKE_CXX_FLAGS} -g -ftest-coverage -fprofile-arcs -Wno-deprecated -fopenmp -pthread -lpthread") 
@@ -49,7 +50,7 @@ list(APPEND SOURCE_FILES_SQL_v2
 add_executable(3ts_dbtest_v2 ${SOURCE_FILES_SQL_v2})
 # ld:odbc
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
-find_package(odbc REQUIRED)
+find_package(ODBC REQUIRED)
 list(APPEND ODBC_LD odbc)
 # link ld
 target_link_libraries(3ts_dbtest_v2 ${THIRD_PARTIES})
