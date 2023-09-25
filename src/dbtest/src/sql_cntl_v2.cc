@@ -158,8 +158,8 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     if (!err_info_stmt.empty()) {
         std::cout << "get stmt failed in DBConnector::ExecWriteSql" << std::endl;
         std::cout << __TIMESTAMP__ << std::endl;
-        SQLFreeStmt( m_hStatement, SQL_DROP);
         SQLFreeStmt( m_hStatement, SQL_UNBIND);
+        SQLFreeStmt( m_hStatement, SQL_DROP);
         return false;
     }
     // execute sql
@@ -178,8 +178,8 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     SQLRowCount(m_hStatement,&row_count);
     // std::cout << "row_count" << row_count << std::endl;
     std::string err_info_sql = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
-    SQLFreeStmt( m_hStatement, SQL_DROP);
     SQLFreeStmt( m_hStatement, SQL_UNBIND);
+    SQLFreeStmt( m_hStatement, SQL_DROP);
     if (row_count==0 && sql_id !=0){
         std::string blank(blank_base*(session_id - 1), ' ');
         std::string output_time_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " failed at: " + get_current_time() ;
@@ -232,8 +232,8 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
     std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
     if (!err_info_stmt.empty()) {
         std::cout << "get stmt failed in DBConnector::ExecReadSql2Int" << std::endl;
-        SQLFreeStmt( m_hStatement, SQL_DROP);
         SQLFreeStmt( m_hStatement, SQL_UNBIND);
+        SQLFreeStmt( m_hStatement, SQL_DROP);
         return false;
     }
     SQLLEN length;
@@ -287,12 +287,12 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
             std::ofstream test_process(test_process_file, std::ios::app);
             test_process << output_time_info << std::endl;
         }
-        SQLFreeStmt( m_hStatement, SQL_DROP);
         SQLFreeStmt( m_hStatement, SQL_UNBIND);
+        SQLFreeStmt( m_hStatement, SQL_DROP);
         return true;
     } else {
-        SQLFreeStmt( m_hStatement, SQL_DROP);
         SQLFreeStmt( m_hStatement, SQL_UNBIND);
+        SQLFreeStmt( m_hStatement, SQL_DROP);
         auto index_timeout1 = err_info_sql.find("timeout");
         auto index_timeout2 = err_info_sql.find("Timeout");
         auto index_timeout3 = err_info_sql.find("time out");
