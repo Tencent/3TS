@@ -383,9 +383,6 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
         SQLFreeStmt( m_hStatement, SQL_DROP);
         return true;
     } else {
-        // Handle errors: If SQL execution fails, check if the error message contains "timeout". 
-        // If yes, set the result type of test_result_set to "Timeout". 
-        // Otherwise, set the result type to "Rollback" and include the relevant error message.
         SQLFreeStmt( m_hStatement, SQL_UNBIND);
         SQLFreeStmt( m_hStatement, SQL_DROP);
         auto index_timeout1 = err_info_sql.find("timeout");
