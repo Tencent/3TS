@@ -1,0 +1,36 @@
+#### db_type: yugabyte ####
+#### test_type: sda_full_write ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------wat_sda_full_write test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_full_write test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-24 22:24:38:845:126
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-9-24 22:24:38:846:175
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-9-24 22:24:38:871:712
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-24 22:24:38:945:387
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-9-24 22:24:38:946:782
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q5-T1 execute sql: 'UPDATE t1 SET v=3 WHERE k=0;'
+Q5 finished at: 2023-9-24 22:24:39:45:655
+Q6-T1 execute opt: 'COMMIT';
+Q6 finished at: 2023-9-24 22:24:39:46:841
+                                        Q4 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q4 failed at: 2023-9-24 22:24:39:395:895
+
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
+

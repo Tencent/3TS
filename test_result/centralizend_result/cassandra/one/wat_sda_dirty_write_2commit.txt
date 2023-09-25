@@ -14,17 +14,17 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_sda_dirty_write_2commit test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-23 18:38:1:393:336
+Q1 finished at: 2023-9-24 22:19:26:974:935
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-23 18:38:1:405:582
+Q2 finished at: 2023-9-24 22:19:26:979:569
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-23 18:38:1:492:268
+                                        Q3 finished at: 2023-9-24 22:19:27:74:944
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-                                        Q4 finished at: 2023-9-23 18:38:1:498:132
+                                        Q4 finished at: 2023-9-24 22:19:27:79:868
 Q5-T1 execute opt: 'COMMIT';
-Q5 finished at: 2023-9-23 18:38:1:593:740
+Q5 finished at: 2023-9-24 22:19:27:174:968
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-23 18:38:1:692:198
+                                        Q6 finished at: 2023-9-24 22:19:27:274:972
                                                                                 Q7-T3 execute sql: 'SELECT * FROM t1;'
                                                                                    current_result: 
                                                                                      (0,2) 
@@ -33,11 +33,11 @@ Q5 finished at: 2023-9-23 18:38:1:593:740
                                                                                   *(2) expected_result: 
                                                                                      (0,2) 
 
-                                                                                Q7 finished at: 2023-9-23 18:38:1:694:429
+                                                                                Q7 finished at: 2023-9-24 22:19:27:277:621
                                                                                 Q8-T3 execute sql: 'DROP TABLE IF EXISTS t1;'
-                                                                                Q8 finished at: 2023-9-23 18:38:2:163:753
+                                                                                Q8 finished at: 2023-9-24 22:19:27:659:730
                                                                                 Q9-T3 execute opt: 'COMMIT';
-                                                                                Q9 finished at: 2023-9-23 18:38:2:165:554
+                                                                                Q9 finished at: 2023-9-24 22:19:27:660:772
 
 The current result is consistent with the [(2) expected_result] of serial scheduling
 

@@ -14,7 +14,7 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_sda_non_repeatable_read test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-23 18:37:28:693:741
+Q1 finished at: 2023-9-24 22:18:55:921:858
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -23,11 +23,11 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-23 18:37:28:698:329
+Q2 finished at: 2023-9-24 22:18:55:926:945
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-23 18:37:28:795:379
+                                        Q3 finished at: 2023-9-24 22:18:56:21:911
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                        Q4 finished at: 2023-9-23 18:37:28:819:685
+                                        Q4 finished at: 2023-9-24 22:18:56:27:625
 Q5-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,1) 
@@ -36,11 +36,11 @@ Q5-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
   *(2) expected_result: 
      (0,1) 
 
-Q5 finished at: 2023-9-23 18:37:28:909:687
+Q5 finished at: 2023-9-24 22:18:56:125:970
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-23 18:37:28:995:866
+                                        Q6 finished at: 2023-9-24 22:18:56:222:297
 Q7-T1 execute opt: 'COMMIT';
-Q7 finished at: 2023-9-23 18:37:29:95:648
+Q7 finished at: 2023-9-24 22:18:56:322:215
                                                                                 Q8-T3 execute sql: 'SELECT * FROM t1;'
                                                                                    current_result: 
                                                                                      (0,1) 
@@ -49,9 +49,9 @@ Q7 finished at: 2023-9-23 18:37:29:95:648
                                                                                   *(2) expected_result: 
                                                                                      (0,1) 
 
-                                                                                Q8 finished at: 2023-9-23 18:37:29:109:428
+                                                                                Q8 finished at: 2023-9-24 22:18:56:326:967
                                                                                 Q9-T3 execute opt: 'COMMIT';
-                                                                                Q9 finished at: 2023-9-23 18:37:29:111:496
+                                                                                Q9 finished at: 2023-9-24 22:18:56:327:617
 
 Test Result: Anomaly
 Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies

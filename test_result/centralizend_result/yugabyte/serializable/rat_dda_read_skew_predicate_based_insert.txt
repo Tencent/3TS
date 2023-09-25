@@ -1,0 +1,65 @@
+#### db_type: yugabyte ####
+#### test_type: dda_read_skew_predicate_based_insert ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------rat_dda_read_skew_predicate_based_insert test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_dda_read_skew_predicate_based_insert test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-24 22:22:53:698:353
+Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q1 finished at: 2023-9-24 22:22:53:699:771
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     null 
+  *(1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,0) (1,0) 
+
+Q2 finished at: 2023-9-24 22:22:53:745:430
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-24 22:22:53:798:304
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     null 
+  *(1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,0) (1,0) 
+
+Q7 finished at: 2023-9-24 22:22:53:898:864
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2023-9-24 22:22:53:900:114
+                                        Q3 finished at: 2023-9-24 22:22:53:916:912
+                                        Q4-T2 execute sql: 'INSERT into t1 (k,v) VALUES(1,0);'
+                                        Q4 finished at: 2023-9-24 22:22:53:924:534
+                                        Q5-T2 execute sql: 'INSERT into t1 (k,v) VALUES(0,0);'
+                                        Q5 finished at: 2023-9-24 22:22:53:925:639
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2023-9-24 22:22:53:926:258
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     (0,0) (1,0) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,0) (1,0) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,0) (1,0) 
+
+                                                                                Q9 finished at: 2023-9-24 22:22:53:990:833
+                                                                                Q10-T3 execute opt: 'COMMIT';
+                                                                                Q10 finished at: 2023-9-24 22:22:53:991:194
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

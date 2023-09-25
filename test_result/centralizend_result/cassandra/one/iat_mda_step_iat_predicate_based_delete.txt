@@ -16,7 +16,7 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_mda_step_iat_predicate_based_delete test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-23 18:38:41:131:109
+Q1 finished at: 2023-9-24 22:20:4:281:391
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
    current_result: 
      (2,0) 
@@ -33,9 +33,9 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
    (6) expected_result: 
      null 
 
-Q2 finished at: 2023-9-23 18:38:41:140:680
+Q2 finished at: 2023-9-24 22:20:4:285:701
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-23 18:38:41:229:640
+                                        Q3 finished at: 2023-9-24 22:20:4:381:383
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
                                            current_result: 
                                              (0,0) 
@@ -52,9 +52,9 @@ Q2 finished at: 2023-9-23 18:38:41:140:680
                                           *(6) expected_result: 
                                              (0,0) 
 
-                                        Q4 finished at: 2023-9-23 18:38:41:232:941
+                                        Q4 finished at: 2023-9-24 22:20:4:386:487
                                                                                 Q5-T3 execute opt: 'BEGIN;'
-                                                                                Q5 finished at: 2023-9-23 18:38:41:331:333
+                                                                                Q5 finished at: 2023-9-24 22:20:4:481:469
                                                                                 Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                                                                    current_result: 
                                                                                      (1,0) 
@@ -71,19 +71,19 @@ Q2 finished at: 2023-9-23 18:38:41:140:680
                                                                                   *(6) expected_result: 
                                                                                      (1,0) 
 
-                                                                                Q6 finished at: 2023-9-23 18:38:41:344:900
+                                                                                Q6 finished at: 2023-9-24 22:20:4:485:914
 Q7-T1 execute sql: 'DELETE FROM t1 WHERE k=0;'
-Q7 finished at: 2023-9-23 18:38:41:433:731
+Q7 finished at: 2023-9-24 22:20:4:584:798
                                         Q8-T2 execute sql: 'DELETE FROM t1 WHERE k=1;'
-                                        Q8 finished at: 2023-9-23 18:38:41:540:414
+                                        Q8 finished at: 2023-9-24 22:20:4:684:587
                                                                                 Q9-T3 execute sql: 'DELETE FROM t1 WHERE k=2;'
-                                                                                Q9 finished at: 2023-9-23 18:38:41:640:148
+                                                                                Q9 finished at: 2023-9-24 22:20:4:784:755
 Q10-T1 execute opt: 'COMMIT';
-Q10 finished at: 2023-9-23 18:38:41:731:910
+Q10 finished at: 2023-9-24 22:20:4:881:471
                                         Q11-T2 execute opt: 'COMMIT';
-                                        Q11 finished at: 2023-9-23 18:38:41:830:425
+                                        Q11 finished at: 2023-9-24 22:20:4:981:593
                                                                                 Q12-T3 execute opt: 'COMMIT';
-                                                                                Q12 finished at: 2023-9-23 18:38:41:932:105
+                                                                                Q12 finished at: 2023-9-24 22:20:5:81:657
                                                                                                                         Q13-T4 execute sql: 'SELECT * FROM t1;'
                                                                                                                            current_result: 
                                                                                                                              null 
@@ -100,9 +100,9 @@ Q10 finished at: 2023-9-23 18:38:41:731:910
                                                                                                                           *(6) expected_result: 
                                                                                                                              null 
 
-                                                                                                                        Q13 finished at: 2023-9-23 18:38:41:941:902
+                                                                                                                        Q13 finished at: 2023-9-24 22:20:5:84:800
                                                                                                                         Q14-T4 execute opt: 'COMMIT';
-                                                                                                                        Q14 finished at: 2023-9-23 18:38:41:943:969
+                                                                                                                        Q14 finished at: 2023-9-24 22:20:5:85:438
 
 Test Result: Anomaly
 Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies

@@ -1,0 +1,96 @@
+#### db_type: yugabyte ####
+#### test_type: mda_step_iat_predicate_based_delete ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_mda_step_iat_predicate_based_delete test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_mda_step_iat_predicate_based_delete test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-24 22:23:49:410:315
+Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q1 finished at: 2023-9-24 22:23:49:411:677
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
+   current_result: 
+     (2,0) 
+  *(1) expected_result: 
+     (2,0) 
+  *(2) expected_result: 
+     (2,0) 
+  *(3) expected_result: 
+     (2,0) 
+   (4) expected_result: 
+     null 
+   (5) expected_result: 
+     null 
+   (6) expected_result: 
+     null 
+
+Q2 finished at: 2023-9-24 22:23:49:446:957
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-24 22:23:49:510:226
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                                                                Q5-T3 execute opt: 'BEGIN;'
+                                                                                Q5 finished at: 2023-9-24 22:23:49:609:552
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                        Q3 finished at: 2023-9-24 22:23:49:633:72
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
+                                             null 
+                                           (2) expected_result: 
+                                             null 
+                                          *(3) expected_result: 
+                                             (0,0) 
+                                          *(4) expected_result: 
+                                             (0,0) 
+                                           (5) expected_result: 
+                                             null 
+                                          *(6) expected_result: 
+                                             (0,0) 
+
+                                        Q4 finished at: 2023-9-24 22:23:49:649:898
+                                                                                Q5 finished at: 2023-9-24 22:23:49:661:103
+                                                                                Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                   current_result: 
+                                                                                     (1,0) 
+                                                                                   (1) expected_result: 
+                                                                                     null 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (3) expected_result: 
+                                                                                     null 
+                                                                                   (4) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (1,0) 
+
+                                                                                Q6 finished at: 2023-9-24 22:23:49:675:505
+Q7-T1 execute sql: 'DELETE FROM t1 WHERE k=0;'
+                                        Q8-T2 execute sql: 'DELETE FROM t1 WHERE k=1;'
+                                        Q8 finished at: 2023-9-24 22:23:49:815:495
+                                                                                Q9-T3 execute sql: 'DELETE FROM t1 WHERE k=2;'
+                                                                                Q9 finished at: 2023-9-24 22:23:49:915:75
+                                        Q11-T2 execute opt: 'COMMIT';
+                                        Q11 finished at: 2023-9-24 22:23:50:113:349
+                                                                                Q12-T3 execute opt: 'COMMIT';
+Q7 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+Q7 failed at: 2023-9-24 22:23:50:413:355
+                                                                                Q12 failed reason: 错误: Heartbeat: Transaction 8a7e2762-0c89-4c64-84d6-32a9069c98d9 expired or aborted by a conflict: 40001 errcode: 40001
+                                                                                Q12 failed at: 2023-9-24 22:23:51:416:350
+
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
+

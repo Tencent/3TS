@@ -1,0 +1,49 @@
+#### db_type: yugabyte ####
+#### test_type: mda_step_wat_c1 ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------wat_mda_step_wat_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_mda_step_wat_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-24 22:25:1:998:741
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-9-24 22:25:1:999:451
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-9-24 22:25:2:13:738
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-24 22:25:2:98:309
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-9-24 22:25:2:158:325
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2023-9-24 22:25:2:170:157
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q5 finished at: 2023-9-24 22:25:2:172:297
+                                                                                Q6-T3 execute opt: 'BEGIN;'
+                                                                                Q6 finished at: 2023-9-24 22:25:2:198:260
+                                                                                Q6-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q6 finished at: 2023-9-24 22:25:2:247:337
+                                                                                Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
+                                                                                Q7 finished at: 2023-9-24 22:25:2:262:18
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
+Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+                                        Q11-T2 execute opt: 'COMMIT';
+                                        Q11 finished at: 2023-9-24 22:25:2:401:688
+                                                                                Q8 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                                                                Q8 failed at: 2023-9-24 22:25:3:65:58
+Q9 failed reason: 错误: Unknown transaction, could be recently aborted: 40a94ebf-bdb4-4eb5-8b68-93162f334e5d; errcode: 40001
+Q9 failed at: 2023-9-24 22:25:3:201:516
+
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
+

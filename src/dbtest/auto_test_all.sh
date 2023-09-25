@@ -33,13 +33,7 @@ set -x
 ./auto_test.sh "mariadb" "repeatable-read"
 ./auto_test.sh "mariadb" "serializable"
 
-./auto_test.sh "cassandra" "any"
 ./auto_test.sh "cassandra" "one"
-./auto_test.sh "cassandra" "two"
-./auto_test.sh "cassandra" "three"
-./auto_test.sh "cassandra" "quorum"
-./auto_test.sh "cassandra" "all"
-./auto_test.sh "cassandra" "local_quorum"
-./auto_test.sh "cassandra" "local_one"
-./auto_test.sh "cassandra" "serial"
-./auto_test.sh "cassandra" "local_serial"
+
+./auto_test.sh "yugabyte" "serializable"
+./auto_test.sh "yugabyte" "snapshot"

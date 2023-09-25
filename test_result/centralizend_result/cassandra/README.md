@@ -59,7 +59,18 @@ APPLY BATCH;
 
 ## 实际测试说明
 
-实际测试中编写了`sql2cql.py`脚本文件将原始测试文件中的`INSERT`语句转化为符合`CQL`语法的`INSERT`语句，其他测试语句保持原状，在单机环境对所有一致性级别进行了测试，结果基本一致，由于不支持传统的`SQL`事务，因此`33`个测试样例中大部分异常，小部分通过，仅有一个测试样例存在死锁情况。
+实际测试中编写了`sql2cql.py`脚本文件将原始测试文件中的`INSERT`语句转化为符合`CQL`语法的`INSERT`语句，其他测试语句保持原状，在单机环境对`one`一致性级别进行了测试，由于不支持传统的`SQL`事务，因此`33`个测试样例中大部分异常，小部分通过，仅有一个测试样例存在死锁情况。
+
+针对除`one`以外的一致性级别，由于无法通过`ODBC`接口函数直接设置一致性隔离级别，因此暂时没有测试：
+
+即`CONSISTENCY ***;`是CQL中的一个命令，用于设置后续查询的一致性级别，但如果直接通过`SQLExecDirect`函数执行语句，会报错`Malformed SQL Statement: Unrecognized keyword: consistency`，原因为ODBC是通用SQL接口，无法直接发送非标准的SQL命令，如`Cassandra`的`CONSISTENCY ***;`，对于Cassandra，可以使用专有的驱动器，如DataStax的C++驱动器，在DataStax C++驱动器中，可以这样设置一致性级别：
+
+```c++
+CassStatement* statement = cass_statement_new("SELECT * FROM table_name", 0);
+cass_statement_set_consistency(statement, CASS_CONSISTENCY_QUORUM);
+```
+
+
 
 
 

@@ -10,7 +10,7 @@ set TXN_ISOLATION = one for each session
 Q0-T1 execute sql: 'DROP TABLE IF EXISTS mytab;'
 Q0-T1 execute sql: 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL);'
 Q0 failed reason: The connection '266' query failed to execute query 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL)': The CQL error message is 'No PRIMARY KEY specifed for table 'mytab' (exactly one required)'.. errcode: HY000
-Q0 failed at: 2023-9-23 18:38:34:564:606
+Q0 failed at: 2023-9-24 22:19:58:76:74
 
 Test Result: Rollback
 Reason: Err:The connection '266' query failed to execute query 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL)': The CQL error message is 'No PRIMARY KEY specifed for table 'mytab' (exactly one required)'..

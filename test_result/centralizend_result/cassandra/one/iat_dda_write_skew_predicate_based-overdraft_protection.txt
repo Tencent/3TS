@@ -15,7 +15,7 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_dda_write_skew_predicate_based-overdraft_protection test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-23 18:38:36:206:178
+Q1 finished at: 2023-9-24 22:19:59:618:214
 Q2-T1 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
    current_result: 
      (checking,500,) (saving,500,) 
@@ -24,9 +24,9 @@ Q2-T1 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
    (2) expected_result: 
      (checking,1400,) (saving,500,) 
 
-Q2 finished at: 2023-9-23 18:38:36:218:2
+Q2 finished at: 2023-9-24 22:19:59:623:738
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-23 18:38:36:305:964
+                                        Q3 finished at: 2023-9-24 22:19:59:718:232
                                         Q4-T2 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
                                            current_result: 
                                              (checking,500,) (saving,500,) 
@@ -35,15 +35,15 @@ Q2 finished at: 2023-9-23 18:38:36:218:2
                                           *(2) expected_result: 
                                              (checking,500,) (saving,500,) 
 
-                                        Q4 finished at: 2023-9-23 18:38:36:318:797
+                                        Q4 finished at: 2023-9-24 22:19:59:723:774
                                         Q5-T2 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'saving';'
-                                        Q5 finished at: 2023-9-23 18:38:36:348:46
+                                        Q5 finished at: 2023-9-24 22:19:59:740:86
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-23 18:38:36:348:918
+                                        Q6 finished at: 2023-9-24 22:19:59:741:293
 Q7-T1 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'checking';'
-Q7 finished at: 2023-9-23 18:38:36:414:836
+Q7 finished at: 2023-9-24 22:19:59:837:171
 Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-23 18:38:36:415:452
+Q8 finished at: 2023-9-24 22:19:59:838:68
                                                                                 Q9-T3 execute sql: 'SELECT * FROM account;'
                                                                                    current_result: 
                                                                                      (kevin,checking,1400) (kevin,saving,1400) 
@@ -52,9 +52,9 @@ Q8 finished at: 2023-9-23 18:38:36:415:452
                                                                                   *(2) expected_result: 
                                                                                      (kevin,checking,1400) (kevin,saving,1400) 
 
-                                                                                Q9 finished at: 2023-9-23 18:38:36:419:691
+                                                                                Q9 finished at: 2023-9-24 22:19:59:842:312
                                                                                 Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-23 18:38:36:420:376
+                                                                                Q10 finished at: 2023-9-24 22:19:59:843:153
 
 Test Result: Anomaly
 Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies

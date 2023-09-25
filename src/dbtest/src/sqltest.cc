@@ -169,6 +169,24 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
                     if (!db_connector.ExecWriteSql(sql_id, "START TRANSACTION WITH CONSISTENT SNAPSHOT;", test_result_set, txn_id, test_process_file)) {
                         goto jump;
                     }
+                // YugabyteDB https://docs.yugabyte.com/preview/explore/transactions/isolation-levels/
+                } else if (FLAGS_db_type == "yugabyte") {
+                    if (!db_connector.SQLStartTxn(txn_id, sql_id, test_process_file)) {
+                        goto jump;
+                    }
+                    std::string begin_sql = "BEGIN TRANSACTION";
+                    // beta version: You must set the YB-Tserver flag yb_enable_read_committed_isolation to true when start database service for read-committed level!!!
+                    // if (FLAGS_isolation == "read-committed") {
+                    //    begin_sql += " ISOLATION LEVEL READ COMMITTED;";
+                    // }
+                    if (FLAGS_isolation == "snapshot") {
+                        begin_sql += ";";
+                    } else {
+                        begin_sql += " ISOLATION LEVEL SERIALIZABLE;";
+                    }
+                    if (!db_connector.ExecWriteSql(sql_id, begin_sql, test_result_set, txn_id, test_process_file)) {
+                        goto jump;
+                    }
                 } else {
                     if (!db_connector.SQLStartTxn(txn_id, sql_id, test_process_file)) {
                         goto jump;
@@ -484,7 +502,9 @@ int main(int argc, char* argv[]) {
     // create isolation dir
     std::vector<std::string> iso_list;
     if (FLAGS_db_type == "cassandra") {
-        iso_list = std::vector<std::string>({"any", "one", "two", "three", "quorum", "all", "local_quorum", "local_one", "serial", "local_serial"});
+        iso_list = std::vector<std::string>({"one"});
+    } else if (FLAGS_db_type == "yugabyte") {
+        iso_list = std::vector<std::string>({"serializable", "snapshot"});
     } else {
         iso_list = std::vector<std::string>({"read-uncommitted", "read-committed", "repeatable-read", "serializable", "result_summary"});
     }
@@ -508,7 +528,7 @@ int main(int argc, char* argv[]) {
         }
         // set TXN_ISOLATION
         // crdb has only one isolation level, which is serializable by default
-        if (FLAGS_db_type != "crdb" && FLAGS_db_type != "mongodb") {
+        if (FLAGS_db_type != "crdb" && FLAGS_db_type != "mongodb" && FLAGS_db_type != "yugabyte") {
             std::cout << dash + "set TXN_ISOLATION = " + FLAGS_isolation + dash << std::endl;
             //std::cout << dash + "set TIMEOUT = " + FLAGS_timeout + dash << std::endl;
             int idx = 1;

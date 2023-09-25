@@ -1,0 +1,39 @@
+#### db_type: yugabyte ####
+#### test_type: dda_double_write_skew2_committed ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------wat_dda_double_write_skew2_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_double_write_skew2_committed test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-24 22:24:46:597:319
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-9-24 22:24:46:598:512
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-9-24 22:24:46:626:913
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-24 22:24:46:695:972
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-9-24 22:24:46:747:701
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q4 finished at: 2023-9-24 22:24:46:761:482
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q5 finished at: 2023-9-24 22:24:46:763:34
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2023-9-24 22:24:46:763:947
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+Q7 failed reason: 错误: Restart read required at: { read: { physical: 1695565486796859 } local_limit: { physical: 1695565486796859 } global_limit: <min> in_txn_limit: <max> serial_no: 0 }; errcode: 40001
+Q7 failed at: 2023-9-24 22:24:47:499:552
+
+Test Result: Rollback
+Reason: Err:错误: Restart read required at: { read: { physical: 1695565486796859 } local_limit: { physical: 1695565486796859 } global_limit: <min> in_txn_limit: <max> serial_no: 0 };
+

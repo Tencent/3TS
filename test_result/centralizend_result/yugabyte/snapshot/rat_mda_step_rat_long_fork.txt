@@ -1,0 +1,217 @@
+#### db_type: yugabyte ####
+#### test_type: mda_step_rat_long_fork ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------rat_mda_step_rat_long_fork test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_mda_step_rat_long_fork test run----------
+                                                                                                                        Q1-T4 execute opt: 'BEGIN;'
+                                                                                                                        Q1 finished at: 2023-9-24 22:24:31:448:735
+                                                                                                                        Q1-T4 execute sql: 'BEGIN TRANSACTION;'
+Q3-T1 execute opt: 'BEGIN;'
+Q3 finished at: 2023-9-24 22:24:31:548:71
+Q3-T1 execute sql: 'BEGIN TRANSACTION;'
+Q3 finished at: 2023-9-24 22:24:31:548:778
+Q4-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q4 finished at: 2023-9-24 22:24:31:562:856
+                                                                                                                        Q1 finished at: 2023-9-24 22:24:31:579:642
+                                                                                                                        Q2-T4 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                                                                                                           current_result: 
+                                                                                                                             (0,0) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (2) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (4) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (5) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (7) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (8) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(9) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (10) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(11) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (12) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(13) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                          *(14) expected_result: 
+                                                                                                                             (0,0) 
+
+                                                                                                                        Q2 finished at: 2023-9-24 22:24:31:591:104
+                                                                                Q5-T3 execute opt: 'BEGIN;'
+                                                                                Q5 finished at: 2023-9-24 22:24:31:647:848
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION;'
+                                        Q8-T2 execute opt: 'BEGIN;'
+                                        Q8 finished at: 2023-9-24 22:24:31:748:296
+                                        Q8-T2 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q5 finished at: 2023-9-24 22:24:31:775:733
+                                                                                Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                   current_result: 
+                                                                                     (1,0) 
+                                                                                  *(1) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(2) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (3) expected_result: 
+                                                                                     (1,1) 
+                                                                                   (4) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(5) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (6) expected_result: 
+                                                                                     (1,1) 
+                                                                                   (7) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(8) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (9) expected_result: 
+                                                                                     (1,1) 
+                                                                                   (10) expected_result: 
+                                                                                     (1,1) 
+                                                                                  *(11) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(12) expected_result: 
+                                                                                     (1,0) 
+                                                                                  *(13) expected_result: 
+                                                                                     (1,0) 
+                                                                                   (14) expected_result: 
+                                                                                     (1,1) 
+
+                                                                                Q6 finished at: 2023-9-24 22:24:31:790:27
+                                                                                Q7-T3 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                                                                   current_result: 
+                                                                                     (0,0) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,0) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,0) 
+                                                                                   (3) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (4) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (5) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(6) expected_result: 
+                                                                                     (0,0) 
+                                                                                   (7) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (8) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (9) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(10) expected_result: 
+                                                                                     (0,0) 
+                                                                                  *(11) expected_result: 
+                                                                                     (0,0) 
+                                                                                  *(12) expected_result: 
+                                                                                     (0,0) 
+                                                                                   (13) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(14) expected_result: 
+                                                                                     (0,0) 
+
+                                                                                Q7 finished at: 2023-9-24 22:24:31:791:405
+                                        Q8 finished at: 2023-9-24 22:24:31:804:443
+                                        Q9-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q9 finished at: 2023-9-24 22:24:31:815:989
+                                                                                                                        Q10-T4 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                                                                                                           current_result: 
+                                                                                                                             (1,0) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (1,0) 
+                                                                                                                           (2) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (1,0) 
+                                                                                                                           (4) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(5) expected_result: 
+                                                                                                                             (1,0) 
+                                                                                                                           (6) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(7) expected_result: 
+                                                                                                                             (1,0) 
+                                                                                                                           (8) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                           (9) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                           (10) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                           (11) expected_result: 
+                                                                                                                             (1,1) 
+                                                                                                                          *(12) expected_result: 
+                                                                                                                             (1,0) 
+                                                                                                                          *(13) expected_result: 
+                                                                                                                             (1,0) 
+                                                                                                                          *(14) expected_result: 
+                                                                                                                             (1,0) 
+
+                                                                                                                        Q10 finished at: 2023-9-24 22:24:31:849:656
+Q11-T1 execute opt: 'COMMIT';
+Q11 finished at: 2023-9-24 22:24:31:951:725
+                                        Q12-T2 execute opt: 'COMMIT';
+                                        Q12 finished at: 2023-9-24 22:24:32:51:389
+                                                                                Q13-T3 execute opt: 'COMMIT';
+                                                                                Q13 finished at: 2023-9-24 22:24:32:150:84
+                                                                                                                        Q14-T4 execute opt: 'COMMIT';
+                                                                                                                        Q14 finished at: 2023-9-24 22:24:32:152:546
+                                                                                                                        Q15-T4 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                                                           current_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(2) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(4) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(5) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(7) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(8) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(9) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(10) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(11) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(12) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(13) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+                                                                                                                          *(14) expected_result: 
+                                                                                                                             (0,1) (1,1) 
+
+                                                                                                                        Q15 finished at: 2023-9-24 22:24:32:212:60
+                                                                                                                        Q16-T4 execute opt: 'COMMIT';
+                                                                                                                        Q16 finished at: 2023-9-24 22:24:32:214:48
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

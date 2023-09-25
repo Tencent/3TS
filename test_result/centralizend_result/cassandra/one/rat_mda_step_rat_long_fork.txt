@@ -15,7 +15,7 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_mda_step_rat_long_fork test run----------
                                                                                                                         Q1-T4 execute opt: 'BEGIN;'
-                                                                                                                        Q1 finished at: 2023-9-23 18:37:54:665:771
+                                                                                                                        Q1 finished at: 2023-9-24 22:19:20:452:275
                                                                                                                         Q2-T4 execute sql: 'SELECT * FROM t1 WHERE k=0;'
                                                                                                                            current_result: 
                                                                                                                              (0,0) 
@@ -48,13 +48,13 @@ Q0-T1 execute opt: 'COMMIT';
                                                                                                                           *(14) expected_result: 
                                                                                                                              (0,0) 
 
-                                                                                                                        Q2 finished at: 2023-9-23 18:37:54:670:35
+                                                                                                                        Q2 finished at: 2023-9-24 22:19:20:457:691
 Q3-T1 execute opt: 'BEGIN;'
-Q3 finished at: 2023-9-23 18:37:54:765:877
+Q3 finished at: 2023-9-24 22:19:20:552:123
 Q4-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q4 finished at: 2023-9-23 18:37:54:770:466
+Q4 finished at: 2023-9-24 22:19:20:556:262
                                                                                 Q5-T3 execute opt: 'BEGIN;'
-                                                                                Q5 finished at: 2023-9-23 18:37:54:865:813
+                                                                                Q5 finished at: 2023-9-24 22:19:20:652:250
                                                                                 Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                                                                    current_result: 
                                                                                      (1,0) 
@@ -87,7 +87,7 @@ Q4 finished at: 2023-9-23 18:37:54:770:466
                                                                                    (14) expected_result: 
                                                                                      (1,1) 
 
-                                                                                Q6 finished at: 2023-9-23 18:37:54:870:136
+                                                                                Q6 finished at: 2023-9-24 22:19:20:656:807
                                                                                 Q7-T3 execute sql: 'SELECT * FROM t1 WHERE k=0;'
                                                                                    current_result: 
                                                                                      (0,1) 
@@ -120,11 +120,11 @@ Q4 finished at: 2023-9-23 18:37:54:770:466
                                                                                    (14) expected_result: 
                                                                                      (0,0) 
 
-                                                                                Q7 finished at: 2023-9-23 18:37:54:873:685
+                                                                                Q7 finished at: 2023-9-24 22:19:20:661:199
                                         Q8-T2 execute opt: 'BEGIN;'
-                                        Q8 finished at: 2023-9-23 18:37:54:965:769
+                                        Q8 finished at: 2023-9-24 22:19:20:752:190
                                         Q9-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-                                        Q9 finished at: 2023-9-23 18:37:54:973:999
+                                        Q9 finished at: 2023-9-24 22:19:20:756:386
                                                                                                                         Q10-T4 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                                                                                                            current_result: 
                                                                                                                              (1,1) 
@@ -157,15 +157,15 @@ Q4 finished at: 2023-9-23 18:37:54:770:466
                                                                                                                            (14) expected_result: 
                                                                                                                              (1,0) 
 
-                                                                                                                        Q10 finished at: 2023-9-23 18:37:55:72:393
+                                                                                                                        Q10 finished at: 2023-9-24 22:19:20:856:836
 Q11-T1 execute opt: 'COMMIT';
-Q11 finished at: 2023-9-23 18:37:55:166:1
+Q11 finished at: 2023-9-24 22:19:20:952:208
                                         Q12-T2 execute opt: 'COMMIT';
-                                        Q12 finished at: 2023-9-23 18:37:55:266:0
+                                        Q12 finished at: 2023-9-24 22:19:21:52:400
                                                                                 Q13-T3 execute opt: 'COMMIT';
-                                                                                Q13 finished at: 2023-9-23 18:37:55:365:921
+                                                                                Q13 finished at: 2023-9-24 22:19:21:152:526
                                                                                                                         Q14-T4 execute opt: 'COMMIT';
-                                                                                                                        Q14 finished at: 2023-9-23 18:37:55:366:468
+                                                                                                                        Q14 finished at: 2023-9-24 22:19:21:153:159
                                                                                                                         Q15-T4 execute sql: 'SELECT * FROM t1 ORDER BY k;'
                                                                                                                            current_result: 
                                                                                                                              (0,1) (1,1) 
@@ -198,9 +198,9 @@ Q11 finished at: 2023-9-23 18:37:55:166:1
                                                                                                                           *(14) expected_result: 
                                                                                                                              (0,1) (1,1) 
 
-                                                                                                                        Q15 finished at: 2023-9-23 18:37:55:372:988
+                                                                                                                        Q15 finished at: 2023-9-24 22:19:21:156:937
                                                                                                                         Q16-T4 execute opt: 'COMMIT';
-                                                                                                                        Q16 finished at: 2023-9-23 18:37:55:373:516
+                                                                                                                        Q16 finished at: 2023-9-24 22:19:21:157:445
 
 Test Result: Anomaly
 Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies

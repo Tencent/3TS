@@ -1,0 +1,77 @@
+#### db_type: yugabyte ####
+#### test_type: mda_step_iat_causality_violation_anomaly ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------iat_mda_step_iat_causality_violation_anomaly test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_mda_step_iat_causality_violation_anomaly test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-24 22:25:29:224:381
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-9-24 22:25:29:225:638
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+  *(2) expected_result: 
+     (0,0) 
+   (3) expected_result: 
+     (0,1) 
+   (4) expected_result: 
+     (0,1) 
+  *(5) expected_result: 
+     (0,0) 
+   (6) expected_result: 
+     (0,1) 
+
+Q2 finished at: 2023-9-24 22:25:29:254:771
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-24 22:25:29:324:546
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q6-T3 execute opt: 'BEGIN;'
+                                                                                Q6 finished at: 2023-9-24 22:25:29:423:688
+                                                                                Q6-T3 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-9-24 22:25:29:446:432
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q4 finished at: 2023-9-24 22:25:29:459:804
+                                        Q5-T2 execute opt: 'COMMIT';
+                                        Q5 finished at: 2023-9-24 22:25:29:460:549
+                                                                                Q6 finished at: 2023-9-24 22:25:29:472:564
+                                                                                Q7-T3 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                                                                   current_result: 
+                                                                                     (0,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,0) 
+                                                                                  *(3) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(4) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (5) expected_result: 
+                                                                                     (0,0) 
+                                                                                   (6) expected_result: 
+                                                                                     (0,0) 
+
+                                                                                Q7 finished at: 2023-9-24 22:25:29:485:102
+                                                                                Q8-T3 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                                                                Q8 finished at: 2023-9-24 22:25:29:486:983
+                                                                                Q9-T3 execute opt: 'COMMIT';
+                                                                                Q9 finished at: 2023-9-24 22:25:29:487:787
+Q10-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+Q10 failed reason: 错误: Restart read required at: { read: { physical: 1695565529524232 } local_limit: { physical: 1695565529524232 } global_limit: <min> in_txn_limit: <max> serial_no: 0 }; errcode: 40001
+Q10 failed at: 2023-9-24 22:25:30:527:431
+
+Test Result: Rollback
+Reason: Err:错误: Restart read required at: { read: { physical: 1695565529524232 } local_limit: { physical: 1695565529524232 } global_limit: <min> in_txn_limit: <max> serial_no: 0 };
+
