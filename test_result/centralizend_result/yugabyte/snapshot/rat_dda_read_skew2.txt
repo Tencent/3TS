@@ -15,39 +15,39 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_dda_read_skew2 test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:27:118:947
+Q1 finished at: 2023-10-4 10:30:49:372:458
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:27:120:135
+Q1 finished at: 2023-10-4 10:30:49:373:578
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:24:27:150:251
+Q2 finished at: 2023-10-4 10:30:49:409:399
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:27:218:35
+                                        Q3 finished at: 2023-10-4 10:30:50:372:542
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:24:27:312:93
+                                        Q3 finished at: 2023-10-4 10:30:50:492:168
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
-Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q6 finished at: 2023-9-24 22:24:27:318:795
-Q7-T1 execute opt: 'COMMIT';
-Q7 finished at: 2023-9-24 22:24:27:319:580
                                            current_result: 
+                                             (1,0) 
+                                           (1) expected_result: 
                                              (1,1) 
-                                          *(1) expected_result: 
-                                             (1,1) 
-                                           (2) expected_result: 
+                                          *(2) expected_result: 
                                              (1,0) 
 
-                                        Q4 finished at: 2023-9-24 22:24:27:323:17
+                                        Q4 finished at: 2023-10-4 10:30:50:504:854
                                         Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
                                            current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
                                              (0,1) 
-                                          *(1) expected_result: 
-                                             (0,1) 
-                                           (2) expected_result: 
+                                          *(2) expected_result: 
                                              (0,0) 
 
-                                        Q5 finished at: 2023-9-24 22:24:27:323:923
+                                        Q5 finished at: 2023-10-4 10:30:50:505:835
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q6 finished at: 2023-10-4 10:30:51:379:689
+Q7-T1 execute opt: 'COMMIT';
+Q7 finished at: 2023-10-4 10:30:51:383:251
                                         Q8-T2 execute opt: 'COMMIT';
-                                        Q8 finished at: 2023-9-24 22:24:27:419:669
+                                        Q8 finished at: 2023-10-4 10:30:52:373:370
                                                                                 Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
                                                                                    current_result: 
                                                                                      (0,1) (1,1) 
@@ -56,11 +56,11 @@ Q7 finished at: 2023-9-24 22:24:27:319:580
                                                                                   *(2) expected_result: 
                                                                                      (0,1) (1,1) 
 
-                                                                                Q9 finished at: 2023-9-24 22:24:27:560:79
+                                                                                Q9 finished at: 2023-10-4 10:30:52:528:208
                                                                                 Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-24 22:24:27:560:426
+                                                                                Q10 finished at: 2023-10-4 10:30:52:528:555
 
-The current result is consistent with the [(1) expected_result] of serial scheduling
+The current result is consistent with the [(2) expected_result] of serial scheduling
 
 Test Result: Avoid
 Reason: Data anomaly did not occur and the data is consistent

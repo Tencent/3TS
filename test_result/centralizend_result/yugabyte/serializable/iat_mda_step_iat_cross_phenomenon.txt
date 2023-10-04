@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_mda_step_iat_cross_phenomenon test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:23:57:853:861
+Q1 finished at: 2023-10-4 10:29:1:874:188
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:23:57:855:229
+Q1 finished at: 2023-10-4 10:29:1:875:564
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -50,14 +50,11 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (14) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:23:57:890:542
+Q2 finished at: 2023-10-4 10:29:1:912:254
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:23:57:953:821
+                                        Q3 finished at: 2023-10-4 10:29:2:874:249
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                                                                Q5-T3 execute opt: 'BEGIN;'
-                                                                                Q5 finished at: 2023-9-24 22:23:58:52:834
-                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                        Q3 finished at: 2023-9-24 22:23:58:69:287
+                                        Q3 finished at: 2023-10-4 10:29:2:979:146
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                            current_result: 
                                              (1,0) 
@@ -90,57 +87,22 @@ Q2 finished at: 2023-9-24 22:23:57:890:542
                                           *(14) expected_result: 
                                              (1,0) 
 
-                                        Q4 finished at: 2023-9-24 22:23:58:82:714
-                                                                                Q5 finished at: 2023-9-24 22:23:58:103:257
+                                        Q4 finished at: 2023-10-4 10:29:2:995:582
+                                                                                Q5-T3 execute opt: 'BEGIN;'
+                                                                                Q5 finished at: 2023-10-4 10:29:3:874:282
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                                                                Q5 finished at: 2023-10-4 10:29:4:18:44
                                                                                 Q6-T3 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                                                                Q6 finished at: 2023-9-24 22:23:58:117:191
+                                                                                Q6 finished at: 2023-10-4 10:29:4:36:258
                                                                                 Q7-T3 execute opt: 'COMMIT';
-                                                                                Q7 finished at: 2023-9-24 22:23:58:118:177
+                                                                                Q7 finished at: 2023-10-4 10:29:4:37:127
                                                                                                                         Q8-T4 execute opt: 'BEGIN;'
-                                                                                                                        Q8 finished at: 2023-9-24 22:23:58:152:856
+                                                                                                                        Q8 finished at: 2023-10-4 10:29:4:873:309
                                                                                                                         Q8-T4 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                                                                                                        Q8 finished at: 2023-9-24 22:23:58:209:801
+                                                                                                                        Q8 finished at: 2023-10-4 10:29:4:927:724
                                                                                                                         Q9-T4 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-                                        Q11-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
-                                           current_result: 
-                                             (0,1) 
-                                           (1) expected_result: 
-                                             (0,0) 
-                                           (2) expected_result: 
-                                             (0,0) 
-                                          *(3) expected_result: 
-                                             (0,1) 
-                                          *(4) expected_result: 
-                                             (0,1) 
-                                           (5) expected_result: 
-                                             (0,0) 
-                                           (6) expected_result: 
-                                             (0,0) 
-                                           (7) expected_result: 
-                                             (0,0) 
-                                           (8) expected_result: 
-                                             (0,0) 
-                                          *(9) expected_result: 
-                                             (0,1) 
-                                          *(10) expected_result: 
-                                             (0,1) 
-                                          *(11) expected_result: 
-                                             (0,1) 
-                                           (12) expected_result: 
-                                             (0,0) 
-                                          *(13) expected_result: 
-                                             (0,1) 
-                                          *(14) expected_result: 
-                                             (0,1) 
-
-                                        Q11 finished at: 2023-9-24 22:23:58:255:22
-                                        Q12-T2 execute opt: 'COMMIT';
-                                        Q12 finished at: 2023-9-24 22:23:58:256:105
-Q13-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                                                                                                         Q9 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
-                                                                                                                        Q9 failed at: 2023-9-24 22:23:59:123:446
-Q13 failed reason: 错误: Heartbeat: Transaction 38ce5fa2-3a8e-4209-9763-2e0dd02d37de expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 38ce5fa2-3a8e-4209-9763-2e0dd errcode: 40001
-Q13 failed at: 2023-9-24 22:23:59:662:91
+                                                                                                                        Q9 failed at: 2023-10-4 10:29:5:843:648
 
 Test Result: Rollback
 Reason: Err:错误: 由于同步更新而无法串行访问

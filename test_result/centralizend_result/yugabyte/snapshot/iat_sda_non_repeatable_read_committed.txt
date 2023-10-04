@@ -14,9 +14,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_sda_non_repeatable_read_committed test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:25:7:46:225
+Q1 finished at: 2023-10-4 10:33:26:437:947
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:25:7:46:767
+Q1 finished at: 2023-10-4 10:33:26:439:360
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -25,13 +25,16 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:25:7:55:148
+Q2 finished at: 2023-10-4 10:33:26:468:605
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:25:7:146:792
+                                        Q3 finished at: 2023-10-4 10:33:27:437:867
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:25:7:246:198
-Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                        Q3 finished at: 2023-10-4 10:33:27:512:316
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q4 finished at: 2023-10-4 10:33:27:528:823
+                                        Q5-T2 execute opt: 'COMMIT';
+                                        Q5 finished at: 2023-10-4 10:33:27:529:833
+Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
   *(1) expected_result: 
@@ -39,12 +42,9 @@ Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (2) expected_result: 
      (0,1) 
 
-Q6 finished at: 2023-9-24 22:25:7:247:910
+Q6 finished at: 2023-10-4 10:33:28:441:533
 Q7-T1 execute opt: 'COMMIT';
-Q7 finished at: 2023-9-24 22:25:7:248:366
-                                        Q4 finished at: 2023-9-24 22:25:7:260:4
-                                        Q5-T2 execute opt: 'COMMIT';
-                                        Q5 finished at: 2023-9-24 22:25:7:261:349
+Q7 finished at: 2023-10-4 10:33:28:443:592
                                                                                 Q8-T3 execute sql: 'SELECT * FROM t1;'
                                                                                    current_result: 
                                                                                      (0,1) 
@@ -53,9 +53,9 @@ Q7 finished at: 2023-9-24 22:25:7:248:366
                                                                                   *(2) expected_result: 
                                                                                      (0,1) 
 
-                                                                                Q8 finished at: 2023-9-24 22:25:7:319:108
+                                                                                Q8 finished at: 2023-10-4 10:33:28:594:601
                                                                                 Q9-T3 execute opt: 'COMMIT';
-                                                                                Q9 finished at: 2023-9-24 22:25:7:319:449
+                                                                                Q9 finished at: 2023-10-4 10:33:28:594:935
 
 The current result is consistent with the [(1) expected_result] of serial scheduling
 

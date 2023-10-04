@@ -14,14 +14,17 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_sda_lost_self_update test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:22:39:996:757
+Q1 finished at: 2023-10-4 10:24:11:936:713
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:22:39:998:156
+Q1 finished at: 2023-10-4 10:24:11:938:70
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:22:40:32:24
+Q2 finished at: 2023-10-4 10:24:11:952:477
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:22:40:96:724
+                                        Q3 finished at: 2023-10-4 10:24:12:936:509
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                        Q3 finished at: 2023-10-4 10:24:13:62:432
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2023-10-4 10:24:13:80:411
 Q5-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,1) 
@@ -30,28 +33,13 @@ Q5-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
   *(2) expected_result: 
      (0,1) 
 
-Q5 finished at: 2023-9-24 22:22:40:198:713
+Q5 finished at: 2023-10-4 10:24:13:942:90
 Q6-T1 execute opt: 'COMMIT';
-Q6 finished at: 2023-9-24 22:22:40:200:578
-                                        Q3 finished at: 2023-9-24 22:22:40:224:53
-                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-                                        Q4 finished at: 2023-9-24 22:22:40:239:182
+Q6 finished at: 2023-10-4 10:24:13:945:661
                                         Q7-T2 execute opt: 'COMMIT';
-                                        Q7 finished at: 2023-9-24 22:22:40:299:354
-                                                                                Q8-T3 execute sql: 'SELECT * FROM t1;'
-                                                                                   current_result: 
-                                                                                     (0,2) 
-                                                                                  *(1) expected_result: 
-                                                                                     (0,2) 
-                                                                                   (2) expected_result: 
-                                                                                     (0,1) 
+                                        Q7 failed reason: 错误: Heartbeat: Transaction 29aec9c8-7907-4971-8374-a5f067268fc8 expired or aborted by a conflict: 40001 errcode: 40001
+                                        Q7 failed at: 2023-10-4 10:24:15:643:523
 
-                                                                                Q8 finished at: 2023-9-24 22:22:40:438:367
-                                                                                Q9-T3 execute opt: 'COMMIT';
-                                                                                Q9 finished at: 2023-9-24 22:22:40:438:700
-
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Rollback
+Err:错误: Heartbeat: Transaction 29aec9c8-7907-4971-8374-a5f067268fc8 expired or aborted by a conflict: 40001
 

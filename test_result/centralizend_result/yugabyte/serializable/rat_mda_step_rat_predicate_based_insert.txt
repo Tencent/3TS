@@ -13,17 +13,17 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_mda_step_rat_predicate_based_insert test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:23:5:360:653
+Q1 finished at: 2023-10-4 10:25:41:559:753
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:23:5:362:141
+Q1 finished at: 2023-10-4 10:25:41:561:70
 Q2-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 1);'
-Q2 finished at: 2023-9-24 22:23:5:382:926
+Q2 finished at: 2023-10-4 10:25:41:574:656
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:23:5:460:732
+                                        Q3 finished at: 2023-10-4 10:25:42:559:643
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                        Q3 finished at: 2023-9-24 22:23:5:537:135
+                                        Q3 finished at: 2023-10-4 10:25:42:664:988
                                         Q4-T2 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 1);'
-                                        Q4 finished at: 2023-9-24 22:23:5:543:384
+                                        Q4 finished at: 2023-10-4 10:25:42:673:393
                                         Q5-T2 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 0;'
                                            current_result: 
                                              (,) 
@@ -40,22 +40,34 @@ Q2 finished at: 2023-9-24 22:23:5:382:926
                                            (6) expected_result: 
                                              (1,) 
 
-                                        Q5 finished at: 2023-9-24 22:23:5:556:306
+                                        Q5 finished at: 2023-10-4 10:25:42:685:955
                                                                                 Q6-T3 execute opt: 'BEGIN;'
-                                                                                Q6 finished at: 2023-9-24 22:23:5:559:385
+                                                                                Q6 finished at: 2023-10-4 10:25:43:559:831
                                                                                 Q6-T3 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                                                                Q6 finished at: 2023-9-24 22:23:5:604:337
+                                                                                Q6 finished at: 2023-10-4 10:25:43:713:869
                                                                                 Q7-T3 execute sql: 'INSERT INTO t1 (k,v) VALUES (2, 1);'
-                                                                                Q7 finished at: 2023-9-24 22:23:5:611:365
+                                                                                Q7 finished at: 2023-10-4 10:25:43:724:272
                                                                                 Q8-T3 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 1;'
+                                                                                   current_result: 
+                                                                                     (,) 
+                                                                                   (1) expected_result: 
+                                                                                     (1,) 
+                                                                                   (2) expected_result: 
+                                                                                     (1,) 
+                                                                                  *(3) expected_result: 
+                                                                                     (,) 
+                                                                                  *(4) expected_result: 
+                                                                                     (,) 
+                                                                                   (5) expected_result: 
+                                                                                     (1,) 
+                                                                                  *(6) expected_result: 
+                                                                                     (,) 
+
+                                                                                Q8 finished at: 2023-10-4 10:25:43:737:813
 Q9-T1 execute sql: 'SELECT SUM(v) FROM t1 WHERE k = 2;'
-                                        Q11-T2 execute opt: 'COMMIT';
-                                        Q11 finished at: 2023-9-24 22:23:5:763:188
-                                                                                Q8 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
-                                                                                Q8 failed at: 2023-9-24 22:23:6:423:327
-Q9 failed reason: 错误: Unknown transaction, could be recently aborted: c576f5af-e562-4c84-b140-d5293d6e03a4; errcode: 40001
-Q9 failed at: 2023-9-24 22:23:6:576:454
+Q9 failed reason: 错误: Heartbeat: Transaction 46a81d7d-9d1c-4180-99ba-7ea8c50e8451 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 46a81d7d-9d1c-4180-99ba-7ea8c errcode: 40001
+Q9 failed at: 2023-10-4 10:25:45:502:996
 
 Test Result: Rollback
-Reason: Err:错误: 由于同步更新而无法串行访问
+Reason: Err:错误: Heartbeat: Transaction 46a81d7d-9d1c-4180-99ba-7ea8c50e8451 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 46a81d7d-9d1c-4180-99ba-7ea8c
 

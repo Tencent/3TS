@@ -15,53 +15,28 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_dda_read_skew2 test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:22:54:977:720
+Q1 finished at: 2023-10-4 10:25:5:629:639
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:22:54:979:82
+Q1 finished at: 2023-10-4 10:25:5:631:95
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:22:55:14:144
+Q2 finished at: 2023-10-4 10:25:5:667:158
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:22:55:77:587
+                                        Q3 finished at: 2023-10-4 10:25:6:629:615
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q6 finished at: 2023-9-24 22:22:55:178:647
-Q7-T1 execute opt: 'COMMIT';
-Q7 finished at: 2023-9-24 22:22:55:180:207
-                                        Q3 finished at: 2023-9-24 22:22:55:197:139
+                                        Q3 finished at: 2023-10-4 10:25:6:739:404
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                            current_result: 
+                                             (1,0) 
+                                           (1) expected_result: 
                                              (1,1) 
-                                          *(1) expected_result: 
-                                             (1,1) 
-                                           (2) expected_result: 
+                                          *(2) expected_result: 
                                              (1,0) 
 
-                                        Q4 finished at: 2023-9-24 22:22:55:213:84
+                                        Q4 finished at: 2023-10-4 10:25:6:754:615
                                         Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
-                                           current_result: 
-                                             (0,1) 
-                                          *(1) expected_result: 
-                                             (0,1) 
-                                           (2) expected_result: 
-                                             (0,0) 
+                                        Q5 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q5 failed at: 2023-10-4 10:25:7:256:923
 
-                                        Q5 finished at: 2023-9-24 22:22:55:214:434
-                                        Q8-T2 execute opt: 'COMMIT';
-                                        Q8 finished at: 2023-9-24 22:22:55:280:160
-                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
-                                                                                   current_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(1) expected_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(2) expected_result: 
-                                                                                     (0,1) (1,1) 
-
-                                                                                Q9 finished at: 2023-9-24 22:22:55:421:274
-                                                                                Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-24 22:22:55:421:611
-
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
 

@@ -15,53 +15,32 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_dda_write_read_skew_committed test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:22:43:811:440
+Q1 finished at: 2023-10-4 10:24:24:844:923
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:22:43:812:847
+Q1 finished at: 2023-10-4 10:24:24:846:493
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:22:43:846:693
+Q2 finished at: 2023-10-4 10:24:24:865:632
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:22:43:911:328
+                                        Q3 finished at: 2023-10-4 10:24:25:844:632
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q7-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
-   current_result: 
-     (1,0) 
-  *(1) expected_result: 
-     (1,0) 
-   (2) expected_result: 
-     (1,1) 
-
-Q7 finished at: 2023-9-24 22:22:44:12:72
-Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-24 22:22:44:13:366
-                                        Q3 finished at: 2023-9-24 22:22:44:29:804
+                                        Q3 finished at: 2023-10-4 10:24:25:946:403
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:22:44:44:434
+                                        Q4 finished at: 2023-10-4 10:24:25:962:97
                                         Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
                                            current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
                                              (0,1) 
-                                          *(1) expected_result: 
-                                             (0,1) 
-                                           (2) expected_result: 
+                                          *(2) expected_result: 
                                              (0,0) 
 
-                                        Q5 finished at: 2023-9-24 22:22:44:45:674
+                                        Q5 finished at: 2023-10-4 10:24:25:965:605
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-24 22:22:44:46:894
-                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
-                                                                                   current_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(1) expected_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(2) expected_result: 
-                                                                                     (0,1) (1,1) 
+                                        Q6 finished at: 2023-10-4 10:24:25:966:528
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+Q7 failed reason: 错误: Heartbeat: Transaction 6bd4f7be-223f-474d-8fe3-aab5e7297cf7 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 6bd4f7be-223f-474d-8fe3-aab5e errcode: 40001
+Q7 failed at: 2023-10-4 10:24:27:553:882
 
-                                                                                Q9 finished at: 2023-9-24 22:22:44:114:767
-                                                                                Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-24 22:22:44:115:96
-
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Rollback
+Reason: Err:错误: Heartbeat: Transaction 6bd4f7be-223f-474d-8fe3-aab5e7297cf7 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 6bd4f7be-223f-474d-8fe3-aab5e
 

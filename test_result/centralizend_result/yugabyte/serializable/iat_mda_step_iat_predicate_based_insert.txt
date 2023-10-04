@@ -13,9 +13,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_mda_step_iat_predicate_based_insert test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:23:52:580:131
+Q1 finished at: 2023-10-4 10:28:45:326:842
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:23:52:581:581
+Q1 finished at: 2023-10-4 10:28:45:328:336
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
    current_result: 
      null 
@@ -32,14 +32,11 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
    (6) expected_result: 
      (2,1) 
 
-Q2 finished at: 2023-9-24 22:23:52:627:453
+Q2 finished at: 2023-10-4 10:28:45:375:752
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:23:52:680:53
+                                        Q3 finished at: 2023-10-4 10:28:46:326:740
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                                                                Q5-T3 execute opt: 'BEGIN;'
-                                                                                Q5 finished at: 2023-9-24 22:23:52:779:460
-                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                        Q3 finished at: 2023-9-24 22:23:52:803:416
+                                        Q3 finished at: 2023-10-4 10:28:46:404:501
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
                                            current_result: 
                                              null 
@@ -56,8 +53,11 @@ Q2 finished at: 2023-9-24 22:23:52:627:453
                                           *(6) expected_result: 
                                              null 
 
-                                        Q4 finished at: 2023-9-24 22:23:52:819:106
-                                                                                Q5 finished at: 2023-9-24 22:23:52:830:849
+                                        Q4 finished at: 2023-10-4 10:28:46:421:381
+                                                                                Q5-T3 execute opt: 'BEGIN;'
+                                                                                Q5 finished at: 2023-10-4 10:28:47:326:913
+                                                                                Q5-T3 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                                                                Q5 finished at: 2023-10-4 10:28:47:411:15
                                                                                 Q6-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                                                                    current_result: 
                                                                                      null 
@@ -74,17 +74,10 @@ Q2 finished at: 2023-9-24 22:23:52:627:453
                                                                                   *(6) expected_result: 
                                                                                      null 
 
-                                                                                Q6 finished at: 2023-9-24 22:23:52:843:635
+                                                                                Q6 finished at: 2023-10-4 10:28:47:424:475
 Q7-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
-                                        Q8-T2 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
-                                                                                Q9-T3 execute sql: 'INSERT INTO t1 (k,v) VALUES (2, 0);'
-                                                                                Q9 finished at: 2023-9-24 22:23:53:85:198
-                                                                                Q12-T3 execute opt: 'COMMIT';
-                                                                                Q12 finished at: 2023-9-24 22:23:53:383:300
 Q7 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
-Q7 failed at: 2023-9-24 22:23:53:583:123
-                                        Q8 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
-                                        Q8 failed at: 2023-9-24 22:23:53:789:875
+Q7 failed at: 2023-10-4 10:28:49:37:413
 
 Test Result: Rollback
 Reason: Err:错误: 由于同步更新而无法串行访问

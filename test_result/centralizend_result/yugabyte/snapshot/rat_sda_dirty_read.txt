@@ -14,35 +14,35 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_sda_dirty_read test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:4:896:984
+Q1 finished at: 2023-10-4 10:29:21:253:917
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:4:898:282
+Q1 finished at: 2023-10-4 10:29:21:255:305
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:24:4:933:393
+Q2 finished at: 2023-10-4 10:29:21:292:40
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:4:997:257
+                                        Q3 finished at: 2023-10-4 10:29:22:254:302
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-Q5-T1 execute opt: 'ROLLBACK';
-Q5 finished at: 2023-9-24 22:24:5:97:489
-                                        Q3 finished at: 2023-9-24 22:24:5:107:747
+                                        Q3 finished at: 2023-10-4 10:29:22:359:404
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k = 0;'
                                            current_result: 
                                              (0,0) 
                                           *(1) expected_result: 
                                              (0,0) 
 
-                                        Q4 finished at: 2023-9-24 22:24:5:124:372
+                                        Q4 finished at: 2023-10-4 10:29:22:373:156
+Q5-T1 execute opt: 'ROLLBACK';
+Q5 finished at: 2023-10-4 10:29:23:257:469
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-24 22:24:5:198:234
+                                        Q6 finished at: 2023-10-4 10:29:24:255:127
                                                                                 Q7-T3 execute sql: 'SELECT * FROM t1;'
                                                                                    current_result: 
                                                                                      (0,0) 
                                                                                   *(1) expected_result: 
                                                                                      (0,0) 
 
-                                                                                Q7 finished at: 2023-9-24 22:24:5:333:949
+                                                                                Q7 finished at: 2023-10-4 10:29:24:414:929
                                                                                 Q8-T3 execute opt: 'COMMIT';
-                                                                                Q8 finished at: 2023-9-24 22:24:5:334:282
+                                                                                Q8 finished at: 2023-10-4 10:29:24:415:278
 
 The current result is consistent with the [(1) expected_result] of serial scheduling
 

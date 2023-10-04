@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_dda_read_skew_predicate_based_delete test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:22:52:438:642
+Q1 finished at: 2023-10-4 10:24:55:144:630
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:22:52:440:31
+Q1 finished at: 2023-10-4 10:24:55:146:48
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
    current_result: 
      (1,0) (0,0) 
@@ -26,40 +26,21 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
    (2) expected_result: 
      (0,0) (1,0) 
 
-Q2 finished at: 2023-9-24 22:22:52:475:428
+Q2 finished at: 2023-10-4 10:24:55:183:450
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:22:52:538:637
+                                        Q3 finished at: 2023-10-4 10:24:56:144:501
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q7-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
-   current_result: 
-     (1,0) (0,0) 
-   (1) expected_result: 
-     null 
-   (2) expected_result: 
-     (0,0) (1,0) 
-
-Q7 finished at: 2023-9-24 22:22:52:639:11
-Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-24 22:22:52:639:991
-                                        Q3 finished at: 2023-9-24 22:22:52:642:440
+                                        Q3 finished at: 2023-10-4 10:24:56:243:632
                                         Q4-T2 execute sql: 'DELETE FROM t1 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:22:52:657:379
+                                        Q4 finished at: 2023-10-4 10:24:56:258:448
                                         Q5-T2 execute sql: 'DELETE FROM t1 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:22:52:658:429
+                                        Q5 finished at: 2023-10-4 10:24:56:261:392
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-24 22:22:52:659:120
-                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
-                                                                                   current_result: 
-                                                                                     null 
-                                                                                  *(1) expected_result: 
-                                                                                     null 
-                                                                                  *(2) expected_result: 
-                                                                                     null 
+                                        Q6 finished at: 2023-10-4 10:24:56:262:319
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+Q7 failed reason: 错误: Heartbeat: Transaction 6d20edea-23d0-4d1e-9c50-cd21b79a915a expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 6d20edea-23d0-4d1e-9c50-cd21b errcode: 40001
+Q7 failed at: 2023-10-4 10:24:57:853:350
 
-                                                                                Q9 finished at: 2023-9-24 22:22:52:723:597
-                                                                                Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-24 22:22:52:723:935
-
-Test Result: Anomaly
-Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+Test Result: Rollback
+Reason: Err:错误: Heartbeat: Transaction 6d20edea-23d0-4d1e-9c50-cd21b79a915a expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 6d20edea-23d0-4d1e-9c50-cd21b
 

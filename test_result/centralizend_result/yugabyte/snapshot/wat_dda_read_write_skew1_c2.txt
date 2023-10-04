@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_dda_read_write_skew1_c2 test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:55:91:942
+Q1 finished at: 2023-10-4 10:32:43:157:114
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:55:92:286
+Q1 finished at: 2023-10-4 10:32:43:158:420
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -26,23 +26,21 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:24:55:100:474
+Q2 finished at: 2023-10-4 10:32:43:187:919
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:55:191:886
+                                        Q3 finished at: 2023-10-4 10:32:44:157:100
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:24:55:236:415
+                                        Q3 finished at: 2023-10-4 10:32:44:276:427
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:24:55:250:76
+                                        Q4 finished at: 2023-10-4 10:32:44:294:901
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:24:55:251:388
+                                        Q5 finished at: 2023-10-4 10:32:44:297:946
 Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q6 finished at: 2023-9-24 22:24:55:294:38
+Q6 finished at: 2023-10-4 10:32:45:162:869
                                         Q7-T2 execute opt: 'COMMIT';
-Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-24 22:24:55:493:23
-                                        Q7 failed reason: 错误: Transaction 14291789-1159-4a15-a723-846d92bda4c6 expired or aborted by a conflict: 40001 errcode: 40001
-                                        Q7 failed at: 2023-9-24 22:24:56:95:596
+                                        Q7 failed reason: 错误: Heartbeat: Transaction 84c469ef-6e1e-457c-a845-7d3219ec1e2f expired or aborted by a conflict: 40001 errcode: 40001
+                                        Q7 failed at: 2023-10-4 10:32:46:863:797
 
 Test Result: Rollback
-Err:错误: Transaction 14291789-1159-4a15-a723-846d92bda4c6 expired or aborted by a conflict: 40001
+Err:错误: Heartbeat: Transaction 84c469ef-6e1e-457c-a845-7d3219ec1e2f expired or aborted by a conflict: 40001
 

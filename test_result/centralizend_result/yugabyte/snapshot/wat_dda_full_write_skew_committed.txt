@@ -15,24 +15,20 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_dda_full_write_skew_committed test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:51:655:420
+Q1 finished at: 2023-10-4 10:32:32:616:646
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:51:655:791
+Q1 finished at: 2023-10-4 10:32:32:617:904
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:24:51:665:798
+Q2 finished at: 2023-10-4 10:32:32:632:810
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:51:756:144
+                                        Q3 finished at: 2023-10-4 10:32:33:616:539
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:24:51:832:596
+                                        Q3 finished at: 2023-10-4 10:32:33:692:147
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:24:51:847:486
+                                        Q4 finished at: 2023-10-4 10:32:33:707:767
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-Q7-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q7 finished at: 2023-9-24 22:24:51:856:653
-Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-24 22:24:51:857:577
                                         Q5 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
-                                        Q5 failed at: 2023-9-24 22:24:52:351:837
+                                        Q5 failed at: 2023-10-4 10:32:34:210:892
 
 Test Result: Rollback
 Reason: Err:错误: 由于同步更新而无法串行访问

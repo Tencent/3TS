@@ -15,27 +15,21 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_dda_full_write_skew_c2 test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:49:556:909
+Q1 finished at: 2023-10-4 10:32:25:833:671
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:49:557:231
+Q1 finished at: 2023-10-4 10:32:25:834:917
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:24:49:565:222
+Q2 finished at: 2023-10-4 10:32:25:849:470
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:49:657:929
+                                        Q3 finished at: 2023-10-4 10:32:26:833:615
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q6 finished at: 2023-9-24 22:24:49:758:980
-                                        Q3 finished at: 2023-9-24 22:24:49:773:798
+                                        Q3 finished at: 2023-10-4 10:32:26:974:419
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:24:49:789:198
+                                        Q4 finished at: 2023-10-4 10:32:26:991:684
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:24:49:790:408
-                                        Q7-T2 execute opt: 'COMMIT';
-                                        Q7 finished at: 2023-9-24 22:24:49:858:31
-Q8-T1 execute opt: 'COMMIT';
-Q8 failed reason: 错误: Heartbeat: Transaction bf623b97-63f8-4cee-8da1-eb5068d8ad92 expired or aborted by a conflict: 40001 errcode: 40001
-Q8 failed at: 2023-9-24 22:24:50:759:226
+                                        Q5 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q5 failed at: 2023-10-4 10:32:27:494:766
 
 Test Result: Rollback
-Err:错误: Heartbeat: Transaction bf623b97-63f8-4cee-8da1-eb5068d8ad92 expired or aborted by a conflict: 40001
+Reason: Err:错误: 由于同步更新而无法串行访问
 

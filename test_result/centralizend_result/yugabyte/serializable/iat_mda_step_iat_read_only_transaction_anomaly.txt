@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_mda_step_iat_read_only_transaction_anomaly test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:2:348:368
+Q1 finished at: 2023-10-4 10:29:15:410:551
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:24:2:348:767
+Q1 finished at: 2023-10-4 10:29:15:411:912
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -34,7 +34,7 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
   *(6) expected_result: 
      (0,0) 
 
-Q2 finished at: 2023-9-24 22:24:2:361:615
+Q2 finished at: 2023-10-4 10:29:15:449:364
 Q3-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
    current_result: 
      (1,0) 
@@ -51,11 +51,11 @@ Q3-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
    (6) expected_result: 
      (1,20) 
 
-Q3 finished at: 2023-9-24 22:24:2:363:976
+Q3 finished at: 2023-10-4 10:29:15:458:59
                                         Q4-T2 execute opt: 'BEGIN;'
-                                        Q4 finished at: 2023-9-24 22:24:2:448:354
+                                        Q4 finished at: 2023-10-4 10:29:16:410:538
                                         Q4-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                        Q4 finished at: 2023-9-24 22:24:2:499:362
+                                        Q4 finished at: 2023-10-4 10:29:16:544:530
                                         Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                            current_result: 
                                              (1,0) 
@@ -72,55 +72,11 @@ Q3 finished at: 2023-9-24 22:24:2:363:976
                                           *(6) expected_result: 
                                              (1,0) 
 
-                                        Q5 finished at: 2023-9-24 22:24:2:513:559
+                                        Q5 finished at: 2023-10-4 10:29:16:562:190
                                         Q6-T2 execute sql: 'UPDATE t1 SET v=20 WHERE k=1;'
-                                        Q6 finished at: 2023-9-24 22:24:2:514:976
-                                        Q7-T2 execute opt: 'COMMIT';
-                                        Q7 finished at: 2023-9-24 22:24:2:515:652
-                                                                                Q8-T3 execute opt: 'BEGIN;'
-                                                                                Q8 finished at: 2023-9-24 22:24:2:548:721
-                                                                                Q8-T3 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-                                                                                Q8 finished at: 2023-9-24 22:24:2:606:988
-                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 WHERE k=0;'
-                                                                                   current_result: 
-                                                                                     (0,0) 
-                                                                                   (1) expected_result: 
-                                                                                     (0,11) 
-                                                                                   (2) expected_result: 
-                                                                                     (0,11) 
-                                                                                  *(3) expected_result: 
-                                                                                     (0,0) 
-                                                                                   (4) expected_result: 
-                                                                                     (0,11) 
-                                                                                  *(5) expected_result: 
-                                                                                     (0,0) 
-                                                                                  *(6) expected_result: 
-                                                                                     (0,0) 
-
-                                                                                Q9 finished at: 2023-9-24 22:24:2:623:149
-                                                                                Q10-T3 execute sql: 'SELECT * FROM t1 WHERE k=1;'
-                                                                                   current_result: 
-                                                                                     (1,20) 
-                                                                                  *(1) expected_result: 
-                                                                                     (1,20) 
-                                                                                   (2) expected_result: 
-                                                                                     (1,0) 
-                                                                                  *(3) expected_result: 
-                                                                                     (1,20) 
-                                                                                  *(4) expected_result: 
-                                                                                     (1,20) 
-                                                                                   (5) expected_result: 
-                                                                                     (1,0) 
-                                                                                   (6) expected_result: 
-                                                                                     (1,0) 
-
-                                                                                Q10 finished at: 2023-9-24 22:24:2:624:814
-                                                                                Q11-T3 execute opt: 'COMMIT';
-                                                                                Q11 finished at: 2023-9-24 22:24:2:625:667
-Q12-T1 execute sql: 'UPDATE t1 SET v=11 WHERE k=0;'
-Q12 failed reason: 错误: Unknown transaction, could be recently aborted: 895e90f6-4c98-4dcb-862c-0c1783d99805; errcode: 40001
-Q12 failed at: 2023-9-24 22:24:3:859:189
+                                        Q6 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q6 failed at: 2023-10-4 10:29:17:165:167
 
 Test Result: Rollback
-Reason: Err:错误: Unknown transaction, could be recently aborted: 895e90f6-4c98-4dcb-862c-0c1783d99805;
+Reason: Err:错误: 由于同步更新而无法串行访问
 

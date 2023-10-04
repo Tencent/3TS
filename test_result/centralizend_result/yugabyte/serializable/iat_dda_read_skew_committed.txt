@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_dda_read_skew_committed test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:23:38:976:203
+Q1 finished at: 2023-10-4 10:27:52:380:145
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:23:38:977:618
+Q1 finished at: 2023-10-4 10:27:52:380:529
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -26,42 +26,21 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:23:39:12:101
+Q2 finished at: 2023-10-4 10:27:52:392:372
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:23:39:76:206
+                                        Q3 finished at: 2023-10-4 10:27:53:381:664
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q7-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
-   current_result: 
-     (1,0) 
-  *(1) expected_result: 
-     (1,0) 
-   (2) expected_result: 
-     (1,1) 
-
-Q7 finished at: 2023-9-24 22:23:39:176:474
-Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-24 22:23:39:177:496
-                                        Q3 finished at: 2023-9-24 22:23:39:185:404
+                                        Q3 finished at: 2023-10-4 10:27:53:484:82
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:23:39:199:73
+                                        Q4 finished at: 2023-10-4 10:27:53:499:356
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:23:39:200:845
+                                        Q5 finished at: 2023-10-4 10:27:53:502:615
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-24 22:23:39:201:934
-                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
-                                                                                   current_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(1) expected_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(2) expected_result: 
-                                                                                     (0,1) (1,1) 
+                                        Q6 finished at: 2023-10-4 10:27:53:503:360
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+Q7 failed reason: 错误: Heartbeat: Transaction 27341f5a-bbeb-4768-9e54-5d76b7770b36 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 27341f5a-bbeb-4768-9e54-5d76b errcode: 40001
+Q7 failed at: 2023-10-4 10:27:55:91:48
 
-                                                                                Q9 finished at: 2023-9-24 22:23:39:270:840
-                                                                                Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-24 22:23:39:271:165
-
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Rollback
+Reason: Err:错误: Heartbeat: Transaction 27341f5a-bbeb-4768-9e54-5d76b7770b36 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 27341f5a-bbeb-4768-9e54-5d76b
 

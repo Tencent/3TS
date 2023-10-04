@@ -14,32 +14,19 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------rat_sda_intermediate_read test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:22:33:384:718
+Q1 finished at: 2023-10-4 10:23:50:391:370
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:22:33:386:75
+Q1 finished at: 2023-10-4 10:23:50:392:948
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:22:33:420:618
+Q2 finished at: 2023-10-4 10:23:50:428:893
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:22:33:484:746
+                                        Q3 finished at: 2023-10-4 10:23:51:391:185
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q5-T1 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-Q5 finished at: 2023-9-24 22:22:33:585:631
-                                        Q3 finished at: 2023-9-24 22:22:33:600:994
+                                        Q3 finished at: 2023-10-4 10:23:51:507:754
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
-                                           current_result: 
-                                             (0,0) 
-                                           (1) expected_result: 
-                                             (0,2) 
-                                          *(2) expected_result: 
-                                             (0,0) 
-
-                                        Q4 finished at: 2023-9-24 22:22:33:616:510
-                                        Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-24 22:22:33:687:218
-Q7-T1 execute opt: 'COMMIT';
-Q7 failed reason: 错误: Transaction 43260acb-851a-4d60-b137-7c315fc795f1 expired or aborted by a conflict: 40001 errcode: 40001
-Q7 failed at: 2023-9-24 22:22:34:491:153
+                                        Q4 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q4 failed at: 2023-10-4 10:23:51:925:305
 
 Test Result: Rollback
-Err:错误: Transaction 43260acb-851a-4d60-b137-7c315fc795f1 expired or aborted by a conflict: 40001
+Reason: Err:错误: 由于同步更新而无法串行访问
 

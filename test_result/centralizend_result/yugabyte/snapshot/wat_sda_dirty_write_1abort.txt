@@ -14,20 +14,18 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_sda_dirty_write_1abort test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:36:266:572
+Q1 finished at: 2023-10-4 10:31:34:528:665
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:36:266:930
+Q1 finished at: 2023-10-4 10:31:34:529:910
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:24:36:274:764
+Q2 finished at: 2023-10-4 10:31:34:566:904
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:36:366:636
+                                        Q3 finished at: 2023-10-4 10:31:35:528:552
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:24:36:411:240
+                                        Q3 finished at: 2023-10-4 10:31:35:653:734
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-Q5-T1 execute opt: 'ROLLBACK';
-Q5 finished at: 2023-9-24 22:24:36:467:311
                                         Q4 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
-                                        Q4 failed at: 2023-9-24 22:24:36:825:159
+                                        Q4 failed at: 2023-10-4 10:31:36:70:236
 
 Test Result: Rollback
 Reason: Err:错误: 由于同步更新而无法串行访问

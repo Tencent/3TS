@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_dda_read_write_skew1_c1 test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:23:24:489:840
+Q1 finished at: 2023-10-4 10:26:52:806:64
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:23:24:491:184
+Q1 finished at: 2023-10-4 10:26:52:807:549
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -26,35 +26,19 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:23:24:525:362
+Q2 finished at: 2023-10-4 10:26:52:844:138
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:23:24:589:905
+                                        Q3 finished at: 2023-10-4 10:26:53:805:950
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q6 finished at: 2023-9-24 22:23:24:689:843
-Q7-T1 execute opt: 'COMMIT';
-Q7 finished at: 2023-9-24 22:23:24:690:828
-                                        Q3 finished at: 2023-9-24 22:23:24:693:997
+                                        Q3 finished at: 2023-10-4 10:26:53:910:640
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:23:24:708:441
+                                        Q4 finished at: 2023-10-4 10:26:53:926:746
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:23:24:709:584
-                                        Q8-T2 execute opt: 'COMMIT';
-                                        Q8 finished at: 2023-9-24 22:23:24:792:436
-                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
-                                                                                   current_result: 
-                                                                                     (0,1) (1,2) 
-                                                                                  *(1) expected_result: 
-                                                                                     (0,1) (1,2) 
-                                                                                   (2) expected_result: 
-                                                                                     (0,1) (1,1) 
+                                        Q5 finished at: 2023-10-4 10:26:53:931:233
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q6 failed reason: 错误: Heartbeat: Transaction 3d50a33d-89fc-4316-a225-7b6a724065d7 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 3d50a33d-89fc-4316-a225-7b6a7 errcode: 40001
+Q6 failed at: 2023-10-4 10:26:55:415:586
 
-                                                                                Q9 finished at: 2023-9-24 22:23:24:929:280
-                                                                                Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-24 22:23:24:929:616
-
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Rollback
+Reason: Err:错误: Heartbeat: Transaction 3d50a33d-89fc-4316-a225-7b6a724065d7 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 3d50a33d-89fc-4316-a225-7b6a7
 

@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_dda_write_skew_committed test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:25:16:88:645
+Q1 finished at: 2023-10-4 10:34:3:93:457
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:25:16:89:920
+Q1 finished at: 2023-10-4 10:34:3:94:610
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0; '
    current_result: 
      (0,0) 
@@ -26,28 +26,28 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0; '
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:25:16:119:900
+Q2 finished at: 2023-10-4 10:34:3:105:430
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:25:16:188:683
+                                        Q3 finished at: 2023-10-4 10:34:4:93:478
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-Q7-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q7 finished at: 2023-9-24 22:25:16:296:673
-Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-24 22:25:16:299:770
-                                        Q3 finished at: 2023-9-24 22:25:16:333:199
+                                        Q3 finished at: 2023-10-4 10:34:4:197:24
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                            current_result: 
+                                             (1,0) 
+                                           (1) expected_result: 
                                              (1,1) 
-                                          *(1) expected_result: 
-                                             (1,1) 
-                                           (2) expected_result: 
+                                          *(2) expected_result: 
                                              (1,0) 
 
-                                        Q4 finished at: 2023-9-24 22:25:16:345:857
+                                        Q4 finished at: 2023-10-4 10:34:4:209:851
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:25:16:347:605
+                                        Q5 finished at: 2023-10-4 10:34:4:215:682
                                         Q6-T2 execute opt: 'COMMIT';
-                                        Q6 finished at: 2023-9-24 22:25:16:348:359
+                                        Q6 finished at: 2023-10-4 10:34:4:219:178
+Q7-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q7 finished at: 2023-10-4 10:34:5:104:8
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2023-10-4 10:34:5:107:608
                                                                                 Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
                                                                                    current_result: 
                                                                                      (0,1) (1,1) 
@@ -56,12 +56,10 @@ Q8 finished at: 2023-9-24 22:25:16:299:770
                                                                                   *(2) expected_result: 
                                                                                      (0,1) (1,1) 
 
-                                                                                Q9 finished at: 2023-9-24 22:25:16:407:829
+                                                                                Q9 finished at: 2023-10-4 10:34:5:247:422
                                                                                 Q10-T3 execute opt: 'COMMIT';
-                                                                                Q10 finished at: 2023-9-24 22:25:16:408:167
+                                                                                Q10 finished at: 2023-10-4 10:34:5:247:769
 
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
 

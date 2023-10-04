@@ -14,23 +14,19 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_sda_lost_self_update_committed test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:45:0:948
+Q1 finished at: 2023-10-4 10:32:10:107:964
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:45:2:178
+Q1 finished at: 2023-10-4 10:32:10:109:192
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:24:45:34:65
+Q2 finished at: 2023-10-4 10:32:10:124:851
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:45:100:705
+                                        Q3 finished at: 2023-10-4 10:32:11:107:792
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:24:45:163:114
+                                        Q3 finished at: 2023-10-4 10:32:11:205:647
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-                                        Q4 finished at: 2023-9-24 22:24:45:176:333
-                                        Q5-T2 execute opt: 'COMMIT';
-                                        Q5 finished at: 2023-9-24 22:24:45:177:312
-Q6-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
-Q6 failed reason: 错误: Unknown transaction, could be recently aborted: 317e4441-0993-4b88-b7ff-825633d6857e; errcode: 40001
-Q6 failed at: 2023-9-24 22:24:45:803:142
+                                        Q4 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q4 failed at: 2023-10-4 10:32:11:620:573
 
 Test Result: Rollback
-Reason: Err:错误: Unknown transaction, could be recently aborted: 317e4441-0993-4b88-b7ff-825633d6857e;
+Reason: Err:错误: 由于同步更新而无法串行访问
 

@@ -17,9 +17,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_dda_write_skew_predicate_based-intersecting_data test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:25:13:615:261
+Q1 finished at: 2023-10-4 10:33:53:27:204
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:25:13:616:177
+Q1 finished at: 2023-10-4 10:33:53:28:509
 Q2-T1 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
    current_result: 
      (30,) 
@@ -28,28 +28,28 @@ Q2-T1 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
    (2) expected_result: 
      (330,) 
 
-Q2 finished at: 2023-9-24 22:25:13:642:799
+Q2 finished at: 2023-10-4 10:33:53:40:696
 Q3-T1 execute sql: 'INSERT INTO mytab (class,value) VALUES (2, 30);'
-Q3 finished at: 2023-9-24 22:25:13:649:239
+Q3 finished at: 2023-10-4 10:33:53:45:690
                                         Q4-T2 execute opt: 'BEGIN;'
-                                        Q4 finished at: 2023-9-24 22:25:13:715:35
+                                        Q4 finished at: 2023-10-4 10:33:54:27:141
                                         Q4-T2 execute sql: 'BEGIN TRANSACTION;'
-Q8-T1 execute opt: 'COMMIT';
-Q8 finished at: 2023-9-24 22:25:13:816:100
-                                        Q4 finished at: 2023-9-24 22:25:13:840:541
+                                        Q4 finished at: 2023-10-4 10:33:54:146:969
                                         Q5-T2 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 2;'
                                            current_result: 
+                                             (300,) 
+                                           (1) expected_result: 
                                              (330,) 
-                                          *(1) expected_result: 
-                                             (330,) 
-                                           (2) expected_result: 
+                                          *(2) expected_result: 
                                              (300,) 
 
-                                        Q5 finished at: 2023-9-24 22:25:13:856:10
+                                        Q5 finished at: 2023-10-4 10:33:54:160:326
                                         Q6-T2 execute sql: 'INSERT INTO mytab (class,value) VALUES (1, 300);'
-                                        Q6 finished at: 2023-9-24 22:25:13:857:928
+                                        Q6 finished at: 2023-10-4 10:33:54:165:493
                                         Q7-T2 execute opt: 'COMMIT';
-                                        Q7 finished at: 2023-9-24 22:25:13:858:603
+                                        Q7 finished at: 2023-10-4 10:33:54:168:959
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2023-10-4 10:33:55:29:443
                                                                                 Q9-T3 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
                                                                                    current_result: 
                                                                                      (330,) 
@@ -58,7 +58,7 @@ Q8 finished at: 2023-9-24 22:25:13:816:100
                                                                                   *(2) expected_result: 
                                                                                      (330,) 
 
-                                                                                Q9 finished at: 2023-9-24 22:25:13:917:948
+                                                                                Q9 finished at: 2023-10-4 10:33:55:194:242
                                                                                 Q10-T3 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 2;'
                                                                                    current_result: 
                                                                                      (330,) 
@@ -67,12 +67,10 @@ Q8 finished at: 2023-9-24 22:25:13:816:100
                                                                                   *(2) expected_result: 
                                                                                      (330,) 
 
-                                                                                Q10 finished at: 2023-9-24 22:25:13:919:8
+                                                                                Q10 finished at: 2023-10-4 10:33:55:195:288
                                                                                 Q12-T3 execute opt: 'COMMIT';
-                                                                                Q12 finished at: 2023-9-24 22:25:13:919:317
+                                                                                Q12 finished at: 2023-10-4 10:33:55:195:620
 
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
 

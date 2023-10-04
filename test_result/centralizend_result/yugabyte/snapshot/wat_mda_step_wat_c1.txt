@@ -16,33 +16,28 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_mda_step_wat_c1 test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:25:1:998:741
+Q1 finished at: 2023-10-4 10:33:7:376:118
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:25:1:999:451
+Q1 finished at: 2023-10-4 10:33:7:377:316
 Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-Q2 finished at: 2023-9-24 22:25:2:13:738
+Q2 finished at: 2023-10-4 10:33:7:413:228
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:25:2:98:309
+                                        Q3 finished at: 2023-10-4 10:33:8:376:157
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:25:2:158:325
+                                        Q3 finished at: 2023-10-4 10:33:8:522:903
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:25:2:170:157
+                                        Q4 finished at: 2023-10-4 10:33:8:539:789
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:25:2:172:297
+                                        Q5 finished at: 2023-10-4 10:33:8:542:955
                                                                                 Q6-T3 execute opt: 'BEGIN;'
-                                                                                Q6 finished at: 2023-9-24 22:25:2:198:260
+                                                                                Q6 finished at: 2023-10-4 10:33:9:376:37
                                                                                 Q6-T3 execute sql: 'BEGIN TRANSACTION;'
-                                                                                Q6 finished at: 2023-9-24 22:25:2:247:337
+                                                                                Q6 finished at: 2023-10-4 10:33:9:504:75
                                                                                 Q7-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=2;'
-                                                                                Q7 finished at: 2023-9-24 22:25:2:262:18
+                                                                                Q7 finished at: 2023-10-4 10:33:9:519:38
                                                                                 Q8-T3 execute sql: 'UPDATE t1 SET v=3 WHERE k=1;'
-Q9-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
-                                        Q11-T2 execute opt: 'COMMIT';
-                                        Q11 finished at: 2023-9-24 22:25:2:401:688
                                                                                 Q8 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
-                                                                                Q8 failed at: 2023-9-24 22:25:3:65:58
-Q9 failed reason: 错误: Unknown transaction, could be recently aborted: 40a94ebf-bdb4-4eb5-8b68-93162f334e5d; errcode: 40001
-Q9 failed at: 2023-9-24 22:25:3:201:516
+                                                                                Q8 failed at: 2023-10-4 10:33:10:321:676
 
 Test Result: Rollback
 Reason: Err:错误: 由于同步更新而无法串行访问

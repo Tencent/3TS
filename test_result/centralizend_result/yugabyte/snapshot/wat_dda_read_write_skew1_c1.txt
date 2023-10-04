@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------wat_dda_read_write_skew1_c1 test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:24:53:160:68
+Q1 finished at: 2023-10-4 10:32:37:491:249
 Q1-T1 execute sql: 'BEGIN TRANSACTION;'
-Q1 finished at: 2023-9-24 22:24:53:160:382
+Q1 finished at: 2023-10-4 10:32:37:492:494
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    current_result: 
      (0,0) 
@@ -26,23 +26,19 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:24:53:168:372
+Q2 finished at: 2023-10-4 10:32:37:522:539
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:24:53:260:115
+                                        Q3 finished at: 2023-10-4 10:32:38:491:248
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION;'
-                                        Q3 finished at: 2023-9-24 22:24:53:304:258
+                                        Q3 finished at: 2023-10-4 10:32:38:607:831
                                         Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
-                                        Q4 finished at: 2023-9-24 22:24:53:318:398
+                                        Q4 finished at: 2023-10-4 10:32:38:625:470
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:24:53:320:120
+                                        Q5 finished at: 2023-10-4 10:32:38:628:342
 Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q6 finished at: 2023-9-24 22:24:53:362:699
-Q7-T1 execute opt: 'COMMIT';
-Q7 finished at: 2023-9-24 22:24:53:363:843
-                                        Q8-T2 execute opt: 'COMMIT';
-                                        Q8 failed reason: 错误: Transaction d1c09ecb-2041-46fc-9c5e-4931c70d801f expired or aborted by a conflict: 40001 errcode: 40001
-                                        Q8 failed at: 2023-9-24 22:24:54:268:531
+Q6 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+Q6 failed at: 2023-10-4 10:32:40:104:594
 
 Test Result: Rollback
-Err:错误: Transaction d1c09ecb-2041-46fc-9c5e-4931c70d801f expired or aborted by a conflict: 40001
+Reason: Err:错误: 由于同步更新而无法串行访问
 

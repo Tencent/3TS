@@ -15,9 +15,9 @@ Q0-T1 execute opt: 'COMMIT';
 
 ----------iat_dda_write_skew test run----------
 Q1-T1 execute opt: 'BEGIN;'
-Q1 finished at: 2023-9-24 22:23:42:34:246
+Q1 finished at: 2023-10-4 10:28:2:548:401
 Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q1 finished at: 2023-9-24 22:23:42:35:647
+Q1 finished at: 2023-10-4 10:28:2:548:810
 Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0; '
    current_result: 
      (0,0) 
@@ -26,42 +26,24 @@ Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0; '
    (2) expected_result: 
      (0,1) 
 
-Q2 finished at: 2023-9-24 22:23:42:69:732
+Q2 finished at: 2023-10-4 10:28:2:560:863
                                         Q3-T2 execute opt: 'BEGIN;'
-                                        Q3 finished at: 2023-9-24 22:23:42:134:217
+                                        Q3 finished at: 2023-10-4 10:28:3:549:538
                                         Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
-Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
-Q6 finished at: 2023-9-24 22:23:42:235:96
-Q7-T1 execute opt: 'COMMIT';
-Q7 finished at: 2023-9-24 22:23:42:236:577
-                                        Q3 finished at: 2023-9-24 22:23:42:250:333
+                                        Q3 finished at: 2023-10-4 10:28:3:624:312
                                         Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
                                            current_result: 
+                                             (1,0) 
+                                           (1) expected_result: 
                                              (1,1) 
-                                          *(1) expected_result: 
-                                             (1,1) 
-                                           (2) expected_result: 
+                                          *(2) expected_result: 
                                              (1,0) 
 
-                                        Q4 finished at: 2023-9-24 22:23:42:264:936
+                                        Q4 finished at: 2023-10-4 10:28:3:640:162
                                         Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
-                                        Q5 finished at: 2023-9-24 22:23:42:266:197
-                                        Q8-T2 execute opt: 'COMMIT';
-                                        Q8 finished at: 2023-9-24 22:23:42:335:93
-                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
-                                                                                   current_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(1) expected_result: 
-                                                                                     (0,1) (1,1) 
-                                                                                  *(2) expected_result: 
-                                                                                     (0,1) (1,1) 
+                                        Q5 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q5 failed at: 2023-10-4 10:28:4:143:339
 
-                                                                                Q9 finished at: 2023-9-24 22:23:42:469:40
-                                                                                Q8-T3 execute opt: 'COMMIT';
-                                                                                Q8 finished at: 2023-9-24 22:23:42:469:378
-
-The current result is consistent with the [(1) expected_result] of serial scheduling
-
-Test Result: Avoid
-Reason: Data anomaly did not occur and the data is consistent
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
 
