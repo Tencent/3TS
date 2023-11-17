@@ -25,8 +25,18 @@ total_test_num = 1
 min_txn = 2
 max_txn = 20
 
-# decide which variable to operate twice
-# if data_num = 3, target_num = 5, data_count = [2, 1, 2], means the first and third variables are operated twice
+"""
+Decide which variable to operate twice.
+
+Args:
+- data_count (list): A list of integers representing the current count of operations for each variable.
+- total_num (int): The total number of operations counted so far.
+- target_num (int): The target number of operations where some variables should be operated twice.
+
+This function uses depth-first search (DFS) to explore different combinations of variables to operate twice.
+If data_num = 3, target_num = 5, and data_count = [2, 1, 2], it means the first and third variables are operated twice.
+
+"""
 def dfs(data_count, total_num, target_num):
     s = ""
     for v in data_count:
@@ -47,6 +57,18 @@ def dfs(data_count, total_num, target_num):
         data_count[i] -= 1
     
 
+"""
+Generate test cases based on the current data_count.
+
+Args:
+- data_count (list): A list of integers representing the current count of operations for each variable.
+- res (list): A list to store the generated test case.
+- total_num (int): The total number of operations to be generated.
+
+This function recursively generates test cases based on the given data_count. It explores different 
+combinations of operations for each variable to create a test case.
+
+"""
 # According to now data_count to generate test case
 def dfs1(data_count, res, total_num):
     if len(res) == total_num:

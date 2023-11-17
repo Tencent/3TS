@@ -15,6 +15,7 @@
 #include <mutex>
 #include <regex>
 
+// Implement command-line argument parsing based on Google's gflags library
 DEFINE_string(db_type, "mysql", "data resource name, please see /etc/odbc.ini, such as mysql pg oracle ob tidb sqlserver crdb");
 DEFINE_string(user, "test123", "username");
 DEFINE_string(passwd, "Ly.123456", "password");
@@ -27,6 +28,14 @@ DEFINE_string(timeout, "3", "timeout");
 
 std::vector<pthread_mutex_t *> mutex_txn(FLAGS_conn_pool_size);  // same as conn_pool_size
 
+/**
+ * Tries to lock the specified mutex within the given timeout.
+ * 
+ * @param wait_second The timeout in seconds.
+ * @param wait_nanosecond The timeout in nanoseconds.
+ * @param txn_id The transaction ID.
+ * @return True if the lock is acquired within the timeout, false otherwise.
+ */
 bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
 {
     struct timespec timeoutTime;
@@ -35,6 +44,17 @@ bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
     return pthread_mutex_timedlock( mutex_txn[txn_id], &timeoutTime ) == 0; // == 0 locked else no lock
 }
 
+/**
+ * Executes a SQL query and returns the result.
+ * 
+ * @param sql The SQL query to execute.
+ * @param session_id The session ID for tracking.
+ * @param sql_id The SQL query ID for tracking.
+ * @param test_result_set The test result set to store results.
+ * @param db_type The type of the database (e.g., "oracle", "mysql").
+ * @param test_process_file The file to log test process.
+ * @return True if the query execution is successful, false otherwise.
+ */
 bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_sequence, TestResultSet& test_result_set, 
     DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
     
@@ -210,6 +230,14 @@ jump:
 
 };
 
+/**
+ * Executes a test sequence, including preparation, execution, and verification.
+ * 
+ * @param test_sequence The test sequence to execute.
+ * @param test_result_set The result set to store test results.
+ * @param db_connector The database connector for executing SQL queries.
+ * @return True if the test sequence execution is successful, false otherwise.
+ */
 bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& test_result_set, DBConnector db_connector) {
     std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType()  + ".txt";
     // std::string test_process_file = "./" + FLAGS_db_type + "/" + FLAGS_isolation + "/" + test_sequence.TestCaseType() + "_" + FLAGS_isolation + ".txt";

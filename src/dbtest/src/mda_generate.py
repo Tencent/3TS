@@ -37,6 +37,29 @@ class Wait_Operation:
         self.op_num = op_num
 
 
+"""
+Initialize tables for database testing.
+
+Args:
+- file_name (str): The name of the file where the SQL statements will be written.
+- sql_count (int): The count of SQL statements to generate.
+- txn_count (int): The count of transactions.
+- table_num (int): The number of tables to create.
+- db_type (str): The type of database being used.
+- test_type (str): The type of test being conducted.
+
+Returns:
+int: The data_num value, which depends on the database type and determines the number of data columns in each table.
+
+This function initializes tables for database testing by generating SQL statements and writing them to the specified 
+file (`file_name`). The SQL statements include DROP TABLE IF EXISTS and CREATE TABLE statements for the specified 
+number of tables (`table_num`).
+
+The function takes into account the `db_type` and `test_type` to determine the structure of the created tables and 
+the number of data columns. It returns the `data_num` value, which is an integer that depends on the database type 
+and determines the number of data columns in each table.
+
+"""
 def init_table(file_name, sql_count, txn_count, table_num, db_type, test_type):
     data_num = 2
     with open(file_name, "a+") as file_test:
@@ -75,6 +98,17 @@ def init_table(file_name, sql_count, txn_count, table_num, db_type, test_type):
     return data_num
 
 
+"""
+Check if two transactions are concurrent based on their start and end times.
+
+Args:
+- data1: Information about the first transaction.
+- data2: Information about the second transaction.
+- txn: A list of transaction objects.
+
+Returns:
+bool: True if the transactions are concurrent, False otherwise.
+"""
 # if both transactions are running
 # or the start time of the second transaction is less than the end time of the first transaction
 # we think they are concurrent
@@ -87,6 +121,27 @@ def check_concurrency(txn_num1, txn_num2, txn):
         return False
 
 
+"""
+Check if a specific operation type exists in a transaction.
+
+Args:
+- txn (list): The list of transactions.
+- data_op_list (list): The list of data operations.
+- op (str): The operation type to check for.
+- op_num (int): The operation number to check.
+- txn_count (int): The total number of transactions.
+
+Returns:
+bool: True if the specified operation type exists in the transaction and is concurrent; False otherwise.
+
+This function checks if a specific operation type (`op`) exists in a transaction (`txn`) by examining 
+the list of data operations (`data_op_list`) associated with that operation number (`op_num`). If the 
+specified operation type exists in the transaction and is concurrent with other transactions, the 
+function returns True; otherwise, it returns False.
+
+The function is designed to help identify and handle concurrent operations in a transactional context.
+
+"""
 def check_exist_op(txn, data_op_list, op, op_num, txn_count):
     flag, txn_num = False, 0
     for data in data_op_list[op_num]:
@@ -100,6 +155,41 @@ def check_exist_op(txn, data_op_list, op, op_num, txn_count):
     return False
 
 
+"""
+Execute an SQL operation within a transaction.
+
+Args:
+- IsPredicate (bool): A flag indicating whether the operation is a predicate operation.
+- file_name (str): The name of the file to write the SQL operation to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- op_num (int): The operation number.
+- op (str): The type of SQL operation to execute.
+- data_num (int): The number of data elements involved in the operation.
+- txn (list): The list of transactions.
+- data_value (list): The values associated with the data elements.
+- data_op_list (list): The list of data operations.
+
+Returns:
+int: The updated count of SQL operations after execution.
+
+This function executes an SQL operation within a transaction context. It takes into account whether the 
+operation is a predicate operation (IsPredicate flag) and writes the SQL operation to the specified file. 
+The function also updates the SQL operation count and performs the necessary actions based on the type of
+SQL operation.
+
+The supported SQL operations include:
+- Write (W)
+- Read (R)
+- Predicate (P)
+- Insert (I)
+- Delete (D)
+- Abort (A)
+- Commit (C)
+
+The function returns the updated count of SQL operations after execution.
+
+"""
 def execute_sql(IsPredicate, file_name, sql_count, txn_count, op_num, op, data_num, txn, data_value, data_op_list):
     # if check_exist_op(txn, data_op_list, op, op_num, txn_count):
     #     return sql_count
@@ -127,6 +217,30 @@ def execute_sql(IsPredicate, file_name, sql_count, txn_count, op_num, op, data_n
     return sql_count
 
 
+"""
+Insert data into a table within a transaction.
+
+Args:
+- file_name (str): The name of the file to write the SQL insert statement to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- cur_count (int): The current count for data insertion.
+- partition_num (int): The partition number for the insert operation.
+- insert_table (int): The table number to insert data into.
+- data_num (int): The number of data elements to insert.
+- exist (list): A list of flags indicating the existence of data elements.
+- data_value (list): The values associated with the data elements.
+
+Returns:
+int: The updated count of SQL operations after the insert.
+
+This function inserts data into a table within a transaction context. It generates an SQL insert statement
+based on the provided parameters and writes the statement to the specified file. The function also updates
+the SQL operation count and manages the existence of data elements to prevent duplicate inserts.
+
+The function returns the updated count of SQL operations after the insert.
+
+"""
 def insert_data(file_name, sql_count, txn_count, cur_count, partition_num, insert_table, data_num, exist,
                 data_value):
     with open(file_name, "a+") as file_test:
@@ -161,6 +275,31 @@ def insert_data(file_name, sql_count, txn_count, cur_count, partition_num, inser
     return sql_count
 
 
+"""
+Delete data from a table within a transaction.
+
+Args:
+- file_name (str): The name of the file to write the SQL delete statement to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- cur_count (int): The current count for data deletion.
+- delete_table (int): The table number to delete data from.
+- data_num (int): The number of data elements to delete.
+- exist (list): A list of flags indicating the existence of data elements.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of data operation records.
+
+Returns:
+int: The updated count of SQL operations after the delete.
+
+This function deletes data from a table within a transaction context. It generates an SQL delete statement 
+based on the provided parameters and writes the statement to the specified file. The function also updates 
+the SQL operation count, manages the existence of data elements, and records the delete operation in the 
+data operation list.
+
+The function returns the updated count of SQL operations after the delete.
+
+"""
 def delete_data(file_name, sql_count, txn_count, cur_count, delete_table, data_num, exist, txn, data_op_list):
     with open(file_name, "a+") as file_test:
         try:
@@ -187,6 +326,30 @@ def delete_data(file_name, sql_count, txn_count, cur_count, delete_table, data_n
     return sql_count
 
 
+"""
+Write data to a table within a transaction, incrementing its value by 1.
+
+Args:
+- file_name (str): The name of the file to write the SQL update statement to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- op_num (int): The current operation number.
+- data_num (int): The number of data elements to write.
+- txn (list): A list of transactions.
+- data_value (list): A list of data values.
+- data_op_list (list): A list of data operation records.
+
+Returns:
+int: The updated count of SQL operations after the write.
+
+This function writes data to a table within a transaction context, incrementing its value by 1. It generates
+an SQL update statement based on the provided parameters and writes the statement to the specified file. 
+The function also updates the SQL operation count, increments the data value, and records the write operation
+in the data operation list.
+
+The function returns the updated count of SQL operations after the write.
+
+"""
 # when updating data, increment its value by 1
 def write_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_value, data_op_list):
     with open(file_name, "a+") as file_test:
@@ -216,6 +379,28 @@ def write_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_valu
     return sql_count
 
 
+"""
+Read data from a table within a transaction.
+
+Args:
+- file_name (str): The name of the file to write the SQL read statement to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- op_num (int): The current operation number.
+- data_num (int): The number of data elements to read.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of data operation records.
+
+Returns:
+int: The updated count of SQL operations after the read.
+
+This function reads data from a table within a transaction context. It generates an SQL select statement 
+based on the provided parameters and writes the statement to the specified file. The function also updates
+the SQL operation count and records the read operation in the data operation list.
+
+The function returns the updated count of SQL operations after the read.
+
+"""
 def read_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_op_list):
     with open(file_name, "a+") as file_test:
         try:
@@ -241,6 +426,28 @@ def read_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_op_li
     return sql_count
 
 
+"""
+Read data from a table with a predicate (range condition) within a transaction.
+
+Args:
+- file_name (str): The name of the file to write the SQL read statement to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- op_num (int): The current operation number.
+- data_num (int): The number of data elements to read.
+- txn (list): A list of transactions.
+- data_op_list (list): A list of data operation records.
+
+Returns:
+int: The updated count of SQL operations after the read.
+
+This function reads data from a table within a transaction context with a predicate (range condition). It generates
+an SQL select statement based on the provided parameters and writes the statement to the specified file. 
+The function also updates the SQL operation count and records the read operation in the data operation list.
+
+The function returns the updated count of SQL operations after the read.
+
+"""
 def read_data_predicate(file_name, sql_count, txn_count, op_num, data_num, txn, data_op_list):
     with open(file_name, "a+") as file_test:
         try:
@@ -266,6 +473,25 @@ def read_data_predicate(file_name, sql_count, txn_count, op_num, data_num, txn, 
     return sql_count
 
 
+"""
+Abort (rollback) a transaction.
+
+Args:
+- file_name (str): The name of the file to write the SQL rollback statement to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- txn (list): A list of transactions.
+
+Returns:
+int: The updated count of SQL operations after the rollback.
+
+This function aborts (rolls back) a transaction by generating an SQL rollback statement based on the provided 
+parameters and writes the statement to the specified file. It updates the SQL operation count and marks the 
+transaction as ended. If the transaction has already ended, it logs an error message.
+
+The function returns the updated count of SQL operations after the rollback.
+
+"""
 def abort_txn(file_name, sql_count, txn_count, txn):
     with open(file_name, "a+") as file_test:
         try:
@@ -281,6 +507,25 @@ def abort_txn(file_name, sql_count, txn_count, txn):
     return sql_count
 
 
+"""
+Commit a transaction.
+
+Args:
+- file_name (str): The name of the file to write the SQL commit statement to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- txn (list): A list of transactions.
+
+Returns:
+int: The updated count of SQL operations after the commit.
+
+This function commits a transaction by generating an SQL commit statement based on the provided parameters and
+writes the statement to the specified file. It updates the SQL operation count and marks the transaction as ended. 
+If the transaction has already ended, it logs an error message.
+
+The function returns the updated count of SQL operations after the commit.
+
+"""
 def commit_txn(file_name, sql_count, txn_count, txn):
     with open(file_name, "a+") as file_test:
         try:
@@ -296,6 +541,21 @@ def commit_txn(file_name, sql_count, txn_count, txn):
     return sql_count
 
 
+"""
+Execute a check transaction to read data from tables and order the results.
+
+Args:
+- file_name (str): The name of the file to write SQL statements to.
+- sql_count (int): The current count of SQL operations.
+- txn_count (int): The total number of transactions.
+- data_num (int): The number of data columns in each table.
+- table_num (int): The total number of tables.
+
+This function generates and executes a check transaction. It begins the transaction, performs ordered SELECT 
+queries on all tables to read data, and then commits the transaction. The generated SQL statements are written
+to the specified file.
+
+"""
 def execute_check(file_name, sql_count, txn_count, data_num, table_num):
     with open(file_name, "a+") as file_test:
         begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
@@ -313,6 +573,22 @@ def execute_check(file_name, sql_count, txn_count, data_num, table_num):
         file_test.write(commit_sql)
         sql_count += 1
 
+"""
+Check the last operation before the current position in a list of operations.
+
+Args:
+- ops (list): A list of operations.
+- pos (int): The current position in the list.
+
+Returns:
+- last_op_type (str): The type of the last operation before the current position.
+- last_txn_num (int): The transaction number of the last operation before the current position.
+
+This function examines the list of operations and checks the last operation that occurred before the current position. 
+It returns the type of that operation (e.g., "C" for commit, "A" for abort, or a specific operation type) and the 
+corresponding transaction number.
+
+"""
 # check if the txn commit/abort before or not
 def get_last_op(ops, pos):
     if pos == 0:
@@ -322,6 +598,30 @@ def get_last_op(ops, pos):
     else:
         return ops[pos-1][1], int(ops[pos-1][2])
 
+"""
+Process the first operation of a Partial Order Pair (POP) for a given transaction.
+
+Args:
+- IsPredicate (bool): Indicates whether the operation is a predicate operation.
+- num (int): The number of operations in the POP.
+- ops (list): A list of operations in the POP.
+- file_name (str): The name of the file where SQL queries are logged.
+- sql_count (int): The current count of SQL queries.
+- txn_count (int): The current transaction count.
+- data_num (int): The number of data parameters.
+- txn (list): A list of transactions.
+- data_value (list): A list of data values.
+- data_op_list (list): A list of data operations.
+
+Returns:
+- sql_count (int): The updated count of SQL queries after processing the first operation of the POP.
+
+This function processes the first operation of a Partial Order Pair (POP) for a given transaction. It checks whether
+the last operation before the current operation has the same type and number. If not, it executes the SQL query for 
+the current operation, updates the SQL query count, and advances the transaction count. The function returns the 
+updated SQL query count.
+
+"""
 # process first operation of a POP
 def execute_first(IsPredicate, num, ops, file_name, sql_count, txn_count, data_num, txn, data_value, data_op_list):
     for i in range(num):
@@ -340,6 +640,31 @@ def execute_first(IsPredicate, num, ops, file_name, sql_count, txn_count, data_n
         if txn_count == num + 1: txn_count = 1
     return sql_count
 
+"""
+Process the second operation of a Partial Order Pair (POP) for a given transaction.
+
+Args:
+- IsPredicate (bool): Indicates whether the operation is a predicate operation.
+- num (int): The number of operations in the POP.
+- ops (list): A list of operations in the POP.
+- need_ac (list): A list indicating whether each operation requires an "AC" (Abort or Commit) operation.
+- file_name (str): The name of the file where SQL queries are logged.
+- sql_count (int): The current count of SQL queries.
+- txn_count (int): The current transaction count.
+- data_num (int): The number of data parameters.
+- txn (list): A list of transactions.
+- data_value (list): A list of data values.
+- data_op_list (list): A list of data operations.
+
+Returns:
+- sql_count (int): The updated count of SQL queries after processing the second operation of the POP.
+
+This function processes the second operation of a Partial Order Pair (POP) for a given transaction. It iterates 
+through the list of operations, executes the SQL queries for each operation, updates the SQL query count, and 
+advances the transaction count. If an operation requires an "AC" (Abort or Commit) operation, it is also executed. 
+The function returns the updated SQL query count.
+
+"""
 # process second operation of a POP
 def execute_second(IsPredicate, num, ops, need_ac, file_name, sql_count, txn_count, data_num, txn, data_value, data_op_list):
     for i in range(num):
@@ -360,6 +685,30 @@ def execute_second(IsPredicate, num, ops, need_ac, file_name, sql_count, txn_cou
     return sql_count 
 
 
+"""
+Execute a transaction considering the order of operations for conflict resolution.
+
+Args:
+- IsPredicate (bool): Indicates whether the operation is a predicate operation.
+- num (int): The number of operations in the transaction.
+- ops (list): A list of operations in the transaction.
+- need_ac (list): A list indicating whether each operation requires an "AC" (Abort or Commit) operation.
+- file_name (str): The name of the file where SQL queries are logged.
+- sql_count (int): The current count of SQL queries.
+- data_num (int): The number of data parameters.
+- txn (list): A list of transactions.
+- data_value (list): A list of data values.
+- wait_op_list (list): A list of wait operations.
+- data_op_list (list): A list of data operations.
+
+Returns:
+- sql_count (int): The updated count of SQL queries after executing the transaction.
+
+This function executes a transaction while considering the order of operations for conflict resolution. 
+It iterates through the list of operations, executes SQL queries, and manages the execution order to 
+resolve conflicts. The function returns the updated SQL query count.
+
+"""
 # if the data of adjacent pattern operations are not the same,
 # reorder statements so that conflict-free statements execute first
 # otherwise, execute in the original order
@@ -427,6 +776,19 @@ def execute_txn(IsPredicate, num, ops, need_ac, file_name, sql_count, data_num, 
     return sql_count
 
 
+"""
+Write a description for the test case to the specified file.
+
+Args:
+- file_name (str): The name of the file where the description will be written.
+- txn_num (int): The number of transactions.
+- op_num (int): The number of operations.
+- data_num (int): The number of data parameters.
+
+This function writes a description for the test case to the specified file. The description includes 
+information about  the test case pattern, parameters, and structure.
+
+"""
 def write_description(file_name, txn_num, op_num, data_num):
     with open(file_name, "w+") as file_test:
         description = "#\n"

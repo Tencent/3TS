@@ -3,6 +3,14 @@
 #include <sqlext.h>
 #include <sqltypes.h>
 
+/**
+ * Retrieves error information associated with a SQL handle.
+ * 
+ * @param handle_type The type of SQL handle ('stmt' for statement handle or 'dbc' for database connection handle).
+ * @param handle The SQL handle to retrieve error information from.
+ * @param ErrInfo A buffer to store the error message.
+ * @param SQLState A buffer to store the SQL state code.
+ */
 void ErrInfoWithStmt(std::string handle_type, SQLHANDLE& handle, SQLCHAR ErrInfo[], SQLCHAR SQLState[]) {
     SQLINTEGER NativeErrorPtr = 0;
     SQLSMALLINT TextLengthPtr = 0;
@@ -14,6 +22,16 @@ void ErrInfoWithStmt(std::string handle_type, SQLHANDLE& handle, SQLCHAR ErrInfo
     }
 }
 
+/**
+ * Executes an SQL query and retrieves results.
+ *
+ * This function initializes the ODBC environment, establishes a database connection,
+ * allocates a statement handle, and executes an SQL query. It can be used to interact
+ * with a database and retrieve data.
+ *
+ * @note To execute specific SQL queries, you can uncomment the relevant lines
+ *       within the function.
+ */
 void exec_sql() {
     SQLHENV m_hEnviroment;
     SQLHDBC m_hDatabaseConnection;
