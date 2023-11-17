@@ -1,0 +1,41 @@
+#### db_type: yugabyte ####
+#### test_type: sda_lost_update_c1 ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------wat_sda_lost_update_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_sda_lost_update_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:26:12:317:848
+Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q1 finished at: 2023-10-4 10:26:12:319:203
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,2) 
+
+Q2 finished at: 2023-10-4 10:26:12:355:567
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:26:13:317:845
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                        Q3 finished at: 2023-10-4 10:26:13:421:342
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q4 finished at: 2023-10-4 10:26:13:438:878
+Q5-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q5 failed reason: 错误: Heartbeat: Transaction 86a4d602-f177-452d-a3e4-ba21e0ffccf1 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 86a4d602-f177-452d-a3e4-ba21e errcode: 40001
+Q5 failed at: 2023-10-4 10:26:14:827:218
+
+Test Result: Rollback
+Reason: Err:错误: Heartbeat: Transaction 86a4d602-f177-452d-a3e4-ba21e0ffccf1 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction 86a4d602-f177-452d-a3e4-ba21e
+

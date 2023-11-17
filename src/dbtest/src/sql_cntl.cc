@@ -557,6 +557,25 @@ bool DBConnector::SetIsolationLevel(SQLHDBC m_hDatabaseConnection, std::string o
     // Set the transaction isolation level based on the 'opt' value (e.g., "read-uncommitted," "read-committed," "repeatable-read," etc.)
     // Use SQLSetConnectAttr method to set the appropriate transaction isolation level.
     // "snapshot" and "rcsnapshot" options require additional SQL commands to be executed for specific isolation levels.
+    
+    // https://cassandra.apache.org/doc/4.1/cassandra/tools/cqlsh.html#consistency
+    if (db_type == "cassandra") {
+        std::string iso;
+        if (opt == "one") {
+            iso = "one";
+        } else {
+            std::cout << "unknow isolation level" << std::endl;
+            return false;
+        }
+        TestResultSet test_result_set;
+        std::string sql;
+        sql = "consistency " + iso + ";";
+        if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
+            return false;
+        }
+        return true;
+    }
+
     if (db_type != "oracle" && db_type != "ob") {
     // for ob mysql mode
     // if (db_type != "oracle") {

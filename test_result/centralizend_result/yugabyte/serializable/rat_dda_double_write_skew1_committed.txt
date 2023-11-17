@@ -1,0 +1,35 @@
+#### db_type: yugabyte ####
+#### test_type: dda_double_write_skew1_committed ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------rat_dda_double_write_skew1_committed test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_dda_double_write_skew1_committed test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:24:36:978:756
+Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q1 finished at: 2023-10-4 10:24:36:980:405
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-10-4 10:24:36:994:60
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:24:37:977:277
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                        Q3 finished at: 2023-10-4 10:24:38:22:342
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q4 finished at: 2023-10-4 10:24:38:39:976
+                                        Q5-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                        Q5 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q5 failed at: 2023-10-4 10:24:38:543:260
+
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
+

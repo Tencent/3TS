@@ -1,0 +1,65 @@
+#### db_type: yugabyte ####
+#### test_type: dda_write_skew_predicate_based-overdraft_protection ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------iat_dda_write_skew_predicate_based-overdraft_protection test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS account;'
+Q0-T1 execute sql: 'create table account (name varchar(255) not null, type varchar(255) not null, balance int not null, primary key (name, type))'
+Q0-T1 execute sql: 'INSERT into account (name,type,balance) VALUES ('kevin','saving', 500);'
+Q0-T1 execute sql: 'INSERT into account (name,type,balance) VALUES ('kevin','checking', 500);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_dda_write_skew_predicate_based-overdraft_protection test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:33:58:116:987
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-10-4 10:33:58:118:247
+Q2-T1 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+   current_result: 
+     (checking,500,) (saving,500,) 
+  *(1) expected_result: 
+     (checking,500,) (saving,500,) 
+   (2) expected_result: 
+     (checking,1400,) (saving,500,) 
+
+Q2 finished at: 2023-10-4 10:33:58:173:418
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:33:59:117:77
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-10-4 10:33:59:248:620
+                                        Q4-T2 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+                                           current_result: 
+                                             (checking,500,) (saving,500,) 
+                                           (1) expected_result: 
+                                             (checking,500,) (saving,1400,) 
+                                          *(2) expected_result: 
+                                             (checking,500,) (saving,500,) 
+
+                                        Q4 finished at: 2023-10-4 10:33:59:277:786
+                                        Q5-T2 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'saving';'
+                                        Q5 finished at: 2023-10-4 10:33:59:283:967
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2023-10-4 10:33:59:284:763
+Q7-T1 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'checking';'
+Q7 finished at: 2023-10-4 10:34:0:133:882
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2023-10-4 10:34:0:137:700
+                                                                                Q9-T3 execute sql: 'SELECT * FROM account;'
+                                                                                   current_result: 
+                                                                                     (kevin,checking,1400) (kevin,saving,1400) 
+                                                                                  *(1) expected_result: 
+                                                                                     (kevin,checking,1400) (kevin,saving,1400) 
+                                                                                  *(2) expected_result: 
+                                                                                     (kevin,checking,1400) (kevin,saving,1400) 
+
+                                                                                Q9 finished at: 2023-10-4 10:34:0:292:41
+                                                                                Q10-T3 execute opt: 'COMMIT';
+                                                                                Q10 finished at: 2023-10-4 10:34:0:292:377
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

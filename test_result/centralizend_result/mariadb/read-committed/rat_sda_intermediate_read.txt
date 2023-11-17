@@ -1,0 +1,53 @@
+#### db_type: mariadb ####
+#### test_type: sda_intermediate_read ####
+#### isolation: read-committed ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = read-committed for each session
+----------rat_sda_intermediate_read test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 VALUES (0, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_sda_intermediate_read test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-9-20 21:34:28:554:360
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-9-20 21:34:28:556:23
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-9-20 21:34:28:654:645
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                           (1) expected_result: 
+                                             (0,2) 
+                                          *(2) expected_result: 
+                                             (0,0) 
+
+                                        Q4 finished at: 2023-9-20 21:34:28:657:29
+Q5-T1 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+Q5 finished at: 2023-9-20 21:34:28:755:579
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2023-9-20 21:34:28:854:390
+Q7-T1 execute opt: 'COMMIT';
+Q7 finished at: 2023-9-20 21:34:28:954:919
+                                                                                Q8-T3 execute sql: 'SELECT * FROM t1;'
+                                                                                   current_result: 
+                                                                                     (0,2) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,2) 
+                                                                                  *(2) expected_result: 
+                                                                                     (0,2) 
+
+                                                                                Q8 finished at: 2023-9-20 21:34:28:956:664
+                                                                                Q9-T3 execute opt: 'COMMIT';
+                                                                                Q9 finished at: 2023-9-20 21:34:28:957:362
+
+The current result is consistent with the [(2) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

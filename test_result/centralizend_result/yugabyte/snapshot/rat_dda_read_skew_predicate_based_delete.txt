@@ -1,0 +1,65 @@
+#### db_type: yugabyte ####
+#### test_type: dda_read_skew_predicate_based_delete ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------rat_dda_read_skew_predicate_based_delete test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_dda_read_skew_predicate_based_delete test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:30:39:388:749
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-10-4 10:30:39:389:954
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     (1,0) (0,0) 
+   (1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,0) (1,0) 
+
+Q2 finished at: 2023-10-4 10:30:39:420:103
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:30:40:388:793
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-10-4 10:30:40:518:782
+                                        Q4-T2 execute sql: 'DELETE FROM t1 WHERE k=1;'
+                                        Q4 finished at: 2023-10-4 10:30:40:535:527
+                                        Q5-T2 execute sql: 'DELETE FROM t1 WHERE k=0;'
+                                        Q5 finished at: 2023-10-4 10:30:40:538:660
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2023-10-4 10:30:40:539:434
+Q7-T1 execute sql: 'SELECT * FROM t1 WHERE v=0;'
+   current_result: 
+     (1,0) (0,0) 
+   (1) expected_result: 
+     null 
+   (2) expected_result: 
+     (0,0) (1,0) 
+
+Q7 finished at: 2023-10-4 10:30:41:392:666
+Q8-T1 execute opt: 'COMMIT';
+Q8 finished at: 2023-10-4 10:30:41:396:383
+                                                                                Q9-T3 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                   current_result: 
+                                                                                     null 
+                                                                                  *(1) expected_result: 
+                                                                                     null 
+                                                                                  *(2) expected_result: 
+                                                                                     null 
+
+                                                                                Q9 finished at: 2023-10-4 10:30:41:549:102
+                                                                                Q10-T3 execute opt: 'COMMIT';
+                                                                                Q10 finished at: 2023-10-4 10:30:41:549:448
+
+Test Result: Anomaly
+Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
+

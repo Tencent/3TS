@@ -1,0 +1,17 @@
+#### db_type: cassandra ####
+#### test_type: dda_write_skew_predicate_based-intersecting_data ####
+#### isolation: one ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = one for each session
+----------iat_dda_write_skew_predicate_based-intersecting_data test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS mytab;'
+Q0-T1 execute sql: 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL);'
+Q0 failed reason: The connection '266' query failed to execute query 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL)': The CQL error message is 'No PRIMARY KEY specifed for table 'mytab' (exactly one required)'.. errcode: HY000
+Q0 failed at: 2023-9-24 22:19:58:76:74
+
+Test Result: Rollback
+Reason: Err:The connection '266' query failed to execute query 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL)': The CQL error message is 'No PRIMARY KEY specifed for table 'mytab' (exactly one required)'..
+

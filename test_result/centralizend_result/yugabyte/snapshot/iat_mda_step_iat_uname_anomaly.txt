@@ -1,0 +1,170 @@
+#### db_type: yugabyte ####
+#### test_type: mda_step_iat_uname_anomaly ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------iat_mda_step_iat_uname_anomaly test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (2, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_mda_step_iat_uname_anomaly test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:34:41:90:148
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-10-4 10:34:41:91:345
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+   current_result: 
+     (1,0) 
+  *(1) expected_result: 
+     (1,0) 
+  *(2) expected_result: 
+     (1,0) 
+   (3) expected_result: 
+     (1,1) 
+   (4) expected_result: 
+     (1,2) 
+  *(5) expected_result: 
+     (1,0) 
+   (6) expected_result: 
+     (1,1) 
+
+Q2 finished at: 2023-10-4 10:34:41:121:789
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:34:42:90:140
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-10-4 10:34:42:202:69
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                           current_result: 
+                                             (0,0) 
+                                          *(1) expected_result: 
+                                             (0,0) 
+                                           (2) expected_result: 
+                                             (0,2) 
+                                          *(3) expected_result: 
+                                             (0,0) 
+                                          *(4) expected_result: 
+                                             (0,0) 
+                                           (5) expected_result: 
+                                             (0,2) 
+                                           (6) expected_result: 
+                                             (0,2) 
+
+                                        Q4 finished at: 2023-10-4 10:34:42:215:114
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q5 finished at: 2023-10-4 10:34:42:218:788
+                                        Q6-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                           current_result: 
+                                             (1,0) 
+                                          *(1) expected_result: 
+                                             (1,0) 
+                                          *(2) expected_result: 
+                                             (1,0) 
+                                          *(3) expected_result: 
+                                             (1,0) 
+                                          *(4) expected_result: 
+                                             (1,0) 
+                                          *(5) expected_result: 
+                                             (1,0) 
+                                          *(6) expected_result: 
+                                             (1,0) 
+
+                                        Q6 finished at: 2023-10-4 10:34:42:219:934
+                                        Q7-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+                                        Q7 finished at: 2023-10-4 10:34:42:223:154
+                                        Q8-T2 execute opt: 'COMMIT';
+                                        Q8 finished at: 2023-10-4 10:34:42:224:19
+                                                                                Q9-T3 execute opt: 'BEGIN;'
+                                                                                Q9 finished at: 2023-10-4 10:34:43:88:855
+                                                                                Q9-T3 execute sql: 'BEGIN TRANSACTION;'
+                                                                                Q9 finished at: 2023-10-4 10:34:43:142:665
+                                                                                Q10-T3 execute sql: 'SELECT * FROM t1 WHERE k=2;'
+                                                                                   current_result: 
+                                                                                     (2,0) 
+                                                                                  *(1) expected_result: 
+                                                                                     (2,0) 
+                                                                                  *(2) expected_result: 
+                                                                                     (2,0) 
+                                                                                  *(3) expected_result: 
+                                                                                     (2,0) 
+                                                                                  *(4) expected_result: 
+                                                                                     (2,0) 
+                                                                                  *(5) expected_result: 
+                                                                                     (2,0) 
+                                                                                  *(6) expected_result: 
+                                                                                     (2,0) 
+
+                                                                                Q10 finished at: 2023-10-4 10:34:43:156:639
+                                                                                Q11-T3 execute sql: 'UPDATE t1 SET v=1 WHERE k=2;'
+                                                                                Q11 finished at: 2023-10-4 10:34:43:158:746
+                                                                                Q12-T3 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                                                                   current_result: 
+                                                                                     (0,1) 
+                                                                                  *(1) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (2) expected_result: 
+                                                                                     (0,0) 
+                                                                                  *(3) expected_result: 
+                                                                                     (0,1) 
+                                                                                  *(4) expected_result: 
+                                                                                     (0,1) 
+                                                                                   (5) expected_result: 
+                                                                                     (0,0) 
+                                                                                   (6) expected_result: 
+                                                                                     (0,0) 
+
+                                                                                Q12 finished at: 2023-10-4 10:34:43:160:0
+                                                                                Q13-T3 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                                                                Q13 finished at: 2023-10-4 10:34:43:161:107
+                                                                                Q14-T3 execute opt: 'COMMIT';
+                                                                                Q14 finished at: 2023-10-4 10:34:43:161:814
+Q15-T1 execute sql: 'SELECT * FROM t1 WHERE k=2;'
+   current_result: 
+     (2,0) 
+  *(1) expected_result: 
+     (2,0) 
+  *(2) expected_result: 
+     (2,0) 
+  *(3) expected_result: 
+     (2,0) 
+   (4) expected_result: 
+     (2,2) 
+   (5) expected_result: 
+     (2,1) 
+   (6) expected_result: 
+     (2,1) 
+
+Q15 finished at: 2023-10-4 10:34:44:94:834
+Q16-T1 execute opt: 'COMMIT';
+Q16 finished at: 2023-10-4 10:34:44:97:115
+                                                                                                                        Q17-T4 execute sql: 'SELECT * FROM t1 ORDER BY k;'
+                                                                                                                           current_result: 
+                                                                                                                             (0,2) (1,1) (2,1) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (0,2) (1,1) (2,1) 
+                                                                                                                          *(2) expected_result: 
+                                                                                                                             (0,2) (1,1) (2,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (0,2) (1,1) (2,1) 
+                                                                                                                          *(4) expected_result: 
+                                                                                                                             (0,2) (1,1) (2,1) 
+                                                                                                                          *(5) expected_result: 
+                                                                                                                             (0,2) (1,1) (2,1) 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             (0,2) (1,1) (2,1) 
+
+                                                                                                                        Q17 finished at: 2023-10-4 10:34:44:251:580
+                                                                                                                        Q18-T4 execute opt: 'COMMIT';
+                                                                                                                        Q18 finished at: 2023-10-4 10:34:44:251:973
+
+The current result is consistent with the [(1) expected_result] of serial scheduling
+
+Test Result: Avoid
+Reason: Data anomaly did not occur and the data is consistent
+

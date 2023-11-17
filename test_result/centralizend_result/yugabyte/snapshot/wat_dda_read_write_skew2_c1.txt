@@ -1,0 +1,44 @@
+#### db_type: yugabyte ####
+#### test_type: dda_read_write_skew2_c1 ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------wat_dda_read_write_skew2_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_read_write_skew2_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:32:49:894:316
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-10-4 10:32:49:895:541
+Q2-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q2 finished at: 2023-10-4 10:32:49:932:65
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:32:50:894:376
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-10-4 10:32:51:26:657
+                                        Q4-T2 execute sql: 'SELECT * FROM t1 WHERE k=1;'
+                                           current_result: 
+                                             (1,0) 
+                                           (1) expected_result: 
+                                             (1,1) 
+                                          *(2) expected_result: 
+                                             (1,0) 
+
+                                        Q4 finished at: 2023-10-4 10:32:51:40:931
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=0;'
+                                        Q5 finished at: 2023-10-4 10:32:51:45:934
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q6 failed reason: 错误: Heartbeat: Transaction bd441a52-2034-46c9-88c2-dc78fc51b42e expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction bd441a52-2034-46c9-88c2-dc78f errcode: 40001
+Q6 failed at: 2023-10-4 10:32:52:504:119
+
+Test Result: Rollback
+Reason: Err:错误: Heartbeat: Transaction bd441a52-2034-46c9-88c2-dc78fc51b42e expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction bd441a52-2034-46c9-88c2-dc78f
+

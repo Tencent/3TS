@@ -27,3 +27,13 @@ set -x
 ./auto_test.sh "ob" "read-committed"
 ./auto_test.sh "ob" "repeatable-read"
 ./auto_test.sh "ob" "serializable"
+
+./auto_test.sh "mariadb" "read-uncommitted"
+./auto_test.sh "mariadb" "read-committed"
+./auto_test.sh "mariadb" "repeatable-read"
+./auto_test.sh "mariadb" "serializable"
+
+./auto_test.sh "cassandra" "one"
+
+./auto_test.sh "yugabyte" "serializable"
+./auto_test.sh "yugabyte" "snapshot"

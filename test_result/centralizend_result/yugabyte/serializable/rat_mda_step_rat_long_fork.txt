@@ -1,0 +1,64 @@
+#### db_type: yugabyte ####
+#### test_type: mda_step_rat_long_fork ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------rat_mda_step_rat_long_fork test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------rat_mda_step_rat_long_fork test run----------
+                                                                                                                        Q1-T4 execute opt: 'BEGIN;'
+                                                                                                                        Q1 finished at: 2023-10-4 10:25:24:123:447
+                                                                                                                        Q1-T4 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                                                                                                        Q1 finished at: 2023-10-4 10:25:24:241:804
+                                                                                                                        Q2-T4 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+                                                                                                                           current_result: 
+                                                                                                                             (0,0) 
+                                                                                                                          *(1) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (2) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(3) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (4) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (5) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(6) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (7) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                           (8) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(9) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (10) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(11) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                           (12) expected_result: 
+                                                                                                                             (0,1) 
+                                                                                                                          *(13) expected_result: 
+                                                                                                                             (0,0) 
+                                                                                                                          *(14) expected_result: 
+                                                                                                                             (0,0) 
+
+                                                                                                                        Q2 finished at: 2023-10-4 10:25:24:259:529
+Q3-T1 execute opt: 'BEGIN;'
+Q3 finished at: 2023-10-4 10:25:25:123:439
+Q3-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q3 finished at: 2023-10-4 10:25:25:124:870
+Q4-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+Q4 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+Q4 failed at: 2023-10-4 10:25:25:561:896
+
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
+

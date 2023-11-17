@@ -1,0 +1,44 @@
+#### db_type: yugabyte ####
+#### test_type: dda_read_write_skew1_c1 ####
+#### isolation: snapshot ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = snapshot for each session
+----------wat_dda_read_write_skew1_c1 test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS t1;'
+Q0-T1 execute sql: 'CREATE TABLE t1 (k INT PRIMARY KEY, v INT);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (0, 0);'
+Q0-T1 execute sql: 'INSERT INTO t1 (k,v) VALUES (1, 0);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------wat_dda_read_write_skew1_c1 test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:32:37:491:249
+Q1-T1 execute sql: 'BEGIN TRANSACTION;'
+Q1 finished at: 2023-10-4 10:32:37:492:494
+Q2-T1 execute sql: 'SELECT * FROM t1 WHERE k=0;'
+   current_result: 
+     (0,0) 
+  *(1) expected_result: 
+     (0,0) 
+   (2) expected_result: 
+     (0,1) 
+
+Q2 finished at: 2023-10-4 10:32:37:522:539
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:32:38:491:248
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION;'
+                                        Q3 finished at: 2023-10-4 10:32:38:607:831
+                                        Q4-T2 execute sql: 'UPDATE t1 SET v=2 WHERE k=1;'
+                                        Q4 finished at: 2023-10-4 10:32:38:625:470
+                                        Q5-T2 execute sql: 'UPDATE t1 SET v=1 WHERE k=0;'
+                                        Q5 finished at: 2023-10-4 10:32:38:628:342
+Q6-T1 execute sql: 'UPDATE t1 SET v=1 WHERE k=1;'
+Q6 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+Q6 failed at: 2023-10-4 10:32:40:104:594
+
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
+

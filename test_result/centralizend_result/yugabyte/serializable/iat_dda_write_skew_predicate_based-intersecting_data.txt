@@ -1,0 +1,44 @@
+#### db_type: yugabyte ####
+#### test_type: dda_write_skew_predicate_based-intersecting_data ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_dda_write_skew_predicate_based-intersecting_data test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS mytab;'
+Q0-T1 execute sql: 'CREATE TABLE mytab(class int NOT NULL, value int NOT NULL);'
+Q0-T1 execute sql: 'INSERT INTO mytab (class,value) VALUES (1, 10);'
+Q0-T1 execute sql: 'INSERT INTO mytab (class,value) VALUES (1, 20);'
+Q0-T1 execute sql: 'INSERT INTO mytab (class,value) VALUES (2, 100);'
+Q0-T1 execute sql: 'INSERT INTO mytab (class,value) VALUES (2, 200);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_dda_write_skew_predicate_based-intersecting_data test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:28:8:377:206
+Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q1 finished at: 2023-10-4 10:28:8:378:501
+Q2-T1 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 1;'
+   current_result: 
+     (30,) 
+  *(1) expected_result: 
+     (30,) 
+   (2) expected_result: 
+     (330,) 
+
+Q2 finished at: 2023-10-4 10:28:8:422:4
+Q3-T1 execute sql: 'INSERT INTO mytab (class,value) VALUES (2, 30);'
+Q3 finished at: 2023-10-4 10:28:8:428:163
+                                        Q4-T2 execute opt: 'BEGIN;'
+                                        Q4 finished at: 2023-10-4 10:28:9:377:183
+                                        Q4-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                        Q4 finished at: 2023-10-4 10:28:9:485:236
+                                        Q5-T2 execute sql: 'SELECT SUM(value) FROM mytab WHERE class = 2;'
+                                        Q5 failed reason: 错误: 由于同步更新而无法串行访问 errcode: 40001
+                                        Q5 failed at: 2023-10-4 10:28:10:2:754
+
+Test Result: Rollback
+Reason: Err:错误: 由于同步更新而无法串行访问
+

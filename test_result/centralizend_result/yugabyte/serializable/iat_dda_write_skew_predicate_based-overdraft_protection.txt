@@ -1,0 +1,53 @@
+#### db_type: yugabyte ####
+#### test_type: dda_write_skew_predicate_based-overdraft_protection ####
+#### isolation: serializable ####
+
+current_result: The query result of the current SQL statement. Each row of table is separated by a space, and the fields in each row are separated by commas
+expected_result: The expected result is the expected query result for each SQL that conforms to the serializability theory
+ 
+set TXN_ISOLATION = serializable for each session
+----------iat_dda_write_skew_predicate_based-overdraft_protection test prepare----------
+Q0-T1 execute sql: 'DROP TABLE IF EXISTS account;'
+Q0-T1 execute sql: 'create table account (name varchar(255) not null, type varchar(255) not null, balance int not null, primary key (name, type))'
+Q0-T1 execute sql: 'INSERT into account (name,type,balance) VALUES ('kevin','saving', 500);'
+Q0-T1 execute sql: 'INSERT into account (name,type,balance) VALUES ('kevin','checking', 500);'
+Q0-T1 execute opt: 'COMMIT';
+
+----------iat_dda_write_skew_predicate_based-overdraft_protection test run----------
+Q1-T1 execute opt: 'BEGIN;'
+Q1 finished at: 2023-10-4 10:28:13:243:611
+Q1-T1 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+Q1 finished at: 2023-10-4 10:28:13:244:994
+Q2-T1 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+   current_result: 
+     (checking,500,) (saving,500,) 
+  *(1) expected_result: 
+     (checking,500,) (saving,500,) 
+   (2) expected_result: 
+     (checking,1400,) (saving,500,) 
+
+Q2 finished at: 2023-10-4 10:28:13:265:353
+                                        Q3-T2 execute opt: 'BEGIN;'
+                                        Q3 finished at: 2023-10-4 10:28:14:243:699
+                                        Q3-T2 execute sql: 'BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;'
+                                        Q3 finished at: 2023-10-4 10:28:14:377:65
+                                        Q4-T2 execute sql: 'SELECT type, balance FROM account WHERE name = 'kevin';'
+                                           current_result: 
+                                             (checking,500,) (saving,500,) 
+                                           (1) expected_result: 
+                                             (checking,500,) (saving,1400,) 
+                                          *(2) expected_result: 
+                                             (checking,500,) (saving,500,) 
+
+                                        Q4 finished at: 2023-10-4 10:28:14:407:777
+                                        Q5-T2 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'saving';'
+                                        Q5 finished at: 2023-10-4 10:28:14:411:312
+                                        Q6-T2 execute opt: 'COMMIT';
+                                        Q6 finished at: 2023-10-4 10:28:14:412:42
+Q7-T1 execute sql: 'UPDATE account SET balance = balance + 900 WHERE name = 'kevin' and type = 'checking';'
+Q7 failed reason: 错误: Heartbeat: Transaction e2d8197d-9fa7-4b37-8719-97648596fa38 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction e2d8197d-9fa7-4b37-8719-97648 errcode: 40001
+Q7 failed at: 2023-10-4 10:28:15:952:316
+
+Test Result: Rollback
+Reason: Err:错误: Heartbeat: Transaction e2d8197d-9fa7-4b37-8719-97648596fa38 expired or aborted by a conflict: 40001: . Errors from tablet servers: [Operation expired (yb/tablet/transaction_coordinator.cc:1706): Heartbeat: Transaction e2d8197d-9fa7-4b37-8719-97648
+

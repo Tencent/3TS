@@ -30,8 +30,16 @@ then
 elif [ $db == "crdb" ]
 then
     ./3ts_dbtest -isolation=$2 -db_type="crdb" -user="username" -passwd="password" -case_dir="crdb"
-else [ $db == "mongodb" ]
-    ./3ts_dbtest -isolation=$2 -db_type="mongodb" -user="username" -passwd="password" -case_dir="mysql"
+elif [ $db == "mongodb" ]
+then
+    ./3ts_dbtest -isolation=$2 -db_type="mongodb" -user="username" -passwd="password" -case_dir="mongodb"
+elif [ $db == "mariadb" ]
+then
+    ./3ts_dbtest -isolation=$2 -db_type="mariadb" -user="username" -passwd="password" -case_dir="mariadb"
+elif [ $db == "cassandra" ]
+then
+    ./3ts_dbtest -isolation=$2 -db_type="cassandra" -user="username" -passwd="password" -case_dir="cassandra"
+elif [ $db == "yugabyte" ]
+then
+    ./3ts_dbtest -isolation=$2 -db_type="yugabyte" -user="username" -passwd="password" -case_dir="yugabyte"
 fi
-
-
