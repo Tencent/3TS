@@ -18,8 +18,10 @@ Check out some test cases (e.g., [Dirty Write](test_result/test_cases/wat_sda_di
 You can explore all results on [report webpage](https://axingguchen.github.io/3TS/).
 
 Paper from the project:
-VLDB'23: [PolySI](https://github.com/hengxin/PolySI-PVLDB2023-Artifacts）
-VLDB'24 DEMO： [IsoVista](https://github.com/hengxin/IsoVista）
+
+- VLDB'23: [PolySI: Efficient Black-box Checking of Snapshot Isolation in Databases](https://github.com/hengxin/PolySI-PVLDB2023-Artifacts) 
+
+- VLDB'24 DEMO: [IsoVista: Black-box Checking Database Isolation Guarantees](https://github.com/hengxin/IsoVista) 
 
 
 ## Usage
