@@ -88,16 +88,15 @@
 
 ### 项目中的作用
 
-该文件在整个项目中主要负责与数据库的交互，执行SQL语句，并在执行过程中进行错误处理和日志记录。通过提供对数据库操作的封装和抽象，`DBConnector`类使得上层应用程序可以更简便地进行数据库操作，同时提供详细的错误信息以便于调试和维护。
+该文件在整个项目中主要负责与数据库的交互，执行SQL语句，并在执行过程中进行错误处理和日志记录。
 
 
 
 ## 文件之间的关系
 
 1. `sql_cntl.cc` 和 `sqltest.cc` ：
-   - `sqltest.cc` 依赖于 `sql_cntl.cc` 中的 `DBConnector` 类来执行具体的SQL操作。`sqltest.txt` 使用 `DBConnector` 类的方法来执行SQL语句，并在多线程环境下进行事务测试。
+   - `sqltest.cc` 依赖于 `sql_cntl.cc` 中的工具和辅助函数来执行具体的SQL操作，`sqltest.cc`利用 `sql_cntl.cc` 定义的结果处理和输出函数来验证正确性，并报告结果。`sqlcntl.txt`负责具体的SQL执行逻辑，为`sqltest.txt`提供支持。
 2. `sql_cntl.cc` 和 `case_cntl.cc` ：
-   - `case_cntl.cc` 中的解析结果（SQL语句和事务ID）会通过某种方式传递给 `sqltest.cc` 中的测试执行函数。而这些SQL操作实际是由 `sql_cntl.cc` 中的 `DBConnector` 类完成的。
+   - `case_cntl.cc` 的函数和类读取测试用例、解析预期结果以及将实际结果与这些预期进行比较。 `sqltest.cc` 负责执行SQL语句的逻辑，并调用这些比较函数。
 3. `sql_test.cc` 和 `case_cntl.cc` ：
-   - `case_cntl.cc` 负责读取和解析测试用例文件，提取出SQL语句和事务ID。
-   - 这些解析后的数据会被传递给 `sqltest.cc`，然后由 `sqltest.cc` 进行多线程的事务执行测试
+   - `case_cntl.cc` 负责读取和解析测试用例文件，和预期结果预期结果。这些解析后的数据会被传递给 `sqltest.cc`，然后由 `sqltest.cc` 进行多线程的事务执行测试。
