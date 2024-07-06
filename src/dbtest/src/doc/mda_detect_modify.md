@@ -1,6 +1,7 @@
 [text](mda_detect.py) 修改日志
-# 思考
-1. 用于加边建立图的节点对应一个操作还是一个事务。
+# 思考&分析
+1. 用于加边建立图的节点对应一个操作还是一个事务。答：一个事务。
+2. 目标：一个对数据库的操作文件（运行效果文件）中有多个事务，每一个事务有不同的隔离级别，通过执行结果和隔离级别判断是否满足一致性
 
 # 原来代码中问题
 ### 数组访问越界问题
@@ -29,3 +30,4 @@ total_num_txn = get_total_txn(lines)  # total number of txn
 # total_num:     data_op_list, version_list
 # total_num_txn: txn, edge, total_num_txn, visit, visit1
 ```
+

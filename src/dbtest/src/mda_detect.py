@@ -33,7 +33,7 @@ class Txn:
     def __init__(self):
         self.begin_ts = -1
         self.end_ts = 99999999999999999999
-        self.isolation = ""
+        self.isolation = "serializable"
 
 
 # find total variable number
@@ -77,6 +77,16 @@ def find_data(query, target):
     data_value = int(data_value)
     return data_value
 
+# extract the isolation from content 
+def find_isolation(query):
+    if query.find("read-uncommitted") != -1:
+        return "read-uncommitted"
+    if query.find("read-committed") != -1:
+        return "read-committed"
+    if query.find("repeatable-read") != -1:
+        return "repeatable-read"
+    if query.find("serializable") != -1:
+        return "serializable"
 
 # when a statement is executed, set the end time and modify the version list
 def set_finish_time(op_time, data_op_list, query, txn, version_list):
@@ -120,7 +130,7 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
 def check_concurrency(data1, data2, txn):
     if txn[data2.txn_num].begin_ts < txn[data1.txn_num].end_ts:
         return True
-    elif txn[data1.txn_num].begin_ts < txn[data2.txn_num].end_ts:
+    elif txn[data1.txn_num].begin_ts < txn[data2.txn_num].end_ts: # TODO maybe a bug: don't need
         return True
     else:
         return False
@@ -138,7 +148,7 @@ def get_edge_type(data1, data2, txn):
     #         before, after = data2, data1
     #     else:
     #         before, after = data1, data2
-    if data2.op_time > txn[data1.txn_num].end_ts:
+    if data2.op_time > txn[data1.txn_num].end_ts: # TODO maybe a bug, before after
         state = "C"
     else:
         state = ""
@@ -290,6 +300,9 @@ def operation_record(total_num, query, txn, data_op_list, version_list):
     if query.find("finished") != -1:
         set_finish_time(op_time, data_op_list, query, txn, version_list)
         return error_message
+    if op_time == -1 and txn_num != -1 and query.find("set_isolation") != -1: # TODO: Need a related interface, I assume that it is read from the do_test_list file.:
+        # query such as "T2 set_isolation=serializable "
+        txn[txn_num].isolation = find_isolation(query)
     if op_time == -1 or txn_num == -1:
         return error_message
     if query.find("SELECT") != -1:
