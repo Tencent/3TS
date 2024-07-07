@@ -42,11 +42,11 @@ def get_total(lines):
     for query in lines:
         query = query.replace("\n", "")
         query = query.replace(" ", "")
-        if query[0:2] == "Q0" and query.find("INSERT") != -1:
+        if query.find("INSERT") != -1: # query[0:2] == "Q0" and 
             tmp = find_data(query, "(")
             num = max(num, tmp)
-        elif query[0:2] == "Q1":
-            break
+        # elif query[0:2] == "Q1":
+        #     break
     return num
 
 # find total Txn number
@@ -90,8 +90,8 @@ def find_isolation(query):
 
 # when a statement is executed, set the end time and modify the version list
 def set_finish_time(op_time, data_op_list, query, txn, version_list):
-    pos = query.find("finishedat:")
-    pos += len("finishedat:")
+    pos = query.find("finished at:")
+    pos += len("finished at:")
     data_value = ""
     tmp, tmp1 = "", ""
     for i in range(pos, len(query)):
@@ -123,7 +123,6 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
                     version_list[i].append(op.value)
                     op.value = len(version_list[i]) - 1
 
-
 # if both transactions are running
 # or the start time of the second transaction is less than the end time of the first transaction
 # we think they are concurrent
@@ -136,19 +135,26 @@ def check_concurrency(data1, data2, txn):
         return False
 
 
+def check_edge_exit(edge,src_txn,src_type,tar_txn,tar_type):
+    for e in edge[src_txn]:
+        if e.out == tar_txn and e.type[0] == src_type and e.type[-1] == tar_type:
+            return True
+    return False
+
 # decide which operation comes first depending on the read or write version
 # if later operation happened after the first txn commit time, edge type will add "C"
 def get_edge_type(data1, data2, txn):
-    if data1.value <= data2.value:
-        before, after = data1, data2
-    else:
-        before, after = data2, data1
+    # if data1.value <= data2.value:          
+    #     before, after = data1, data2
+    # else:
+    #     before, after = data2, data1
+    before, after = data1, data2
     # if data1.op_type == "D" or data2.op_type == "D":
     #     if data1.value < data2.value:
     #         before, after = data2, data1
     #     else:
     #         before, after = data1, data2
-    if data2.op_time > txn[data1.txn_num].end_ts: # TODO maybe a bug, before after
+    if data2.op_time > txn[data1.txn_num].end_ts: 
         state = "C"
     else:
         state = ""
@@ -165,9 +171,45 @@ def build_graph(data_op_list, indegree, edge, txn):
 def insert_edge(data1, data2, indegree, edge, txn):
     if check_concurrency(data1, data2, txn):
         edge_type, data1, data2 = get_edge_type(data1, data2, txn)
-        if edge_type != "RR" and edge_type != "RCR" and data1.txn_num != data2.txn_num:
+        # if edge_type != "RR" and edge_type != "RCR" and data1.txn_num != data2.txn_num:
+        #     indegree[data2.txn_num] += 1
+        #     edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        if edge_type == "WW" or edge_type == "WCW":
             indegree[data2.txn_num] += 1
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        elif data1.isolation == "read-uncommitted":
+            if edge_type[0] != 'R' and not(data2.isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
+                if edge_type[-1] == 'R': #  not R -- R 
+                    if data2.isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
+                        indegree[data2.txn_num] += 1 
+                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+                    if data2.isolation == "repeatable-read" and edge_type[0]== 'W':
+                        indegree[data2.txn_num] += 1
+                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
+                    if data2.isolation == "serializable":
+                        indegree[data2.txn_num] += 1
+                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
+                elif edge_type[-1] != 'R': #  not R -- not R 
+                    indegree[data2.txn_num] += 1
+                    edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        elif data1.isolation == "read-committed" or data1.isolation == "repeatable-read" or data1.isolation == "serializable":
+            if edge_type[0] != 'R' and not(data2.isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
+                if edge_type[-1] == 'R': #  not R -- R 
+                    if data2.isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
+                        indegree[data2.txn_num] += 1 
+                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+                    if data2.isolation == "repeatable-read" and edge_type[0]== 'W':
+                        indegree[data2.txn_num] += 1
+                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
+                    if data2.isolation == "serializable":
+                        indegree[data2.txn_num] += 1
+                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
+                elif edge_type[-1] != 'R': #  not R -- not R 
+                    indegree[data2.txn_num] += 1
+                    edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+            elif edge_type[0] == 'R' and edge_type[-1] != 'R':
+                indegree[data2.txn_num] += 1
+                edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
 
 
 def init_record(query, version_list):
@@ -238,12 +280,12 @@ def read_record(op_time, txn_num, total_num, txn, data_op_list):
         left = find_data(query, "k>") + 1
         right = find_data(query, "k<")
         for i in range(left, right):
-            data_op_list[i].append(Operation("P", txn_num, op_time, i))
+            data_op_list[i].append(Operation("R", txn_num, op_time, i)) # P
     elif query.find("value1>") != -1:
         left = find_data(query, "value1>") + 1
         right = find_data(query, "value1<")
         for i in range(left, right):
-            data_op_list[i].append(Operation("P", txn_num, op_time, i))
+            data_op_list[i].append(Operation("R", txn_num, op_time, i)) # p
     else:
         # it means select all rows in table
         for i in range(total_num):
@@ -303,6 +345,7 @@ def operation_record(total_num, query, txn, data_op_list, version_list):
     if op_time == -1 and txn_num != -1 and query.find("set_isolation") != -1: # TODO: Need a related interface, I assume that it is read from the do_test_list file.:
         # query such as "T2 set_isolation=serializable "
         txn[txn_num].isolation = find_isolation(query)
+        return error_message
     if op_time == -1 or txn_num == -1:
         return error_message
     if query.find("SELECT") != -1:
