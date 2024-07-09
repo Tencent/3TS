@@ -21,7 +21,8 @@ class Edge:
     def __init__(self, type, out):
         self.type = type
         self.out = out
-
+    def __repr__(self):
+        return "Edge(type={}, out={})".format(self.type, self.out)
 
 class Operation:
     def __init__(self, op_type, txn_num, op_time, value):
@@ -37,6 +38,12 @@ class Txn:
         self.end_ts = 99999999999999999999
         self.isolation = "serializable"
 
+# print edge after build graph
+def print_graph(edge):
+    for i, edges in enumerate(edge):
+        print("Transaction {}:".format(i))
+        for e in edges:
+            print("  {}".format(e))
 
 # find total variable number
 def get_total(lines):
@@ -485,7 +492,7 @@ for file in files:
         query = query.replace(" ", "")
         if query.find("Rollback") != -1 or query.find("Timeout") != -1:
             go_end = True
-        print("total_num:{}, total_num_txn:{}, query:{},ts_now: {}, file: {}\n".format(total_num,total_num_txn,query,ts_now,run_result_folder + "/" + file + ".txt"))
+        # print("total_num:{}, total_num_txn:{}, query:{},ts_now: {}, file: {}\n".format(total_num,total_num_txn,query,ts_now,run_result_folder + "/" + file + ".txt"))
         error_message = operation_record(total_num, query, txn, data_op_list, version_list)
         if error_message != "":
             break
@@ -498,6 +505,7 @@ for file in files:
     cycle = False
     remove_unfinished_operation(data_op_list)
     build_graph(data_op_list, indegree, edge, txn)
+    print_graph(edge)
     if not go_end:
         cycle = check_cycle(edge, indegree, total_num + 2)
     if cycle:
