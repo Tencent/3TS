@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 # /*
 #  * Tencent is pleased to support the open source community by making 3TS available.
 #  *
@@ -177,31 +179,31 @@ def insert_edge(data1, data2, indegree, edge, txn):
         if edge_type == "WW" or edge_type == "WCW":
             indegree[data2.txn_num] += 1
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        elif data1.isolation == "read-uncommitted":
-            if edge_type[0] != 'R' and not(data2.isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
+        elif txn[data1.txn_num].isolation == "read-uncommitted":
+            if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
                 if edge_type[-1] == 'R': #  not R -- R 
-                    if data2.isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
+                    if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'): # 可能脏读
                         indegree[data2.txn_num] += 1 
                         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-                    if data2.isolation == "repeatable-read" and edge_type[0]== 'W':
+                    if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
                         indegree[data2.txn_num] += 1
                         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
-                    if data2.isolation == "serializable":
+                    if txn[data2.txn_num].isolation == "serializable":
                         indegree[data2.txn_num] += 1
                         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
                 elif edge_type[-1] != 'R': #  not R -- not R 
                     indegree[data2.txn_num] += 1
                     edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        elif data1.isolation == "read-committed" or data1.isolation == "repeatable-read" or data1.isolation == "serializable":
-            if edge_type[0] != 'R' and not(data2.isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
+        elif txn[data1.txn_num].isolation == "read-committed" or txn[data1.txn_num].isolation == "repeatable-read" or txn[data1.txn_num].isolation == "serializable":
+            if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
                 if edge_type[-1] == 'R': #  not R -- R 
-                    if data2.isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
+                    if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
                         indegree[data2.txn_num] += 1 
                         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-                    if data2.isolation == "repeatable-read" and edge_type[0]== 'W':
+                    if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
                         indegree[data2.txn_num] += 1
                         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
-                    if data2.isolation == "serializable":
+                    if txn[data2.txn_num].isolation == "serializable":
                         indegree[data2.txn_num] += 1
                         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
                 elif edge_type[-1] != 'R': #  not R -- not R 
@@ -345,6 +347,7 @@ def operation_record(total_num, query, txn, data_op_list, version_list):
     if op_time == -1 and txn_num != -1 and query.find("set_isolation") != -1: # TODO: Need a related interface, I assume that it is read from the do_test_list file.:
         # query such as "T2 set_isolation=serializable "
         txn[txn_num].isolation = find_isolation(query)
+        print(str(txn_num)+"------------------"+txn[txn_num].isolation)
         return error_message
     if op_time == -1 or txn_num == -1:
         return error_message
@@ -443,7 +446,7 @@ def print_error(result_folder, ts_now, error_message):
         f.write("\n\n")
 
 
-run_result_folder = "pg/serializable"
+run_result_folder = "pg/repeatable-read"
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
 #ts_now = "_2param_3txn_insert"
