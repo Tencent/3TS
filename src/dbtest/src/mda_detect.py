@@ -39,11 +39,21 @@ class Txn:
         self.isolation = "serializable"
 
 # print edge after build graph
-def print_graph(edge):
+def print_graph(edge,txn):
     for i, edges in enumerate(edge):
-        print("Transaction {}:".format(i))
+        if i == 0 or i == len(edge)-1:
+            continue
+        print("Transaction {}:-----{}-----".format(i,txn[i].isolation))
         for e in edges:
             print("  {}".format(e))
+
+
+# print data_op_list
+def print_data_op_list(data_op_list):
+    for k,list in enumerate(data_op_list):
+        print("\nk:{}---".format(k))
+        for i, data in enumerate(list):
+            print("op:{}--{}-".format(data.op_type,data.txn_num))
 
 # find total variable number
 def get_total(lines):
@@ -99,20 +109,21 @@ def find_isolation(query):
 
 # when a statement is executed, set the end time and modify the version list
 def set_finish_time(op_time, data_op_list, query, txn, version_list):
-    pos = query.find("finished at:")
-    pos += len("finished at:")
-    data_value = ""
-    tmp, tmp1 = "", ""
-    for i in range(pos, len(query)):
-        if query[i].isdigit():
-            tmp += query[i]
-        else:
-            for j in range(3 - len(tmp)):
-                tmp1 += "0"
-            tmp = tmp1 + tmp
-            data_value += tmp
-            tmp, tmp1 = "", ""
-    data_value = int(data_value)
+    # pos = query.find("finished at:")
+    # pos += len("finished at:")
+    # data_value = ""
+    # tmp, tmp1 = "", ""
+    # for i in range(pos, len(query)):
+    #     if query[i].isdigit():
+    #         tmp += query[i]
+    #     else:
+    #         for j in range(3 - len(tmp)):
+    #             tmp1 += "0"
+    #         tmp = tmp1 + tmp
+    #         data_value += tmp
+    #         tmp, tmp1 = "", ""
+    # data_value = int(data_value)
+    data_value = int(op_time)
     for t in txn:
         if t.begin_ts == op_time:
             t.begin_ts = data_value
@@ -177,48 +188,67 @@ def build_graph(data_op_list, indegree, edge, txn):
                 insert_edge(list1[j], data, indegree, edge, txn)
 
 
+
 def insert_edge(data1, data2, indegree, edge, txn):
     if check_concurrency(data1, data2, txn):
         edge_type, data1, data2 = get_edge_type(data1, data2, txn)
-        # if edge_type != "RR" and edge_type != "RCR" and data1.txn_num != data2.txn_num:
-        #     indegree[data2.txn_num] += 1
-        #     edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        if edge_type == "WW" or edge_type == "WCW":
+        if data1.txn_num == data2.txn_num or edge_type in ["RCR", "RR"]:
+            return 
+        #* read-uncommitted： Dirty Write
+        # WI 不存在，如果有，那么一定会有 WD + DI 的等效边
+        # II 不存在，如果有，那么一定会有 ID + DI 的等效边
+        # DW 允许存在， UPDATE 时使用条件查询包含 D 的数据
+        # DD 不存在，如果有，那么一定会有 DI + ID 的等效边
+        if edge_type in ["WCW", "WW", "WCD", "WD", "ICW","IW", "ICD", "ID", "DCW", "DW", "DCI", "DI"]:   
             indegree[data2.txn_num] += 1
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        elif txn[data1.txn_num].isolation == "read-uncommitted":
-            if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
-                if edge_type[-1] == 'R': #  not R -- R 
-                    if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'): # 可能脏读
-                        indegree[data2.txn_num] += 1 
-                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-                    if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
-                        indegree[data2.txn_num] += 1
-                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
-                    if txn[data2.txn_num].isolation == "serializable":
-                        indegree[data2.txn_num] += 1
-                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
-                elif edge_type[-1] != 'R': #  not R -- not R 
-                    indegree[data2.txn_num] += 1
-                    edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        elif txn[data1.txn_num].isolation == "read-committed" or txn[data1.txn_num].isolation == "repeatable-read" or txn[data1.txn_num].isolation == "serializable":
-            if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
-                if edge_type[-1] == 'R': #  not R -- R 
-                    if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
-                        indegree[data2.txn_num] += 1 
-                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-                    if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
-                        indegree[data2.txn_num] += 1
-                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
-                    if txn[data2.txn_num].isolation == "serializable":
-                        indegree[data2.txn_num] += 1
-                        edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
-                elif edge_type[-1] != 'R': #  not R -- not R 
-                    indegree[data2.txn_num] += 1
-                    edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-            elif edge_type[0] == 'R' and edge_type[-1] != 'R':
-                indegree[data2.txn_num] += 1
-                edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        #* read-committed： Dirty Read
+        elif edge_type in ["WCR","WR"] and (txn[data2.txn_num].isolation == "read-committed" or txn[data2.txn_num].isolation == "repeatable-read" or txn[data2.txn_num].isolation == "serializable"):   
+            indegree[data2.txn_num] += 1
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        #* repeatable-read： Unrepeatable Read
+        elif edge_type in ["RCW","RW"] and (txn[data1.txn_num].isolation == "repeatable-read" or txn[data1.txn_num].isolation == "serializable"):   
+            indegree[data2.txn_num] += 1
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        #* serializable： Phantom Read
+        elif edge_type in ["ICR","IR","DCR","DR","RCI","RI","RCD","RD"] and txn[data1.txn_num].isolation == "serializable":   
+            indegree[data2.txn_num] += 1
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))       
+
+        # 入边
+        # elif txn[data1.txn_num].isolation == "read-uncommitted":
+        #     if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
+        #         if edge_type[-1] == 'R': #  not R -- R 
+        #             if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'): # 可能脏读
+        #                 indegree[data2.txn_num] += 1 
+        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        #             if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
+        #                 indegree[data2.txn_num] += 1
+        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
+        #             if txn[data2.txn_num].isolation == "serializable":
+        #                 indegree[data2.txn_num] += 1
+        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
+        #         elif edge_type[-1] != 'R': #  not R -- not R 
+        #             indegree[data2.txn_num] += 1
+        #             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        # elif txn[data1.txn_num].isolation == "read-committed" or txn[data1.txn_num].isolation == "repeatable-read" or txn[data1.txn_num].isolation == "serializable":
+        #     if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
+        #         if edge_type[-1] == 'R': #  not R -- R 
+        #             if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
+        #                 indegree[data2.txn_num] += 1 
+        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        #             if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
+        #                 indegree[data2.txn_num] += 1
+        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
+        #             if txn[data2.txn_num].isolation == "serializable":
+        #                 indegree[data2.txn_num] += 1
+        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
+        #         elif edge_type[-1] != 'R': #  not R -- not R 
+        #             indegree[data2.txn_num] += 1
+        #             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+        #     elif edge_type[0] == 'R' and edge_type[-1] != 'R':
+        #         indegree[data2.txn_num] += 1
+        #         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
 
 
 def init_record(query, version_list):
@@ -297,7 +327,7 @@ def read_record(op_time, txn_num, total_num, txn, data_op_list):
             data_op_list[i].append(Operation("R", txn_num, op_time, i)) # p
     else:
         # it means select all rows in table
-        for i in range(total_num):
+        for i in range(total_num+1):
             data_op_list[i].append(Operation("R", txn_num, op_time, i))
 
 
@@ -312,7 +342,21 @@ def write_record(op_time, txn_num, txn, data_op_list):
         op_data = find_data(query, "k=")
         op_value = find_data(query, "v=")
         data_op_list[op_data].append(Operation("W", txn_num, op_time, op_value))
-
+    # for predicate cases
+    elif query.find("k>") != -1:
+        left = find_data(query, "k>") + 1
+        right = find_data(query, "k<")
+        for i in range(left, right):
+            data_op_list[i].append(Operation("W", txn_num, op_time, i)) # P
+    elif query.find("value1>") != -1:
+        left = find_data(query, "value1>") + 1
+        right = find_data(query, "value1<")
+        for i in range(left, right):
+            data_op_list[i].append(Operation("W", txn_num, op_time, i)) # p
+    else:
+        # it means select all rows in table
+        for i in range(total_num+1):
+            data_op_list[i].append(Operation("W", txn_num, op_time, i))
 
 def delete_record(op_time, txn_num, txn, data_op_list):
     if txn[txn_num].begin_ts == -1:
@@ -323,7 +367,21 @@ def delete_record(op_time, txn_num, txn, data_op_list):
     elif query.find("k=") != -1:
         op_data = find_data(query, "k=")
         data_op_list[op_data].append(Operation("D", txn_num, op_time, op_data))
-
+    # for predicate cases
+    elif query.find("k>") != -1:
+        left = find_data(query, "k>") + 1
+        right = find_data(query, "k<")
+        for i in range(left, right):
+            data_op_list[i].append(Operation("D", txn_num, op_time, i)) # P
+    elif query.find("value1>") != -1:
+        left = find_data(query, "value1>") + 1
+        right = find_data(query, "value1<")
+        for i in range(left, right):
+            data_op_list[i].append(Operation("D", txn_num, op_time, i)) # p
+    else:
+        # it means select all rows in table
+        for i in range(total_num+1):
+            data_op_list[i].append(Operation("D", txn_num, op_time, i))
 
 def insert_record(op_time, txn_num, txn, data_op_list):
     if txn[txn_num].begin_ts == -1 and op_time != 0:
@@ -337,6 +395,7 @@ def end_record(op_time, txn_num, txn):
     txn[txn_num].end_ts = op_time
 
 
+
 def operation_record(total_num, query, txn, data_op_list, version_list):
     error_message = ""
     op_time = find_data(query, "Q")
@@ -345,35 +404,28 @@ def operation_record(total_num, query, txn, data_op_list, version_list):
     if op_time == 0 and query.find("INSERT") != -1:
         init_record(query, version_list)
         return error_message
-    if query.find("returnresult") != -1:
+    if query.find("returnresult") != -1: #! 1"returnresult"  maybe don't exist
         error_message = readVersion_record(query, op_time, data_op_list, version_list)
         return error_message
-    if query.find("finished") != -1:
+    if query.find("finished") != -1: #! "finished"  maybe don't exist
         set_finish_time(op_time, data_op_list, query, txn, version_list)
-        return error_message
-    if op_time == -1 and txn_num != -1 and query.find("set_isolation") != -1: # TODO: Need a related interface, I assume that it is read from the do_test_list file.:
-        # query such as "T2 set_isolation=serializable "
-        txn[txn_num].isolation = find_isolation(query)
-        print(str(txn_num)+"------------------"+txn[txn_num].isolation)
         return error_message
     if op_time == -1 or txn_num == -1:
         return error_message
-    if query.find("SELECT") != -1:
+    if query.find("BEGIN") != -1: # TODO: Need a related interface, I assume that it is read from the do_test_list file.:
+        txn[txn_num].isolation = find_isolation(query)
+    elif query.find("SELECT") != -1:
         read_record(op_time, txn_num, total_num, txn, data_op_list)
-        return error_message
     elif query.find("UPDATE") != -1:
         write_record(op_time, txn_num, txn, data_op_list)
-        return error_message
-    elif query.find("DELETE") != -1:
+    elif query.find("DELETE") != -1:    
         delete_record(op_time, txn_num, txn, data_op_list)
-        return error_message
-    elif query.find("INSERT") != -1:
+    elif query.find("INSERT") != -1:    #! assume existing data will not be inserted ("Rollback")
         insert_record(op_time, txn_num, txn, data_op_list)
-        return error_message
     elif query.find("COMMIT") != -1:
         if op_time != 0:
             end_record(op_time, txn_num, txn)
-        return error_message
+    set_finish_time(op_time, data_op_list, query, txn, version_list)
     return error_message
     
 
@@ -453,9 +505,21 @@ def print_error(result_folder, ts_now, error_message):
         f.write("\n\n")
 
 
-run_result_folder = "pg/repeatable-read"
+
+
+
+#! ------Some assumption------
+# 在任何隔离级别事务的修改互相可见,即等价于单一存储，无读写缓冲
+# 在输入文件中有设置各个事务隔离级别的语句，在 "BEGIN 之后"
+    # BEGIN T1 set_isolation=repeatable-read 
+    # BEGIN T2 set_isolation=serializable 
+    # BEGIN T3 set_isolation=read-uncommitted 
+    # BEGIN T4 set_isolation=read-committed 
+# 假定插入的数据 key 是从 0 向上递增的顺序
+
+run_result_folder = "pg/mda_detect_test"
 result_folder = "check_result/" + run_result_folder
-do_test_list = "do_test_list.txt"
+do_test_list = "mda_detect_test_list.txt"
 #ts_now = "_2param_3txn_insert"
 ts_now = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 if not os.path.exists(result_folder):
@@ -503,16 +567,19 @@ for file in files:
         continue
     
     cycle = False
-    remove_unfinished_operation(data_op_list)
+    # remove_unfinished_operation(data_op_list) 动态测试中默认所有的执行时间 Qi 都没有 finish 字段
     build_graph(data_op_list, indegree, edge, txn)
-    print_graph(edge)
+    print("--------file:{}--------".format(file))
+    print_graph(edge,txn)
+    # print_data_op_list(data_op_list)
     if not go_end:
-        cycle = check_cycle(edge, indegree, total_num + 2)
+        cycle = check_cycle(edge, indegree, total_num_txn+2)
     if cycle:
         output_result(file, result_folder, ts_now, "Cyclic")
-        for i in range(total_num + 2):
+        for i in range(total_num_txn + 2):
             if visit1[i] == 0:
                 dfs(result_folder, ts_now, i, "null")
     else:
         output_result(file, result_folder, ts_now, "Avoid")
         print_path(result_folder, ts_now, edge)
+    print("---------------------------------\n")
