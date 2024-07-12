@@ -1,0 +1,25 @@
+
+
+
+Q0-T1-DROP TABLE IF EXISTS t1;
+Q0-T1-CREATE TABLE t1 (k INT PRIMARY KEY, v INT);
+Q0-T1-INSERT INTO t1 VALUES (0, 0);
+Q0-T1-INSERT INTO t1 VALUES (1, 1);
+Q0-T1-INSERT INTO t1 VALUES (2, 2);
+Q0-T1-COMMIT;
+
+Q1-T1-BEGIN set_isolation=repeatable-read;
+Q2-T1-SELECT * FROM t1 WHERE k=1;
+
+      Q3-T2-BEGIN set_isolation=serializable;
+      Q4-T2-INSERT INTO t1 VALUES (3, 3);
+      Q5-T2-COMMIT;
+
+Q6-T1-SELECT * FROM t1 WHERE k=1; 
+Q7-T1-SELECT * FROM t1; 
+Q8-T1-COMMIT;
+
+                  Q9-T3-BEGIN set_isolation=serializable ;
+                  Q10-T3-SELECT * FROM t1 WHERE k=3;
+                  Q11-T3-COMMIT;
+
