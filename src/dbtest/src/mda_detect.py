@@ -211,10 +211,13 @@ def insert_edge(data1, data2, indegree, edge, txn):
             indegree[data2.txn_num] += 1
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
         #* serializable： Phantom Read
-        elif edge_type in ["ICR","IR","DCR","DR","RCI","RI","RCD","RD"] and txn[data1.txn_num].isolation == "serializable":   
+        elif edge_type in ["RCI","RI","RCD","RD"] and txn[data1.txn_num].isolation == "serializable":   
             indegree[data2.txn_num] += 1
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))       
-
+        #* serializable： Phantom Read
+        elif edge_type in ["ICR","IR","DCR","DR"] and txn[data2.txn_num].isolation == "serializable":   
+            indegree[data2.txn_num] += 1
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num)) 
         # 入边
         # elif txn[data1.txn_num].isolation == "read-uncommitted":
         #     if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
