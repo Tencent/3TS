@@ -18,11 +18,12 @@ import time
 
 
 class Edge:
-    def __init__(self, type, out):
+    def __init__(self, type, out, begin_time):
         self.type = type
         self.out = out
+        self.time = begin_time
     def __repr__(self):
-        return "Edge(type={}, out={})".format(self.type, self.out)
+        return "Edge(begin_time={}, type={}, out={})".format(self.time, self.type, self.out)
 
 class Operation:
     def __init__(self, op_type, txn_num, op_time, value):
@@ -51,9 +52,10 @@ def print_graph(edge,txn):
 # print data_op_list
 def print_data_op_list(data_op_list):
     for k,list in enumerate(data_op_list):
-        print("\nk:{}---".format(k))
-        for i, data in enumerate(list):
-            print("op:{}--{}-".format(data.op_type,data.txn_num))
+        if k< len(data_op_list)-1:
+            print("\nk:{}---".format(k))
+            for i, data in enumerate(list):
+                    print("op:{}--{}-".format(data.op_type,data.txn_num))
 
 # find total variable number
 def get_total(lines):
@@ -164,17 +166,16 @@ def check_edge_exit(edge,src_txn,src_type,tar_txn,tar_type):
 # decide which operation comes first depending on the read or write version
 # if later operation happened after the first txn commit time, edge type will add "C"
 def get_edge_type(data1, data2, txn):
-    # if data1.value <= data2.value:          
-    #     before, after = data1, data2
-    # else:
-    #     before, after = data2, data1
-    before, after = data1, data2
+    if data1.op_time <= data2.op_time:          
+        before, after = data1, data2
+    else:
+        before, after = data2, data1
     # if data1.op_type == "D" or data2.op_type == "D":
     #     if data1.value < data2.value:
     #         before, after = data2, data1
     #     else:
     #         before, after = data1, data2
-    if data2.op_time > txn[data1.txn_num].end_ts: 
+    if after.op_time > txn[before.txn_num].end_ts: 
         state = "C"
     else:
         state = ""
@@ -201,23 +202,23 @@ def insert_edge(data1, data2, indegree, edge, txn):
         # DD does not exist. If it does, there must be an equivalent edge of DI + ID
         if edge_type in ["WCW", "WW", "WCD", "WD", "ICW","IW", "ICD", "ID", "DCW", "DW", "DCI", "DI"]:   
             indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))
         #* read-committed： Dirty Read
         elif edge_type in ["WCR","WR"] and (txn[data2.txn_num].isolation == "read-committed" or txn[data2.txn_num].isolation == "repeatable-read" or txn[data2.txn_num].isolation == "serializable"):   
             indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))
         #* repeatable-read： Unrepeatable Read
         elif edge_type in ["RCW","RW"] and (txn[data1.txn_num].isolation == "repeatable-read" or txn[data1.txn_num].isolation == "serializable"):   
             indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))
         #* serializable： Phantom Read
         elif edge_type in ["RCI","RI","RCD","RD"] and txn[data1.txn_num].isolation == "serializable":   
             indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))       
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))       
         #* serializable： Phantom Read
         elif edge_type in ["ICR","IR","DCR","DR"] and txn[data2.txn_num].isolation == "serializable":   
             indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num)) 
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num,data1.op_time)) 
 
 def init_record(query, version_list):
     key = find_data(query, "(")
@@ -425,29 +426,59 @@ def check_cycle(edge, indegree, total):
 
 
 # for loop graphs, print the loop
-def dfs(result_folder, ts_now, now, type):
-    visit1[now] = 1
-    if visit[now] == 1: return
-    visit[now] = 1
-    path.append(now)
-    edge_type.append(type)
-    for v in edge[now]:
+def dfs(result_folder, ts_now , e):
+    visit1[e.out] = 1
+    if visit[e.out] == 1: return
+    visit[e.out] = 1
+    path.append(e)
+    for v in edge[e.out]:
         if visit[v.out] == 0:
-            dfs(result_folder, ts_now, v.out, v.type)
+            dfs(result_folder, ts_now, v)
         else:
-            path.append(v.out)
-            edge_type.append(v.type)
+            path.append(v)
             with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
-                for i in range(0, len(path)):
-                    f.write(str(path[i]))
-                    if i != len(path) - 1: f.write("->" + edge_type[i+1] + "->")
-                f.write("\n\n")
+                content = ""
+                list_loop = []
+                for i in range(len(path) - 1, -1, -1):
+                    if i != len(path) - 1 and path[i].out == path[len(path) - 1].out:
+                        break
+                    index = 0
+                    while(index < len(list_loop) and path[list_loop[index]].time < path[i].time):
+                        index += 1
+                    list_loop.insert(index,i)
+                for idx in list_loop:
+                    content = content + "->" + path[idx].type + "->" + str(path[idx].out)
+                content = str(path[list_loop[-1]].out) + content + "\n\n"
+                f.write(content)
             path.pop()
-            edge_type.pop()
     path.pop()
-    edge_type.pop()
-    visit[now] = 0
+    visit[e.out] = 0
 
+
+# # for loop graphs, print the loop
+# # Contains redundant edge information and the starting point of the ring is unreasonable
+# def dfs(result_folder, ts_now, now, type):
+#     visit1[now] = 1
+#     if visit[now] == 1: return
+#     visit[now] = 1
+#     path.append(now)
+#     edge_type.append(type)
+#     for v in edge[now]:
+#         if visit[v.out] == 0:
+#             dfs(result_folder, ts_now, v.out, v.type)
+#         else:
+#             path.append(v.out)
+#             edge_type.append(v.type)
+#             with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
+#                 for i in range(0, len(path)):
+#                     f.write(str(path[i]))
+#                     if i != len(path) - 1: f.write("->" + edge_type[i+1] + "->")
+#                 f.write("\n\n")
+#             path.pop()
+#             edge_type.pop()
+#     path.pop()
+#     edge_type.pop()
+#     visit[now] = 0
 
 def print_path(result_folder, ts_now, edge):
     with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
@@ -546,7 +577,8 @@ for file in files:
         output_result(file, result_folder, ts_now, "Cyclic")
         for i in range(total_num_txn + 2):
             if visit1[i] == 0:
-                dfs(result_folder, ts_now, i, "null")
+                # dfs(result_folder, ts_now, i, "null")
+                dfs(result_folder, ts_now, Edge("null",i,-1))
     else:
         output_result(file, result_folder, ts_now, "Avoid")
         print_path(result_folder, ts_now, edge)
