@@ -1,5 +1,5 @@
-build/*
-.vscode/*
+*build*/
+.vscode/
 *.cfg
 __*
 *.o
