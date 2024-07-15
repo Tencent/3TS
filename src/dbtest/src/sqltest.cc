@@ -24,6 +24,7 @@ DEFINE_int32(conn_pool_size, 6, "db_conn pool size");
 DEFINE_string(isolation, "serializable", "transation isolation level: read-uncommitted read-committed repeatable-read serializable");
 DEFINE_string(case_dir, "mysql", "test case dir name");
 DEFINE_string(timeout, "20", "timeout");
+DEFINE_int32(sql_interval, 0, "sleep for the specified interval between SQL executions");
 
 // std::vector<std::mutex *> mutex_txn(5); // same as conn_pool_size
 std::vector<pthread_mutex_t *> mutex_txn(FLAGS_conn_pool_size);  // same as conn_pool_size
@@ -55,10 +56,11 @@ bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
  * @param test_process_file The file for logging or recording the test process.
  * @param cur_result_set A map to store the current result set.
  * @param sleeptime The sleep time between transaction executions. Note: Different threads may have different sleep times to stagger their execution.
+ * @param sql_interval The sleep time between individual SQL executions within a transaction.
  * @return True if the transactions are executed successfully, false otherwise.
  */
 bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_sequence, TestResultSet& test_result_set, 
-    DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
+    DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime, int sql_interval) {
     
     // time between queries
     // usleep(1000000*sleeptime); // 1 second
@@ -245,7 +247,15 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
                 goto jump;
             }
         }
-        
+
+      // Output the interval between SQL executions
+      std::string blank(blank_base*(txn_id - 1), ' ');
+      std::string output_time_info = blank + "T" + std::to_string(txn_id) + " sleeping for " + std::to_string(sql_interval) + " ms " + "before executing next SQL";
+      std::cout << output_time_info << std::endl;
+      test_process << output_time_info << std::endl;
+      // sleep for sql_interval milliseconds
+      usleep(1000 * sql_interval);
+
         // mutex_txn[txn_id]->unlock(); 
     }
     pthread_mutex_unlock(mutex_txn[txn_id]);
@@ -374,7 +384,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
         //     std::cout << " SQLID: " << txn_sql.SqlId() << " TXNID: " <<  txn_sql.TxnId() << " SQL: " << txn_sql.Sql() <<  std::endl;
         // }
         // std::cout << std::endl;
-        if (! MultiThreadExecution(group, test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
+        if (! MultiThreadExecution(group, test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0, 0)) {return false;}
 
     }
 
@@ -382,7 +392,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
 
     // exlcude last group for parallel execution
     for (int i = 0; i < thread_cnt-1; i++) {
-        threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), test_process_file, std::ref(cur_result_set), i+1));
+        threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), test_process_file, std::ref(cur_result_set), i+1, FLAGS_sql_interval));
     }
 
     for (auto &th : threads) {
@@ -392,7 +402,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
 
     // execute last group if correct (no error)
     if (test_result_set.ResultType() == "") {
-        if (! MultiThreadExecution(split_groups[thread_cnt-1], test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
+        if (! MultiThreadExecution(split_groups[thread_cnt-1], test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0, FLAGS_sql_interval)) {return false;}
     }
 
     if (test_result_set.ResultType() == "") {
