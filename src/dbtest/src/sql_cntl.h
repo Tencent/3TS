@@ -18,9 +18,11 @@ class DBConnector {
 private:
     // Each SQLHDBC is a handle for a single database connection.
     std::vector<SQLHDBC> conn_pool_;
+    std::int32_t time_interval_;    //time interval between sql execution
 public:
     // Initializes the database connector, stablishes a specified number of database connections and adds them to the connection pool.
-    bool InitDBConnector(std::string& user, std::string& passwd, std::string& db_type, int conn_pool_size) {
+    bool InitDBConnector(std::string& user, std::string& passwd, std::string& db_type, int conn_pool_size, int32_t time_interval) {
+        this->time_interval_ = time_interval;
         for (int i = 0; i < (int)conn_pool_size; i++) {
             // Initializes the ODBC environment handle m_hEnviroment.
             SQLHENV m_hEnviroment;
@@ -30,8 +32,8 @@ public:
             // Allocates the ODBC environment handle using SQLAllocHandle.
             ret = SQLAllocHandle(SQL_HANDLE_ENV, NULL, &m_hEnviroment);
             if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
-               std::cerr << "get env failed" << std::endl;
-	       return false;
+                std::cerr << "get env failed" << std::endl;
+                return false;
             }
 
             // Sets the ODBC version to ODBC 3.0.
@@ -41,7 +43,7 @@ public:
             ret = SQLAllocHandle(SQL_HANDLE_DBC, m_hEnviroment, &m_hDatabaseConnection);
             if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
                 std::cerr << "get conn failed" << std::endl;
-		return false;
+                return false;
             }
             // connect
             // Connects to the database using SQLConnect.

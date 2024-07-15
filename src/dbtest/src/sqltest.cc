@@ -24,6 +24,7 @@ DEFINE_int32(conn_pool_size, 6, "db_conn pool size");
 DEFINE_string(isolation, "serializable", "transation isolation level: read-uncommitted read-committed repeatable-read serializable");
 DEFINE_string(case_dir, "mysql", "test case dir name");
 DEFINE_string(timeout, "20", "timeout");
+DEFINE_int32(exec_inteval, 0, "sql execution time interval");
 
 // std::vector<std::mutex *> mutex_txn(5); // same as conn_pool_size
 std::vector<pthread_mutex_t *> mutex_txn(FLAGS_conn_pool_size);  // same as conn_pool_size
@@ -416,6 +417,7 @@ int main(int argc, char* argv[]) {
     std::cout << "  user: " + FLAGS_user << std::endl;
     std::cout << "  passwd: " + FLAGS_passwd << std::endl;
     std::cout << "  isolation: " + FLAGS_isolation << std::endl;
+    std::cout << "  exec_interval: " + FLAGS_exec_inteval << std::endl;
 
     // mutex for txn
     for(int i=0;i<FLAGS_conn_pool_size;++i) {
@@ -523,7 +525,7 @@ int main(int argc, char* argv[]) {
         // init db_connector
         std::cout << dash + "init db_connector start" + dash << std::endl;
         DBConnector db_connector;
-        if (!db_connector.InitDBConnector(FLAGS_user, FLAGS_passwd, FLAGS_db_type, FLAGS_conn_pool_size)) {
+        if (!db_connector.InitDBConnector(FLAGS_user, FLAGS_passwd, FLAGS_db_type, FLAGS_conn_pool_size, FLAGS_exec_inteval)) {
             std::cout << "init db_connector failed" << std::endl;
         }
         // set TXN_ISOLATION
