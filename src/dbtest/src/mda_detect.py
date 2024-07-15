@@ -195,10 +195,10 @@ def insert_edge(data1, data2, indegree, edge, txn):
         if data1.txn_num == data2.txn_num or edge_type in ["RCR", "RR"]:
             return 
         #* read-uncommitted： Dirty Write
-        # WI 不存在，如果有，那么一定会有 WD + DI 的等效边
-        # II 不存在，如果有，那么一定会有 ID + DI 的等效边
-        # DW 允许存在， UPDATE 时使用条件查询包含 D 的数据
-        # DD 不存在，如果有，那么一定会有 DI + ID 的等效边
+        # WI does not exist. If it does, there must be an equivalent edge of WD + DI
+        # II does not exist. If it does, there must be an equivalent edge of ID + DI
+        # DW is allowed to exist. When UPDATE, use the condition to query the data containing D
+        # DD does not exist. If it does, there must be an equivalent edge of DI + ID
         if edge_type in ["WCW", "WW", "WCD", "WD", "ICW","IW", "ICD", "ID", "DCW", "DW", "DCI", "DI"]:   
             indegree[data2.txn_num] += 1
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
@@ -218,41 +218,6 @@ def insert_edge(data1, data2, indegree, edge, txn):
         elif edge_type in ["ICR","IR","DCR","DR"] and txn[data2.txn_num].isolation == "serializable":   
             indegree[data2.txn_num] += 1
             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num)) 
-        # 入边
-        # elif txn[data1.txn_num].isolation == "read-uncommitted":
-        #     if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
-        #         if edge_type[-1] == 'R': #  not R -- R 
-        #             if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'): # 可能脏读
-        #                 indegree[data2.txn_num] += 1 
-        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        #             if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
-        #                 indegree[data2.txn_num] += 1
-        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
-        #             if txn[data2.txn_num].isolation == "serializable":
-        #                 indegree[data2.txn_num] += 1
-        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
-        #         elif edge_type[-1] != 'R': #  not R -- not R 
-        #             indegree[data2.txn_num] += 1
-        #             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        # elif txn[data1.txn_num].isolation == "read-committed" or txn[data1.txn_num].isolation == "repeatable-read" or txn[data1.txn_num].isolation == "serializable":
-        #     if edge_type[0] != 'R' and not(txn[data2.txn_num].isolation == "read-uncommitted" and edge_type[-1] == 'R'): #and (edge_type[-1] != 'R' or not check_edge_exit(edge,data2.txn_num,data1.txn_num)):
-        #         if edge_type[-1] == 'R': #  not R -- R 
-        #             if txn[data2.txn_num].isolation == "read-committed" and edge_type[0]== 'W' and not check_edge_exit(edge,data2.txn_num,'R',data1.txn_num,'W'):# 可能脏读
-        #                 indegree[data2.txn_num] += 1 
-        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        #             if txn[data2.txn_num].isolation == "repeatable-read" and edge_type[0]== 'W':
-        #                 indegree[data2.txn_num] += 1
-        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))         
-        #             if txn[data2.txn_num].isolation == "serializable":
-        #                 indegree[data2.txn_num] += 1
-        #                 edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))                 
-        #         elif edge_type[-1] != 'R': #  not R -- not R 
-        #             indegree[data2.txn_num] += 1
-        #             edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-        #     elif edge_type[0] == 'R' and edge_type[-1] != 'R':
-        #         indegree[data2.txn_num] += 1
-        #         edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
-
 
 def init_record(query, version_list):
     key = find_data(query, "(")
@@ -512,13 +477,13 @@ def print_error(result_folder, ts_now, error_message):
 
 
 #! ------Some assumption------
-# 在任何隔离级别事务的修改互相可见,即等价于单一存储，无读写缓冲
-# 在输入文件中有设置各个事务隔离级别的语句，在 "BEGIN 之后"
-    # BEGIN T1 set_isolation=repeatable-read 
-    # BEGIN T2 set_isolation=serializable 
-    # BEGIN T3 set_isolation=read-uncommitted 
-    # BEGIN T4 set_isolation=read-committed 
-# 假定插入的数据 key 是从 0 向上递增的顺序
+# The modifications of transactions at any isolation level are mutually visible, which is equivalent to a single storage, without read-write buffer
+# There are statements to set the isolation level of each transaction in the input file, after "BEGIN"
+    # BEGIN T1 set_isolation=repeatable-read
+    # BEGIN T2 set_isolation=serializable
+    # BEGIN T3 set_isolation=read-uncommitted
+    # BEGIN T4 set_isolation=read-committed
+# Assume that the inserted data key is in ascending order from 0
 
 run_result_folder = "pg/mda_detect_test"
 result_folder = "check_result/" + run_result_folder
