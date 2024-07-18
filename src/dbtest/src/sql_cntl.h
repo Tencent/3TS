@@ -18,6 +18,9 @@ class DBConnector {
 private:
     // Each SQLHDBC is a handle for a single database connection.
     std::vector<SQLHDBC> conn_pool_;
+
+    // Time interval between two sql executions
+    int sql_exec_interval_ = 0;
 public:
     // Initializes the database connector, stablishes a specified number of database connections and adds them to the connection pool.
     bool InitDBConnector(std::string& user, std::string& passwd, std::string& db_type, int conn_pool_size) {
@@ -73,6 +76,8 @@ public:
     bool SetAutoCommit(SQLHDBC m_hDatabaseConnection, int opt);
     // Set a timeout for a specific database connection.
     bool SetTimeout(int conn_id, std::string timeout, const std::string& db_type);
+    // Set the time interval between two SQL executions.
+    void SetSqlExecInterval(int sql_exec_interval) {sql_exec_interval_ = sql_exec_interval;};
 
     // Execute an SQL statement for reading and store the result as an integer.
     bool ExecReadSql2Int(int sql_id, const std::string& sql, TestResultSet& test_result_set, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int conn_id, int param_num, std::string test_process_file="");

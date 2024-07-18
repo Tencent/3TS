@@ -23,6 +23,7 @@
 #include <vector>
 #include <unordered_map>
 #include <iterator>
+#include <thread>
 
 extern std::string dash;
 extern int blank_base;
