@@ -18,6 +18,7 @@ indicating the type of operation.
 - Delete (D)
 - Abort (A)
 - Commit (C)
+  
 Next, run mda_generate.py
 ```shell
 python mda_generate.py db_type test_type
