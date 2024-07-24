@@ -160,12 +160,6 @@ git checkout coo-consistency-check
 
 Note that the 3TS-Coo project depends on the `pthread` library and the `gflags` library. Ensure these dependencies are installed before compiling.
 
-~~~ shell
-
-    
-
- ~~~
-
 #### Compilation
 
 Navigate to the `src/dbtest` directory, create a `build` directory, and enter it.
@@ -203,6 +197,6 @@ cp filepath/FindODBC.cmake 3TS/src/dbtest
 Then, configure and build in the `build` directory.
 
 ```shell
-cmake -S -DWITH_UNIXODBC=1 ../ # Copying the MySQL FindODBC.cmake, the default is iODBC, so we need to set the configuration parameter.
+cmake -S -DWITH_UNIXODBC=1 ../ # Copying the MySQL FindODBC.cmake, the default odbc driver manager is iODBC, so we need to set the configuration parameter.
 make -j4
 ```
