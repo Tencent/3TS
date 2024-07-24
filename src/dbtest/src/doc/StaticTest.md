@@ -1,102 +1,102 @@
-### 简介
+### Introduction
 
-该文档负责三个文件的说明，包括了代码功能、整体结构、与其他文件的关系和在项目中的作用等。
+This document is for the description of three files, including code functionality, overall structure, relationships with other files, and their roles in the project.
 
 
 
 ## case_cntl.cc 
 
-该文件负责解析和处理测试文件中的SQL语句和事务ID，帮助读取和解析输入文件中的命令和数据，并将结果输出。
+This file is for parsing and handling SQL statements and transaction IDs in test files, assisting in reading and parsing commands and data from input files, and outputting results.
 
-### 整体结构：
+### Overall Structure:
 
-首先引入头文件，接着定义全局对象：outputter`和`result_handler，分别用于输出和结果处理。再进行函数声明及定义，包括`CaseReader`类里处理SQL语句的执行和错误信息的获取函数，`ResulHandler`类里比较SQL查询结果多函数，`Outputter`类将与测试结果相关的输出写入指定的文件的函数。
+First, header files are included, followed by the definition of global objects: `outputter` and `result_handler`, which are used for outputting and result handling, respectively. Then, function declarations and definitions are provided, including functions in the `CaseReader` class for handling SQL statement execution and error information retrieval, functions in the `ResultHandler` class for comparing SQL query results, and functions in the `Outputter` class for writing outputs related to test results to specified files.
 
-#### 函数声明和定义
+#### Function Declarations and Definitions
 
-- `CaseReader`类
-  - `TxnIdAndSql`：用于获取特定行的事务ID和SQL语句，解析输入行，提取执行顺序ID、交易事务ID和SQL语句。
-   - `SqlIdAndResult`：解析输入行，提取 SQL ID 及其预期结果
-  - `Isolation`：提取字符串行中的隔离级别。
-  - `InitTestSequenceAndTestResultSetList`：根据提供的测试路径和数据库类型，初始化测试序列和结果集(casecntl)。
-  - `TestSequenceAndTestResultSetFromFile`：解析提供的测试文件以提取测试序列及其相应的预期结果。
-  
-- `ResulHandler`类
-- `IsSqlExpectedResult`：用于将当前 SQL 结果与预期 SQL 结果进行比较。
-  - `IsTestExpectedResult`：用于将当前测试结果与一组预期测试结果进行比较。
+- **`CaseReader`** Class
+  - `TxnIdAndSql`: Used to get the transaction ID and SQL statement of a specific line, parse the input line, and extract the execution order ID, transaction ID, and SQL statement.
+  - `SqlIdAndResult`: Parses the input line and extracts the SQL ID and its expected result.
+  - `Isolation`: Extracts the isolation level from a string line.
+  - `InitTestSequenceAndTestResultSetList`: Initializes the test sequence and result set (casecntl) based on the provided test path and database type.
+  - `TestSequenceAndTestResultSetFromFile`: Parses the provided test file to extract the test sequence and their corresponding expected results.
 
-- `Outputter`类
-- `WriteResultTotal`：将测试结果集的摘要信息写入指定的文件。
-  - `PrintAndWriteTxnSqlResult`：将当前 SQL 结果与一组预期结果进行比较，并将比较结果输出到控制台和文件。
-- `WriteTestCaseTypeToFile`：将给定的结果类型附加写入到指定的文件中，并在结果类型前添加 "Test Result:" 前缀进行说明。
+- **`ResultHandler`** Class
+  - `IsSqlExpectedResult`: Used to compare the current SQL result with the expected SQL result.
+  - `IsTestExpectedResult`: Used to compare the current test result with a set of expected test results.
 
-### 项目中的作用
+- **`Outputter`** Class
+  - `WriteResultTotal`: Writes the summary information of the test result set to a specified file.
+  - `PrintAndWriteTxnSqlResult`: Compares the current SQL result with a set of expected results and outputs the comparison result to the console and file.
+  - `WriteTestCaseTypeToFile`: Appends the given result type to a specified file, with the prefix "Test Result:" for explanation.
 
-该文件的整体结构和内容围绕SQL语句的解析和执行，提供了一系列工具函数和类方法来处理SQL相关的操作，比较测试结果。
+### Role in the Project
 
-#### 	
+The overall structure and content of this file revolve around the parsing and execution of SQL statements, providing a series of utility functions and class methods to handle SQL-related operations and compare test results.
+
+
 
 ## sqltest.cc 
 
-该文件用于执行多线程SQL事务测试的，主要功能是通过多线程环境下执行多组SQL事务，并验证其结果。
+This file is for executing multi-threaded SQL transaction tests, primarily through executing multiple sets of SQL transactions in a multi-threaded environment and verifying their results.
 
-### 整体结构
+### Overall Structure
 
-首先进行头文件和库引入，接着使用gflags库定义了一系列命令行参数，如数据库类型、用户名、密码、数据库名、连接池大小、事务隔离级别、测试用例目录、超时时间等。定义了一个全局的互斥锁向量`mutex_txn`，用于管理不同事务的锁。再定义函数。
+First, header files and libraries are included, followed by the definition of a series of command-line parameters using the gflags library, such as database type, username, password, database name, connection pool size, transaction isolation level, test case directory, timeout, etc. A global mutex vector `mutex_txn` is defined to manage locks for different transactions. Then, functions are defined.
 
-#### 函数声明和定义
+#### Function Declarations and Definitions
 
-- **`try_lock_wait`**：尝试在给定超时时间内获取指定的互斥锁，用于多线程锁机制。
-- **`MultiThreadExecution`**：在多线程环境下执行一组SQL事务。该函数使用 `DBConnector` 类来执行SQL语句，并在事务执行过程中进行锁操作和错误处理。
-- **`JobExecutor::ExecTestSequence`**：执行一系列数据库测试事务，并将结果写入指定文件。该函数通过调用`MultiThreadExecution`函数来实现多线程事务执行。
+- **`try_lock_wait`**: Attempts to acquire the specified mutex within a given timeout, used for multi-threaded lock mechanisms.
+- **`MultiThreadExecution`**: Executes a set of SQL transactions in a multi-threaded environment. This function uses the `DBConnector` class to execute SQL statements, and performs lock operations and error handling during transaction execution.
+- **`JobExecutor::ExecTestSequence`**: Executes a series of database test transactions and writes the results to a specified file. This function implements multi-threaded transaction execution by calling the `MultiThreadExecution` function.
 
-### 项目中的作用
+### Role in the Project
 
-**数据库类型的支持**：支持多种数据库类型（如MySQL、PostgreSQL、Oracle等）的事务测试。
+**Support for Multiple Database Types**: Supports transaction testing for multiple database types (such as MySQL, PostgreSQL, Oracle, etc.).
 
-**多线程事务执行**：通过多线程机制执行事务，模拟高并发环境下的事务处理情况。
+**Multi-threaded Transaction Execution**: Executes transactions through a multi-threaded mechanism, simulating transaction processing in a high-concurrency environment.
 
-**事务隔离级别测试**：支持不同的事务隔离级别，验证数据库在不同隔离级别下的行为。
+**Transaction Isolation Level Testing**: Supports different transaction isolation levels, verifying the database's behavior under different isolation levels.
 
-**结果验证与输出**：执行事务后，将测试结果写入指定的输出文件中，以供后续分析验证。
+**Result Verification and Output**: After executing transactions, writes the test results to a specified output file for subsequent analysis and verification.
 
 
 
 ## sql_cntl.cc 
 
-该文件用于执行SQL语句并处理数据库连接。
+This file is for executing SQL statements and handling database connections.
 
-### 整体结构
+### Overall Structure
 
-首先定义头文件和库引入，接着定义工具函数，用于时间获取、字符串替换和类型转换等。再进行函数声明及定义，包括`DBConnector`类处理SQL语句的执行的函数，获取时间，替换字符串等功能的函数。
+First, header files and libraries are defined, followed by the definition of utility functions for time retrieval, string replacement, type conversion, etc. Then, function declarations and definitions are provided, including functions in the `DBConnector` class for handling SQL statement execution, time retrieval, string replacement, and type conversion.
 
-#### 函数声明和定义
+#### Function Declarations and Definitions
 
-- `DBConnector`类
-  - `ErrInfoWithStmt`：用于获取特定句柄的错误信息。
-  - `SqlExecuteErr`：处理SQL执行的错误信息。
-  - `ExecWriteSql`：执行写入类型的SQL语句。
-  - `ExecReadSql2Int`：执行读取类型的SQL语句并处理结果。
+- **`DBConnector`** Class
+  - `ErrInfoWithStmt`: Used to get error information for a specific handle.
+  - `SqlExecuteErr`: Handles error information for SQL execution.
+  - `ExecWriteSql`: Executes write-type SQL statements.
+  - `ExecReadSql2Int`: Executes read-type SQL statements and handles results.
 
-- **`get_current_time`**：用于获取当前时间。
+- **`get_current_time`**: Used to get the current time.
 
-- **`replace`**：进行字符串替换。
+- **`replace`**: Performs string replacement.
 
-- **`SQLCHARToStr`**：用于将`SQLCHAR`类型转换为`std::string`类型。
+- **`SQLCHARToStr`**: Converts `SQLCHAR` type to `std::string` type.
 
-  
+### Role in the Project
 
-### 项目中的作用
-
-该文件在整个项目中主要负责与数据库的交互，执行SQL语句，并在执行过程中进行错误处理和日志记录。
+This file is for interacting with the database, executing SQL statements, and handling errors and logging during execution.
 
 
 
-## 文件之间的关系
+## Relationship Between Files
 
-1. `sql_cntl.cc` 和 `sqltest.cc` ：
-   - `sqltest.cc` 依赖于 `sql_cntl.cc` 中的工具和辅助函数来执行具体的SQL操作，`sqltest.cc`利用 `sql_cntl.cc` 定义的结果处理和输出函数来验证正确性，并报告结果。`sqlcntl.txt`负责具体的SQL执行逻辑，为`sqltest.txt`提供支持。
-2. `sql_cntl.cc` 和 `case_cntl.cc` ：
-   - `case_cntl.cc` 的函数和类读取测试用例、解析预期结果以及将实际结果与这些预期进行比较。 `sqltest.cc` 负责执行SQL语句的逻辑，并调用这些比较函数。
-3. `sql_test.cc` 和 `case_cntl.cc` ：
-   - `case_cntl.cc` 负责读取和解析测试用例文件，和预期结果预期结果。这些解析后的数据会被传递给 `sqltest.cc`，然后由 `sqltest.cc` 进行多线程的事务执行测试。
+1. `sql_cntl.cc` and `sqltest.cc`:
+   - `sqltest.cc` relies on the tools and helper functions in `sql_cntl.cc` to execute specific SQL operations. `sqltest.cc` uses the result handling and output functions defined in `sql_cntl.cc` to verify correctness and report results. `sql_cntl.cc` is responsible for the specific SQL execution logic, providing support for `sqltest.cc`.
+
+2. `sql_cntl.cc` and `case_cntl.cc`:
+   - The functions and classes in `case_cntl.cc` read test cases, parse expected results, and compare actual results with these expectations. `sqltest.cc` handles the logic of executing SQL statements and calls these comparison functions.
+
+3. `sql_test.cc` and `case_cntl.cc`:
+   - `case_cntl.cc` is responsible for reading and parsing test case files and expected results. This parsed data is passed to `sqltest.cc`, which then performs multi-threaded transaction execution tests.
