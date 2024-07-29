@@ -6,7 +6,7 @@ Sure! Here's the translation of your document into English:
 
 ### File Overview
 
-`random_do_list.py` randomly generates a series of database operations based on a predefined set of operations while ensuring that the generated operation list contains no illegal patterns. This script generates the `do_test_list.txt` file, which contains different test patterns, i.e., specific test file lists.
+`random_do_list.py` randomly generates a series of database operations based on a predefined set of operations while ensuring that the generated operation list contains no illegal patterns. This script generates the `do_test_list.txt` file, which contains different test patterns.
 
 `op_set = ["P", "R", "W", "I"]` # operations involved in the case
 
