@@ -99,6 +99,15 @@ def get_total(lines):
         #     break
     return num
 
+"""
+Find the total number of transactions based on transaction identifiers in queries.
+
+Args:
+- lines (list): A list of query strings, each potentially containing transaction identifiers.
+
+Returns:
+int: The highest transaction number found in the queries.
+"""
 # find total Txn number
 def get_total_txn(lines):
     num = 0
