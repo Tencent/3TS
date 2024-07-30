@@ -13,7 +13,7 @@ from operator import truediv
 import os
 import sys
 
-
+# transaction iolation level
 class OptionException(Exception):
     pass
 
@@ -36,6 +36,29 @@ class Wait_Operation:
         self.txn_num = txn_num
         self.op_num = op_num
 
+isolation_levels = set()
+
+"""
+Initialize supported isolation levels for different databases 
+
+Args:
+- db_type (str): The type of database being used.
+
+Returns:
+int: the num of supported isolation levels.
+
+"""
+def init_isolation_levels(db_type):
+
+    global isolation_levels
+    if 'mysql' in db_type.lower():
+        isolation_levels = {
+            "READ UNCOMMITTED",
+            "READ COMMITTED",
+            "REPEATABLE READ",
+            "SERIALIZABLE"
+        }
+    return len(isolation_levels)
 
 """
 Initialize tables for database testing.
@@ -803,6 +826,33 @@ def write_description(file_name, txn_num, op_num, data_num):
         description += "# When sequence=0, it is a preparation phase, otherwise an execution phase" +  "\n"
         description += "#\n"
         file_test.write(description)
+
+
+"""
+Write random transaction isolation levels to the specified file.
+
+Args:
+- file_name (str): The name of the file where the description will be written.
+- txn_num (int): The number of transactions.
+- isolation_levels (string {}): The isolation levels set supported by database
+
+This  function writes transaction isolation level for the test case to the specified file. the transaction isolation level
+is randomly choiced from the supported isolation level of database.
+
+"""
+
+def write_isolation_level(file_name, txn_num, isolation_levels):
+    isolation_level_descprtion = ""
+    for i in range(txn_num):
+        isolation_level = random()
+        if isolation_level_descprtion:
+            isolation_level_descprtion += ","
+        isolation_level_descprtion += "T" + str(i + 1)  +":" + txn_list[i].isolation_level
+    description += "Txn Isolation: " + isolation_level_descprtion + "\n"
+
+    with open(file_name, "w+") as file_test:
+        file_test.write(description)
+
 
 # target folder
 case_folder = "t/test_case_v2"
