@@ -11,9 +11,9 @@
 
 from operator import truediv
 import os
+import random
 import sys
 
-# transaction iolation level
 class OptionException(Exception):
     pass
 
@@ -36,8 +36,6 @@ class Wait_Operation:
         self.txn_num = txn_num
         self.op_num = op_num
 
-isolation_levels = set()
-
 """
 Initialize supported isolation levels for different databases 
 
@@ -45,20 +43,19 @@ Args:
 - db_type (str): The type of database being used.
 
 Returns:
-int: the num of supported isolation levels.
+set: the supported isolation levels.
 
 """
 def init_isolation_levels(db_type):
-
-    global isolation_levels
+    isolation_levels = list()
     if 'mysql' in db_type.lower():
-        isolation_levels = {
+        isolation_levels = [
             "READ UNCOMMITTED",
             "READ COMMITTED",
             "REPEATABLE READ",
             "SERIALIZABLE"
-        }
-    return len(isolation_levels)
+        ]
+    return isolation_levels
 
 """
 Initialize tables for database testing.
@@ -842,15 +839,19 @@ is randomly choiced from the supported isolation level of database.
 """
 
 def write_isolation_level(file_name, txn_num, isolation_levels):
+    if len(isolation_levels) == 0:
+        return
+
     isolation_level_descprtion = ""
+    description = ""
     for i in range(txn_num):
-        isolation_level = random()
+        isolation_level = random.choice(isolation_levels)
         if isolation_level_descprtion:
             isolation_level_descprtion += ","
-        isolation_level_descprtion += "T" + str(i + 1)  +":" + txn_list[i].isolation_level
+        isolation_level_descprtion += "T" + str(i + 1)  +":" + isolation_level
     description += "Txn Isolation: " + isolation_level_descprtion + "\n"
 
-    with open(file_name, "w+") as file_test:
+    with open(file_name, "a+") as file_test:
         file_test.write(description)
 
 
@@ -896,8 +897,11 @@ for popg in lines:
         table_num = 1
     sql_count, txn_count = 0, 1
 
+    isolation_levels = init_isolation_levels(db_type) 
     # description
     write_description(file_name, num, num, num)
+
+    write_isolation_level(file_name, num, isolation_levels)
 
     # preparation
     data_num = init_table(file_name, sql_count, txn_count, table_num, db_type, test_type)
