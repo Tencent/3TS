@@ -1071,8 +1071,8 @@ def eliminate_non_repeatable_read_mvcc2(conflicts):
     if not broken_edges:
         return True
 
-global database
-global isolation
+# global database
+# global isolation
 # [single,distributed] => for local test or distributed test
 db_type = sys.argv[1]
 # [tdsql] => for pg/sql standard queries
@@ -1085,7 +1085,7 @@ isolation = sys.argv[4]
 # target folder
 case_folder = f"t/test_case_v2_{database}_{isolation}"
 # pattern files
-do_test_list = f"do_test_list_{database}_{isolation}.txt"
+do_test_list = f"do_test_list.txt"
 
 
 db_type = "no-use"
@@ -1111,7 +1111,8 @@ for popg in lines:
     if popg[0] == "#":
         continue
     ops = popg.split('-')
-
+    if not check_isolation(ops,database,isolation):
+        continue
     path_store = case_folder
     if not os.path.exists(path_store):
         os.mkdir(path_store)
