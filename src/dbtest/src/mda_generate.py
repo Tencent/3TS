@@ -60,6 +60,8 @@ the number of data columns. It returns the `data_num` value, which is an integer
 and determines the number of data columns in each table.
 
 """
+
+
 def init_table(file_name, sql_count, txn_count, table_num, db_type, test_type):
     data_num = 2
     with open(file_name, "a+") as file_test:
@@ -70,30 +72,30 @@ def init_table(file_name, sql_count, txn_count, table_num, db_type, test_type):
             for i in range(1, table_num + 1):
                 # MySQL 5.1 add InnoDB for table
                 # create_sql = str(sql_count) + "-" + str(txn_count) + "-" + "CREATE TABLE t" + str(i) + \
-                            #  " (k INT PRIMARY KEY, v INT) ENGINE=InnoDB;\n"
+                #  " (k INT PRIMARY KEY, v INT) ENGINE=InnoDB;\n"
                 create_sql = str(sql_count) + "-" + str(txn_count) + "-" + "CREATE TABLE t" + str(i) + \
-                             " (k INT PRIMARY KEY, v INT);\n"
+                    " (k INT PRIMARY KEY, v INT);\n"
                 file_test.write(create_sql)
         elif db_type == "tdsql" or db_type == "ob_oracle":
             data_num = 4
             for i in range(1, table_num + 1):
                 create_sql = str(sql_count) + "-" + str(txn_count) + "-" + "CREATE TABLE t" + str(i) + \
-                             " (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) " \
-                             "(PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));\n"
+                    " (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) " \
+                    "(PARTITION p0 VALUES LESS THAN(2), PARTITION p1 VALUES LESS THAN(4));\n"
                 file_test.write(create_sql)
         elif db_type == "crdb":
             data_num = 4
             for i in range(1, table_num + 1):
                 create_sql = str(sql_count) + "-" + str(txn_count) + "-" + "CREATE TABLE t" + str(i) + \
-                             " (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) " \
-                             "(PARTITION p0 VALUES FROM (MINVALUE) TO (2), " \
-                             "PARTITION p1 VALUES FROM (2) TO (MAXVALUE));\n"
+                    " (k INT, v INT, value1 INT, value2 INT, PRIMARY KEY (v,k)) PARTITION BY RANGE(v) " \
+                    "(PARTITION p0 VALUES FROM (MINVALUE) TO (2), " \
+                    "PARTITION p1 VALUES FROM (2) TO (MAXVALUE));\n"
                 file_test.write(create_sql)
         else:
             for i in range(1, table_num + 1):
                 create_sql = str(sql_count) + "-" + str(txn_count) + "-" + "CREATE TABLE t" + str(i) + \
-                             " (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), " \
-                             "PARTITION p1 VALUES LESS THAN(4));\n"
+                    " (k INT, v INT) PARTITION BY RANGE(v) (PARTITION p0 VALUES LESS THAN(2), " \
+                    "PARTITION p1 VALUES LESS THAN(4));\n"
                 file_test.write(create_sql)
     return data_num
 
@@ -112,6 +114,8 @@ bool: True if the transactions are concurrent, False otherwise.
 # if both transactions are running
 # or the start time of the second transaction is less than the end time of the first transaction
 # we think they are concurrent
+
+
 def check_concurrency(txn_num1, txn_num2, txn):
     if txn[txn_num2].begin_ts < txn[txn_num1].end_ts:
         return True
@@ -142,6 +146,8 @@ function returns True; otherwise, it returns False.
 The function is designed to help identify and handle concurrent operations in a transactional context.
 
 """
+
+
 def check_exist_op(txn, data_op_list, op, op_num, txn_count):
     flag, txn_num = False, 0
     for data in data_op_list[op_num]:
@@ -190,6 +196,8 @@ The supported SQL operations include:
 The function returns the updated count of SQL operations after execution.
 
 """
+
+
 def execute_sql(IsPredicate, file_name, sql_count, txn_count, op_num, op, data_num, txn, data_value, data_op_list):
     # if check_exist_op(txn, data_op_list, op, op_num, txn_count):
     #     return sql_count
@@ -241,11 +249,13 @@ the SQL operation count and manages the existence of data elements to prevent du
 The function returns the updated count of SQL operations after the insert.
 
 """
+
+
 def insert_data(file_name, sql_count, txn_count, cur_count, partition_num, insert_table, data_num, exist,
                 data_value):
     with open(file_name, "a+") as file_test:
         try:
-            #if exist[cur_count]:
+            # if exist[cur_count]:
             if False:
                 raise OptionException
             else:
@@ -258,11 +268,11 @@ def insert_data(file_name, sql_count, txn_count, cur_count, partition_num, inser
                 exist[cur_count] = True
                 if data_num == 2:
                     insert_sql = str(sql_count) + "-" + str(txn_count) + "-" + "INSERT INTO t" + \
-                                 str(insert_table) + " VALUES (" + str(cur_count) + "," + str(cur_count) + ");\n"
+                        str(insert_table) + " VALUES (" + str(cur_count) + "," + str(cur_count) + ");\n"
                 else:
                     insert_sql = str(sql_count) + "-" + str(txn_count) + "-" + "INSERT INTO t" + \
-                                 str(insert_table) + " VALUES (" + str(cur_count) + "," + str(partition_num) + \
-                                 "," + str(cur_count) + "," + str(cur_count) + ");\n"
+                        str(insert_table) + " VALUES (" + str(cur_count) + "," + str(partition_num) + \
+                        "," + str(cur_count) + "," + str(cur_count) + ");\n"
                 file_test.write(insert_sql)
                 data_value[cur_count] = cur_count
         except OptionException:
@@ -300,6 +310,8 @@ data operation list.
 The function returns the updated count of SQL operations after the delete.
 
 """
+
+
 def delete_data(file_name, sql_count, txn_count, cur_count, delete_table, data_num, exist, txn, data_op_list):
     with open(file_name, "a+") as file_test:
         try:
@@ -314,10 +326,10 @@ def delete_data(file_name, sql_count, txn_count, cur_count, delete_table, data_n
                 exist[cur_count] = False
                 if data_num == 2:
                     delete_sql = str(sql_count) + "-" + str(txn_count) + "-" + "DELETE FROM t" + \
-                                 str(delete_table) + " WHERE k=" + str(cur_count) + ";\n"
+                        str(delete_table) + " WHERE k=" + str(cur_count) + ";\n"
                 else:
                     delete_sql = str(sql_count) + "-" + str(txn_count) + "-" + "DELETE FROM t" + \
-                                 str(delete_table) + " WHERE value1=" + str(cur_count) + ";\n"
+                        str(delete_table) + " WHERE value1=" + str(cur_count) + ";\n"
                 file_test.write(delete_sql)
                 data_op_list[cur_count].append(Operation("D", txn_count))
         except OptionException:
@@ -351,10 +363,12 @@ The function returns the updated count of SQL operations after the write.
 
 """
 # when updating data, increment its value by 1
+
+
 def write_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_value, data_op_list):
     with open(file_name, "a+") as file_test:
         try:
-            #if not exist[op_num] or txn[txn_count].end_ts != max_time:
+            # if not exist[op_num] or txn[txn_count].end_ts != max_time:
             if txn[txn_count].end_ts != max_time:
                 raise OptionException
             else:
@@ -365,11 +379,11 @@ def write_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_valu
                     sql_count += 1
                 if data_num == 2:
                     write_sql = str(sql_count) + "-" + str(txn_count) + "-" + "UPDATE t1 SET v=" + \
-                                str(data_value[op_num] + 1) + " WHERE k=" + str(op_num) + ";\n"
+                        str(data_value[op_num] + 1) + " WHERE k=" + str(op_num) + ";\n"
                 else:
                     write_sql = str(sql_count) + "-" + str(txn_count) + "-" + "UPDATE t" + str(txn_count) + \
-                                " SET value2=" + str(data_value[op_num] + 1) + " WHERE value1=" + \
-                                str(op_num) + ";\n"
+                        " SET value2=" + str(data_value[op_num] + 1) + " WHERE value1=" + \
+                        str(op_num) + ";\n"
                 file_test.write(write_sql)
                 data_op_list[op_num].append(Operation("W", txn_count))
                 data_value[op_num] += 1
@@ -401,6 +415,8 @@ the SQL operation count and records the read operation in the data operation lis
 The function returns the updated count of SQL operations after the read.
 
 """
+
+
 def read_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_op_list):
     with open(file_name, "a+") as file_test:
         try:
@@ -414,10 +430,10 @@ def read_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_op_li
                     sql_count += 1
                 if data_num == 2:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t1 WHERE k=" + \
-                               str(op_num) + ";\n"
+                        str(op_num) + ";\n"
                 else:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t" + str(txn_count) + \
-                               " WHERE value1=" + str(op_num) + ";\n"
+                        " WHERE value1=" + str(op_num) + ";\n"
                 file_test.write(read_sql)
                 data_op_list[op_num].append(Operation("R", txn_count))
         except OptionException:
@@ -448,6 +464,8 @@ The function also updates the SQL operation count and records the read operation
 The function returns the updated count of SQL operations after the read.
 
 """
+
+
 def read_data_predicate(file_name, sql_count, txn_count, op_num, data_num, txn, data_op_list):
     with open(file_name, "a+") as file_test:
         try:
@@ -461,10 +479,10 @@ def read_data_predicate(file_name, sql_count, txn_count, op_num, data_num, txn, 
                     sql_count += 1
                 if data_num == 2:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t1 WHERE k>" + \
-                               str(op_num*2) + " and k<" + str(op_num*2+2) + ";\n"
+                        str(op_num*2) + " and k<" + str(op_num*2+2) + ";\n"
                 else:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t" + str(txn_count) + \
-                               " WHERE value1>" + str(op_num*2) + " and value1<" + str(op_num*2+2) + ";\n"
+                        " WHERE value1>" + str(op_num*2) + " and value1<" + str(op_num*2+2) + ";\n"
                 file_test.write(read_sql)
                 data_op_list[op_num].append(Operation("P", txn_count))
         except OptionException:
@@ -492,6 +510,8 @@ transaction as ended. If the transaction has already ended, it logs an error mes
 The function returns the updated count of SQL operations after the rollback.
 
 """
+
+
 def abort_txn(file_name, sql_count, txn_count, txn):
     with open(file_name, "a+") as file_test:
         try:
@@ -526,6 +546,8 @@ If the transaction has already ended, it logs an error message.
 The function returns the updated count of SQL operations after the commit.
 
 """
+
+
 def commit_txn(file_name, sql_count, txn_count, txn):
     with open(file_name, "a+") as file_test:
         try:
@@ -556,6 +578,8 @@ queries on all tables to read data, and then commits the transaction. The genera
 to the specified file.
 
 """
+
+
 def execute_check(file_name, sql_count, txn_count, data_num, table_num):
     with open(file_name, "a+") as file_test:
         begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
@@ -566,12 +590,13 @@ def execute_check(file_name, sql_count, txn_count, data_num, table_num):
                 read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t1 ORDER BY k;\n"
             else:
                 read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t" + str(i) + \
-                           " ORDER BY k;\n"
+                    " ORDER BY k;\n"
             file_test.write(read_sql)
             sql_count += 1
         commit_sql = str(sql_count) + "-" + str(txn_count) + "-" + "COMMIT;\n"
         file_test.write(commit_sql)
         sql_count += 1
+
 
 """
 Check the last operation before the current position in a list of operations.
@@ -590,6 +615,8 @@ corresponding transaction number.
 
 """
 # check if the txn commit/abort before or not
+
+
 def get_last_op(ops, pos):
     if pos == 0:
         return -1, -1
@@ -597,6 +624,7 @@ def get_last_op(ops, pos):
         return ops[pos-1][2], int(ops[pos-1][3])
     else:
         return ops[pos-1][1], int(ops[pos-1][2])
+
 
 """
 Process the first operation of a Partial Order Pair (POP) for a given transaction.
@@ -623,6 +651,8 @@ updated SQL query count.
 
 """
 # process first operation of a POP
+
+
 def execute_first(IsPredicate, num, ops, file_name, sql_count, txn_count, data_num, txn, data_value, data_op_list):
     for i in range(num):
         op1 = ops[i][0]
@@ -634,11 +664,14 @@ def execute_first(IsPredicate, num, ops, file_name, sql_count, txn_count, data_n
         last_op_type, last_op_num = get_last_op(ops, i)
         if last_op_num == op_num and last_op_type == op1:
             return sql_count
-        sql_count = execute_sql(IsPredicate, file_name, sql_count, txn_count, op_num, op1, data_num, txn, data_value, data_op_list)
+        sql_count = execute_sql(IsPredicate, file_name, sql_count, txn_count,
+                                op_num, op1, data_num, txn, data_value, data_op_list)
         sql_count += 1
         txn_count += 1
-        if txn_count == num + 1: txn_count = 1
+        if txn_count == num + 1:
+            txn_count = 1
     return sql_count
+
 
 """
 Process the second operation of a Partial Order Pair (POP) for a given transaction.
@@ -666,6 +699,8 @@ The function returns the updated SQL query count.
 
 """
 # process second operation of a POP
+
+
 def execute_second(IsPredicate, num, ops, need_ac, file_name, sql_count, txn_count, data_num, txn, data_value, data_op_list):
     for i in range(num):
         if ops[i][1] == "C" or ops[i][1] == "A":
@@ -674,15 +709,17 @@ def execute_second(IsPredicate, num, ops, need_ac, file_name, sql_count, txn_cou
         else:
             op2 = ops[i][1]
             op_num = int(ops[i][2:])
-        sql_count = execute_sql(IsPredicate, file_name, sql_count, txn_count, op_num, op2, data_num, txn, data_value, data_op_list)
+        sql_count = execute_sql(IsPredicate, file_name, sql_count, txn_count,
+                                op_num, op2, data_num, txn, data_value, data_op_list)
         sql_count += 1
         if need_ac[txn_count] != "NO":
             sql_count = execute_sql(IsPredicate, file_name, sql_count, txn_count, i, need_ac[txn_count], data_num,
                                     txn, data_value, data_op_list)
             sql_count += 1
         txn_count += 1
-        if txn_count == num + 1: txn_count = 1
-    return sql_count 
+        if txn_count == num + 1:
+            txn_count = 1
+    return sql_count
 
 
 """
@@ -714,7 +751,9 @@ resolve conflicts. The function returns the updated SQL query count.
 # otherwise, execute in the original order
 # such as RW0-RW1, we will execute as order R1[x]-R2[y]-W2[x]-W1[y]
 # IR0-ICW1-RW1, we will execute as order I1[x]-I2[y]-R2[x]-C2-W3[y]-R3[y]-W1[y]
-def execute_txn(IsPredicate, num, ops, need_ac, file_name, sql_count, data_num, txn, data_value, wait_op_list,data_op_list):
+
+
+def execute_txn(IsPredicate, num, ops, need_ac, file_name, sql_count, data_num, txn, data_value, wait_op_list, data_op_list):
     for i in range(num):
         op1 = ops[i][0]
         if ops[i][1] == "C" or ops[i][1] == "A":
@@ -725,51 +764,62 @@ def execute_txn(IsPredicate, num, ops, need_ac, file_name, sql_count, data_num, 
             op2 = ops[i][1]
             op_num = int(ops[i][2:])
         next_txn_count = i + 2
-        if next_txn_count == num+1: next_txn_count = 1
+        if next_txn_count == num+1:
+            next_txn_count = 1
 
         if i == 0:
-            sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num, op1, data_num, txn, data_value, data_op_list)
+            sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num,
+                                    op1, data_num, txn, data_value, data_op_list)
             sql_count += 1
             wait_op_list.append(Wait_Operation(op2, next_txn_count, op_num))
         else:
             last_op_type, last_op_num = get_last_op(ops, i)
             if last_op_num == op_num:
-                #if last_op_num and last_op_type both are same as now operation, we will only execute later operation
+                # if last_op_num and last_op_type both are same as now operation, we will only execute later operation
                 if op1 == last_op_type:
                     wait_op_list.pop()
                 for data in wait_op_list:
-                    sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num, data.op_num, data.op_type, data_num, txn, data_value, data_op_list)
+                    sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num,
+                                            data.op_num, data.op_type, data_num, txn, data_value, data_op_list)
                     sql_count += 1
                     if need_ac[data.txn_num] != "NO" and data.op_num != op_num:
-                        sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num, data.op_num, need_ac[data.txn_num], data_num, txn, data_value, data_op_list)
+                        sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num,
+                                                data.op_num, need_ac[data.txn_num], data_num, txn, data_value, data_op_list)
                         sql_count += 1
                 wait_op_list = []
 
-                sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num, op1, data_num, txn, data_value, data_op_list)
+                sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num,
+                                        op1, data_num, txn, data_value, data_op_list)
                 sql_count += 1
 
                 if need_ac[i+1] != "NO":
-                    sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num, need_ac[i+1], data_num, txn, data_value, data_op_list)
+                    sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num,
+                                            need_ac[i+1], data_num, txn, data_value, data_op_list)
                     sql_count += 1
-                
-                sql_count = execute_sql(IsPredicate, file_name, sql_count, next_txn_count, op_num, op2, data_num, txn, data_value, data_op_list)
+
+                sql_count = execute_sql(IsPredicate, file_name, sql_count, next_txn_count,
+                                        op_num, op2, data_num, txn, data_value, data_op_list)
                 sql_count += 1
             else:
-                sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num, op1, data_num, txn, data_value, data_op_list)
+                sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num,
+                                        op1, data_num, txn, data_value, data_op_list)
                 sql_count += 1
 
                 if len(wait_op_list) == 0:
                     if need_ac[i+1] != "NO":
-                        sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num, need_ac[i+1], data_num, txn, data_value, data_op_list)
+                        sql_count = execute_sql(IsPredicate, file_name, sql_count, i+1, op_num,
+                                                need_ac[i+1], data_num, txn, data_value, data_op_list)
                         sql_count += 1
                 wait_op_list.append(Wait_Operation(op2, next_txn_count, op_num))
 
     for data in wait_op_list:
-        sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num, data.op_num, data.op_type, data_num, txn, data_value, data_op_list)
+        sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num, data.op_num,
+                                data.op_type, data_num, txn, data_value, data_op_list)
         sql_count += 1
 
         if need_ac[data.txn_num] != "NO":
-            sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num, data.op_num, need_ac[data.txn_num], data_num, txn, data_value, data_op_list)
+            sql_count = execute_sql(IsPredicate, file_name, sql_count, data.txn_num, data.op_num,
+                                    need_ac[data.txn_num], data_num, txn, data_value, data_op_list)
             sql_count += 1
     wait_op_list = []
 
@@ -789,6 +839,8 @@ This function writes a description for the test case to the specified file. The 
 information about  the test case pattern, parameters, and structure.
 
 """
+
+
 def write_description(file_name, txn_num, op_num, data_num):
     with open(file_name, "w+") as file_test:
         description = "#\n"
@@ -798,27 +850,29 @@ def write_description(file_name, txn_num, op_num, data_num):
         for i in range(len(patterns)):
             description += "T" + str(i+1) + " ==" + patterns[i] + "==> "
         description += "T1\n"
-        description += "# Parameters: #column=2 #txn=" + str(txn_num) + " #operations=" + str(op_num) + " #variable=" + str(data_num) +  "\n"
-        description += "# Structure: Sequence-Session-Query" +  "\n"
-        description += "# When sequence=0, it is a preparation phase, otherwise an execution phase" +  "\n"
+        description += "# Parameters: #column=2 #txn=" + \
+            str(txn_num) + " #operations=" + str(op_num) + " #variable=" + str(data_num) + "\n"
+        description += "# Structure: Sequence-Session-Query" + "\n"
+        description += "# When sequence=0, it is a preparation phase, otherwise an execution phase" + "\n"
         description += "#\n"
         file_test.write(description)
 
-
-
+"""
+Check if the test case can be handled by the isolation level of the database
+"""
 def check_isolation(conflicts, database, isolation):
-    if isolation =="ru":
-        # assert database in ["mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver"]
+    # assert database in ["mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver"]
+    if isolation == "ru":
         if database in ["mysql", "sqlserever"]:
             return eliminate_dirty_write_lock(conflicts)
         elif database in ["postgresql", "greenplum"]:
             return eliminate_dirty_write_lock(conflicts) or eliminate_dirty_read_mvcc(conflicts)
-    elif isolation =="rc":
+    elif isolation == "rc":
         if database in ["postgresql", "greenplum", "oceanbase", "oracle", "mysql", "tidb"]:
             return eliminate_dirty_write_lock(conflicts) or eliminate_dirty_read_mvcc(conflicts)
         elif database in ["sqlserver"]:
             return eliminate_dirty_write_lock(conflicts) or eliminate_dirty_read_lock(conflicts)
-    elif isolation =="rr":
+    elif isolation == "rr":
         if database in ["mysql", "myrocks", "tdsql", "tidb", "oceanbase"]:
             return eliminate_dirty_write_lock(conflicts) or eliminate_non_repeatable_read_mvcc1(conflicts)
         elif database in ["sqlserver"]:
@@ -954,6 +1008,27 @@ def eliminate_dirty_read_mvcc(conflicts):
     num_txns = len(conflicts)
     broken_edges = set()  # To store broken edges caused by write dependencies
 
+    # Check read cycles
+    for i in range(num_txns):
+        conflict = conflicts[i]
+        first_op = conflict[0]
+        second_op = conflict[-2]
+        value = conflict[-1]
+
+        if first_op in read_op_set:  # other dependency
+            break
+        else:
+            if len(conflict) == 3:
+                if second_op in write_op_set:  # WW conflict: check if W1[X]W2[X] -> W2[X]R2[X] then W1[X] -> R2[X]
+                    if i < num_txns - 1:
+                        next_value = conflicts[i+1][-1]
+                        next_second_op = conflicts[i+1][-2]
+                        next_first_op = conflicts[i+1][0]
+                        if value == next_value and next_second_op in write_op_set and next_first_op in write_op_set:
+                            i += 1  # Skip the next conflict
+
+        return False
+
     for i in range(num_txns):
         conflict = conflicts[i]
         first_op = conflict[0]
@@ -986,14 +1061,14 @@ They eliminate WW, WR, and RW dependencies on X tuples.
 
 def eliminate_non_repeatable_read_lock(conflicts):
     num_txns = len(conflicts)
-    if num_txns == 2 and len(conflicts[0]) == 3 and conflicts[0][0] =="R" and conflicts[0][-2] in write_op_set and conflicts[0][-1] == conflicts[1][-1]:
+    if num_txns == 2 and len(conflicts[0]) == 3 and conflicts[0][0] == "R" and conflicts[0][-2] in write_op_set and conflicts[0][-1] == conflicts[1][-1]:
         return True
     # Check cycles
     for i in range(num_txns):
         conflict = conflicts[i]
         first_op = conflict[0]
         second_op = conflict[-2]
-        if first_op =="P" and second_op =="I":
+        if first_op == "P" and second_op == "I":
             return False
     # contains a cycle
     return True
@@ -1013,6 +1088,27 @@ def eliminate_non_repeatable_read_mvcc1(conflicts):
     num_txns = len(conflicts)
     broken_edges = set()  # To store broken edges caused by write dependencies
 
+    # Check read cycles
+    for i in range(num_txns):
+        conflict = conflicts[i]
+        first_op = conflict[0]
+        second_op = conflict[-2]
+        value = conflict[-1]
+
+        if first_op in read_op_set:  # other dependency
+            break
+        else:
+            if len(conflict) == 3 or i == num_txns-1:
+                if second_op in write_op_set:  # WW conflict: check if W1[X]W2[X] -> W2[X]R2[X] then W1[X] -> R2[X]
+                    if i < num_txns - 1:
+                        next_value = conflicts[i+1][-1]
+                        next_second_op = conflicts[i+1][-2]
+                        next_first_op = conflicts[i+1][0]
+                        if value == next_value and next_second_op in write_op_set and next_first_op in write_op_set:
+                            i += 1  # Skip the next conflict
+
+        return False
+
     for i in range(num_txns):
         conflict = conflicts[i]
         first_op = conflict[0]
@@ -1020,13 +1116,7 @@ def eliminate_non_repeatable_read_mvcc1(conflicts):
         if first_op in write_op_set and second_op in read_op_set:
             if len(conflict) == 3 or i == num_txns-1:  # consider WCR
                 # WR(WCR) conflict, the second op needs to be blocked until the txn of the first op commits
-                if (i, i+1 % (num_txns)) in broken_edges:
-                    broken_edges.remove((i, i+1 % (num_txns)))
-                else:
-                    broken_edges.add((i+1 % (num_txns), i))
-    # If we have broken some edges, then the cycle in POP ==broken
-    if not broken_edges:
-        return True
+                return True
     return False
 
 
@@ -1055,21 +1145,36 @@ def eliminate_non_repeatable_read_mvcc2(conflicts):
                 if i < num_txns - 1:
                     return True
 
+    # Check read cycles
+    for i in range(num_txns):
+        conflict = conflicts[i]
+        first_op = conflict[0]
+        second_op = conflict[-2]
+        value = conflict[-1]
+
+        if first_op in read_op_set:  # other dependency
+            break
+        else:
+            if len(conflict) == 3 or i == num_txns-1:
+                if second_op in write_op_set:  # WW conflict: check if W1[X]W2[X] -> W2[X]R2[X] then W1[X] -> R2[X]
+                    if i < num_txns - 1:
+                        next_value = conflicts[i+1][-1]
+                        next_second_op = conflicts[i+1][-2]
+                        next_first_op = conflicts[i+1][0]
+                        if value == next_value and next_second_op in write_op_set and next_first_op in write_op_set:
+                            i += 1  # Skip the next conflict
+
+        return False
+
     for i in range(num_txns):
         conflict = conflicts[i]
         first_op = conflict[0]
         second_op = conflict[-2]
         if first_op in write_op_set and second_op in read_op_set:
-
             if len(conflict) == 3 or i == num_txns-1:
-                # WR(WCR) conflict, the second write op needs to be blocked until the txn of the first op commits
-                if (i, i+1 % (num_txns)) in broken_edges:
-                    broken_edges.remove((i, i+1 % (num_txns)))
-                else:
-                    broken_edges.add((i+1 % (num_txns), i))
-    # If we have broken some edges, then the cycle in POP is broken
-    if not broken_edges:
-        return True
+                return True
+    return False
+
 
 # global database
 # global isolation
@@ -1079,7 +1184,7 @@ db_type = sys.argv[1]
 test_type = sys.argv[2]
 #"mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver","oceanbase","tidb","mongodb"
 database = sys.argv[3]
-#ru,rc,rr,si,ser
+# ru,rc,rr,si,ser
 isolation = sys.argv[4]
 
 # target folder
@@ -1111,7 +1216,7 @@ for popg in lines:
     if popg[0] == "#":
         continue
     ops = popg.split('-')
-    if not check_isolation(ops,database,isolation):
+    if not check_isolation(ops, database, isolation):
         continue
     path_store = case_folder
     if not os.path.exists(path_store):
@@ -1143,7 +1248,7 @@ for popg in lines:
         insert_num = num + 1
     else:
         insert_num = num
-    
+
     # barrier data insertion
     for i in range(1, insert_num + 1):
         insert_data(file_name, sql_count, txn_count, cur_count, partition_num, insert_table, data_num, exist,
@@ -1154,8 +1259,9 @@ for popg in lines:
             cur_count += 1
         partition_num ^= 2
         insert_table += 1
-        if table_num == 1: insert_table = 1
-    
+        if table_num == 1:
+            insert_table = 1
+
     # for a data, if W and D operation at an earlier time, we will insert this data when initialized
     for i in range(len(ops)):
         if ops[i][1] == "C" or ops[i][1] == "A":
@@ -1166,24 +1272,27 @@ for popg in lines:
             visit[op_num] = True
             if ops[i][0] == "R" or ops[i][0] == "P":
                 if ops[i].find("I") == -1:
-                    insert_data(file_name, sql_count, txn_count, 2*op_num+1, partition_num, insert_table, data_num, exist, data_value)
+                    insert_data(file_name, sql_count, txn_count, 2*op_num+1,
+                                partition_num, insert_table, data_num, exist, data_value)
             elif ops[i][0] == "D" or ops[i][0] == "W":
                 insert_data(file_name, sql_count, txn_count, 2*op_num+1, partition_num, insert_table, data_num, exist,
                             data_value)
             partition_num ^= 2
             insert_table += 1
-            if table_num == 1: insert_table = 1
+            if table_num == 1:
+                insert_table = 1
 
     # execution
     txn = [Txn() for i in range(num + 2)]
     wait_op_list = []
     data_op_list = [[] for i in range(2*num + 2)]
-    
+
     # need_ac means whether need abort/commit immediately and if necessary which operation need to be done
     need_ac = ["NO"] * (num + 1)
     sql_count += 1
-    sql_count = execute_txn(IsPredicate, num, ops, need_ac, file_name, sql_count, data_num, txn, data_value, wait_op_list,data_op_list)
-    
+    sql_count = execute_txn(IsPredicate, num, ops, need_ac, file_name, sql_count,
+                            data_num, txn, data_value, wait_op_list, data_op_list)
+
     # reorder statements so that conflict-free statements execute first
     # sql_count = execute_first(IsPredicate, num, ops, file_name, sql_count, txn_count, data_num, txn, data_value, data_op_list)
     # txn_count = 2
