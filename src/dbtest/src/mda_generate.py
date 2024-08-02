@@ -857,9 +857,12 @@ def write_description(file_name, txn_num, op_num, data_num):
         description += "#\n"
         file_test.write(description)
 
+
 """
 Check if the test case can be handled by the isolation level of the database
 """
+
+
 def check_isolation(conflicts, database, isolation):
     # assert database in ["mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver"]
     if isolation == "ru":
@@ -1024,9 +1027,9 @@ def eliminate_dirty_read_mvcc(conflicts):
                         next_value = conflicts[i+1][-1]
                         next_second_op = conflicts[i+1][-2]
                         next_first_op = conflicts[i+1][0]
-                        if value == next_value and next_second_op in write_op_set and next_first_op in write_op_set:
+                        if value == next_value and next_second_op in read_op_set and next_first_op in write_op_set:
                             i += 1  # Skip the next conflict
-
+        # a cycle contains only wr edge
         return False
 
     for i in range(num_txns):
@@ -1034,14 +1037,7 @@ def eliminate_dirty_read_mvcc(conflicts):
         first_op = conflict[0]
         second_op = conflict[-2]
         if len(conflict) == 3:  # Only consider WR conflicts, not WCR
-            if first_op in write_op_set and second_op in read_op_set:
-                if (i, i+1 % (num_txns)) in broken_edges:  # if break twice, then it is same as the origin POP(differ edge type)
-                    broken_edges.remove((i, i+1 % (num_txns)))
-                else:
-                    broken_edges.add((i+1 % (num_txns), i))
-    # If we have broken some edges, then the cycle in POP is broken
-    if not broken_edges:
-        return True
+            return True
 
 
 """
@@ -1084,10 +1080,7 @@ Unlike read-committed, it will also convert some W1[X]C1R2[X] to R2[X]W1[X].
 
 
 def eliminate_non_repeatable_read_mvcc1(conflicts):
-
     num_txns = len(conflicts)
-    broken_edges = set()  # To store broken edges caused by write dependencies
-
     # Check read cycles
     for i in range(num_txns):
         conflict = conflicts[i]
@@ -1104,9 +1097,8 @@ def eliminate_non_repeatable_read_mvcc1(conflicts):
                         next_value = conflicts[i+1][-1]
                         next_second_op = conflicts[i+1][-2]
                         next_first_op = conflicts[i+1][0]
-                        if value == next_value and next_second_op in write_op_set and next_first_op in write_op_set:
+                        if value == next_value and next_second_op in read_op_set and next_first_op in write_op_set:
                             i += 1  # Skip the next conflict
-
         return False
 
     for i in range(num_txns):
@@ -1115,7 +1107,6 @@ def eliminate_non_repeatable_read_mvcc1(conflicts):
         second_op = conflict[-2]
         if first_op in write_op_set and second_op in read_op_set:
             if len(conflict) == 3 or i == num_txns-1:  # consider WCR
-                # WR(WCR) conflict, the second op needs to be blocked until the txn of the first op commits
                 return True
     return False
 
@@ -1134,8 +1125,6 @@ If the previous write operation is committed, the transaction in which the later
 
 def eliminate_non_repeatable_read_mvcc2(conflicts):
     num_txns = len(conflicts)
-    broken_edges = set()  # To store broken edges caused by write dependencies
-
     for i in range(num_txns):
         conflict = conflicts[i]
         first_op = conflict[0]
@@ -1161,7 +1150,7 @@ def eliminate_non_repeatable_read_mvcc2(conflicts):
                         next_value = conflicts[i+1][-1]
                         next_second_op = conflicts[i+1][-2]
                         next_first_op = conflicts[i+1][0]
-                        if value == next_value and next_second_op in write_op_set and next_first_op in write_op_set:
+                        if value == next_value and next_second_op in read_op_set and next_first_op in write_op_set:
                             i += 1  # Skip the next conflict
 
         return False
