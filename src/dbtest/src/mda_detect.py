@@ -25,11 +25,11 @@ class Edge:
 
 
 class Operation:
-    def __init__(self, op_type, txn_num, op_time, value):
+    def __init__(self, op_type, txn_num, op_time, op_value):
         self.op_type = op_type
         self.txn_num = txn_num
         self.op_time = op_time
-        self.value = value
+        self.value = op_value
 
 
 class Txn:
@@ -107,7 +107,7 @@ def get_total(lines):
     for query in lines:
         query = query.replace("\n", "")
         query = query.replace(" ", "")
-        if query.find("INSERT") != -1: # query[0:2] == "Q0" and 
+        if query.find("INSERT") != -1 or query.find("insert") != -1: # query[0:2] == "Q0" and
             tmp = find_data(query, "(")
             num = max(num, tmp)
         # elif query[0:2] == "Q1":
@@ -129,9 +129,12 @@ def get_total_txn(lines):
     for query in lines:
         query = query.replace("\n", "")
         query = query.replace(" ", "")
-        if query[0:1] == "Q" and query.find("T") != -1:
-            tmp = find_data(query, "T")
-            num = max(num, tmp)
+        t1=query.find('-')
+        if t1!=-1:
+            t2=query.find('-',t1+1)
+            if t2!=-1:
+                tmp=int(query[t1+1:t2])
+                num=max(num,tmp)
     return num
 
 
@@ -171,15 +174,15 @@ Args:
 Returns:
 str: Corresponding isolation level setting.
 """
-def find_isolation(query):
-    if query.find("read-uncommitted") != -1:
-        return "read-uncommitted"
-    if query.find("read-committed") != -1:
-        return "read-committed"
-    if query.find("repeatable-read") != -1:
-        return "repeatable-read"
-    if query.find("serializable") != -1:
-        return "serializable"
+def find_isolation(query): #TODO: In this program, set all test cases "SERIALIZABLE".
+#    if query.find("read-uncommitted") != -1:
+#        return "read-uncommitted"
+#    if query.find("read-committed") != -1:
+#        return "read-committed"
+#    if query.find("repeatable-read") != -1:
+#        return "repeatable-read"
+#    if query.find("serializable") != -1:
+    return "serializable"
 
 
 """
@@ -452,32 +455,35 @@ handling predicates, and selecting all rows in a table.
 Returns:
 None
 """
-def read_record(op_time, txn_num, total_num, txn, data_op_list):
+# TODO: need to judge the name of attributes, this program only considers the name for key "k" and value "v".
+def read_record(op_time, txn_num, total_num, txn, data_op_list,operation_by_time):
     if txn[txn_num].begin_ts == -1:
         txn[txn_num].begin_ts = op_time
     # for some distributed cases which have 4 param, write part is same
-    if query.find("value1=") != -1:
-        op_data = find_data(query, "value1=")
+    if query.find("v=") != -1:
+        op_data = find_data(query, "v=")
         data_op_list[op_data].append(Operation("R", txn_num, op_time, op_data))
     # for normal cases
     elif query.find("k=") != -1:
         op_data = find_data(query, "k=")
         data_op_list[op_data].append(Operation("R", txn_num, op_time, op_data))
+        operation_by_time.append(Operation("R",txn_num,op_time,op_data))
     # for predicate cases
     elif query.find("k>") != -1:
         left = find_data(query, "k>") + 1
         right = find_data(query, "k<")
         for i in range(left, right):
             data_op_list[i].append(Operation("R", txn_num, op_time, i)) # P
-    elif query.find("value1>") != -1:
-        left = find_data(query, "value1>") + 1
-        right = find_data(query, "value1<")
+    elif query.find("v>") != -1:
+        left = find_data(query, "v>") + 1
+        right = find_data(query, "v<")
         for i in range(left, right):
             data_op_list[i].append(Operation("R", txn_num, op_time, i)) # p
     else:
         # it means select all rows in table
         for i in range(total_num+1):
             data_op_list[i].append(Operation("R", txn_num, op_time, i))
+        operation_by_time.append(Operation("R",txn_num,op_time,-1))
 
 
 """
@@ -500,25 +506,22 @@ The 'query' is analyzed to identify specific record keys and values, and it crea
 Returns:
 None
 """
-def write_record(op_time, txn_num, txn, data_op_list):
+def write_record(op_time, txn_num, txn, data_op_list,operation_by_time):
     if txn[txn_num].begin_ts == -1:
         txn[txn_num].begin_ts = op_time
-    if query.find("value1=") != -1:
-        op_data = find_data(query, "value1=")
-        op_value = find_data(query, "value2=")
-        data_op_list[op_data].append(Operation("W", txn_num, op_time, op_value))
-    elif query.find("k=") != -1:
+    if query.find("k=") != -1:
         op_data = find_data(query, "k=")
         op_value = find_data(query, "v=")
-        data_op_list[op_data].append(Operation("W", txn_num, op_time, op_value))
+        data_op_list[op_data].append(Operation("W", txn_num,op_time,op_value))
+        operation_by_time.append(Operation("W",txn_num,op_time,op_data))
     elif query.find("k>") != -1:
         left = find_data(query, "k>") + 1
         right = find_data(query, "k<")
         for i in range(left, right):
             data_op_list[i].append(Operation("W", txn_num, op_time, i))
-    elif query.find("value1>") != -1:
-        left = find_data(query, "value1>") + 1
-        right = find_data(query, "value1<")
+    elif query.find("v>") != -1:
+        left = find_data(query, "v>") + 1
+        right = find_data(query, "v<")
         for i in range(left, right):
             data_op_list[i].append(Operation("W", txn_num, op_time, i))
     else:
@@ -546,24 +549,25 @@ The 'query' is analyzed to identify specific record keys, and it creates corresp
 Returns:
 None
 """
-def delete_record(op_time, txn_num, txn, data_op_list):
+def delete_record(op_time, txn_num, txn, data_op_list,operation_by_time):
     if txn[txn_num].begin_ts == -1:
         txn[txn_num].begin_ts = op_time
-    if query.find("value1=") != -1:
-        op_data = find_data(query, "value1=")
+    if query.find("v=") != -1:
+        op_data = find_data(query, "v=")
         data_op_list[op_data].append(Operation("D", txn_num, op_time, op_data))
     elif query.find("k=") != -1:
         op_data = find_data(query, "k=")
         data_op_list[op_data].append(Operation("D", txn_num, op_time, op_data))
+        operation_by_time.append(Operation("D",txn_num,op_time,op_data))
     # for predicate cases
     elif query.find("k>") != -1:
         left = find_data(query, "k>") + 1
         right = find_data(query, "k<")
         for i in range(left, right):
             data_op_list[i].append(Operation("D", txn_num, op_time, i)) # P
-    elif query.find("value1>") != -1:
-        left = find_data(query, "value1>") + 1
-        right = find_data(query, "value1<")
+    elif query.find("v>") != -1:
+        left = find_data(query, "v>") + 1
+        right = find_data(query, "v<")
         for i in range(left, right):
             data_op_list[i].append(Operation("D", txn_num, op_time, i)) # p
     else:
@@ -591,13 +595,13 @@ objects in the 'data_op_list'.
 Returns:
 None
 """
-def insert_record(op_time, txn_num, txn, data_op_list):
+def insert_record(op_time, txn_num, txn, data_op_list,operation_by_time):
     if txn[txn_num].begin_ts == -1 and op_time != 0:
         txn[txn_num].begin_ts = op_time
     key = find_data(query, "(")
     value = find_data(query, ",")
     data_op_list[key].append(Operation("I", txn_num, op_time, value))
-
+    operation_by_time.append(Operation("I",txn_num,op_time,key))
 
 """
 Set the end timestamp for a transaction.
@@ -613,8 +617,9 @@ transaction's execution.
 Returns:
 None
 """
-def end_record(op_time, txn_num, txn):
+def end_record(op_time, txn_num, txn,operation_by_time):
     txn[txn_num].end_ts = op_time
+    operation_by_time.append(Operation("C",txn_num,op_time,-1))
 
 
 """
@@ -636,11 +641,17 @@ Assume "Rollback" will not be inserted to existing data.
 Returns:
 str: An error message (if any), or an empty string if the operation is successful.
 """
-def operation_record(total_num, query, txn, data_op_list, version_list):
+def operation_record(total_num, query, txn, data_op_list, version_list, operation_by_time):
     error_message = ""
-    op_time = find_data(query, "Q")
-    txn_num = find_data(query, "T")
-    if op_time == 0 and query.find("INSERT") != -1:
+    t1=query.find('-')
+    if t1==-1:
+        return error_message
+    t2=query.find('-',t1+1)
+    if t2==-1:
+        return error_message
+    op_time=int(query[0:t1])
+    txn_num=int(query[t1+1:t2])
+    if op_time == 0 and (query.find("INSERT") != -1 or query.find("insert") !=-1):
         init_record(query, version_list)
         return error_message
     if query.find("returnresult") != -1:
@@ -651,19 +662,21 @@ def operation_record(total_num, query, txn, data_op_list, version_list):
         return error_message
     if op_time == -1 or txn_num == -1:
         return error_message
-    if query.find("BEGIN") != -1:
+    if query.find("BEGIN") != -1 or query.find("begin") != -1:
         txn[txn_num].isolation = find_isolation(query)
-    elif query.find("SELECT") != -1:
-        read_record(op_time, txn_num, total_num, txn, data_op_list)
-    elif query.find("UPDATE") != -1:
-        write_record(op_time, txn_num, txn, data_op_list)
-    elif query.find("DELETE") != -1:
-        delete_record(op_time, txn_num, txn, data_op_list)
-    elif query.find("INSERT") != -1:
-        insert_record(op_time, txn_num, txn, data_op_list)
-    elif query.find("COMMIT") != -1:
+    elif query.find("SELECT") != -1 or query.find("select") != -1:
+        read_record(op_time, txn_num, total_num, txn, data_op_list,operation_by_time)
+    elif query.find("UPDATE") != -1 or query.find("update") != -1:
+        write_record(op_time, txn_num, txn, data_op_list,operation_by_time)
+    elif query.find("DELETE") != -1 or query.find("delete") != -1:
+        delete_record(op_time, txn_num, txn, data_op_list,operation_by_time)
+    elif query.find("INSERT") != -1 or query.find("insert") != -1:
+        insert_record(op_time, txn_num, txn, data_op_list,operation_by_time)
+    elif query.find("ROLLBACK") != -1 or query.find("rollback") != -1:
+        operation_by_time.append(Operation("RB", txn_num, op_time, -1))
+    elif query.find("COMMIT") != -1 or query.find("commit") != -1:
         if op_time != 0:
-            end_record(op_time, txn_num, txn)
+            end_record(op_time, txn_num, txn,operation_by_time)
     set_finish_time(op_time, data_op_list, txn, version_list)
     return error_message
     
@@ -829,20 +842,97 @@ def print_error(error_message):
     print(error_message)
     print("\n")
 
+"""
+Detect anomaly in MySQL environment at "SERIALIZABLE" isolation level.
+
+Args:
+- total_num (int): Total number of variables.
+- total_num_txn (int): Total number of transactions.
+- operation_by_time (list of Operation): List of operations ordered by time sequence.
+
+Returns:
+Str: A bug detection result in MySQL environment at "SERIALIZABLE" isolation level, including "Avoid" and "Rollback".
+"""
+def mysql_serializable_check(total_num,total_num_txn,operation_by_time):
+    lock_status = [["N" for _ in range(total_num_txn+1)] for _ in range(total_num+1)]
+    finished = [0 for _ in range(len(operation_by_time))]
+    pending=[-1 for _ in range(total_num_txn+1)]
+    iteration_count=0
+    while finished.count(1)<len(finished):
+        for i,op in enumerate(operation_by_time):
+            if finished[i]!=0 or pending[op.txn_num]!=-1: continue
+            if op.op_type=="R":
+                if op.value!=-1:
+                    no_lock=1
+                    for j in range(1,total_num_txn+1):
+                        if (lock_status[op.value][j][0]=="W" or lock_status[op.value][j][0]=="D" or lock_status[op.value][j][0]=="I") and op.op_time>int(lock_status[op.value][j][1:]) and lock_status[op.value][0][1:]!=str(op.txn_num):
+                            no_lock=0
+                            break
+                    if no_lock==1:
+                        finished[i]=1
+                        if lock_status[op.value][0]=="N":
+                            lock_status[op.value][0]="R"+str(op.txn_num)
+                    else:
+                        pending[op.txn_num]=1
+                    lock_status[op.value][op.txn_num]="R"+str(op.op_time)
+                else:
+                    no_lock=1
+                    for j in range(total_num+1):
+                        if no_lock==0: break
+                        for k in range(1,total_num_txn+1):
+                            if (lock_status[j][k][0]=="W" or lock_status[j][k][0]=="D" or lock_status[j][k][0]=="I") and op.op_time>int(lock_status[j][k][1:]) and lock_status[j][0][1:]!=str(op.txn_num):
+                                no_lock=0
+                                break
+                    if no_lock==1:
+                        finished[i]=1
+                    else:
+                        pending[op.txn_num]=1
+                    for j in range(total_num+1):
+                        lock_status[j][op.txn_num]="R"+str(op.op_time)
+                        if finished[i]==1 and lock_status[j][0]=="N":
+                            lock_status[j][0]="R"+str(op.txn_num)
+            elif op.op_type=="W" or op.op_type=="D" or op.op_type=="I":
+                no_lock=1
+                for j in range(1,total_num_txn+1):
+                    if lock_status[op.value][j]!="N" and j!=op.txn_num and op.op_time>int(lock_status[op.value][j][1:]):
+                        no_lock=0
+                        break
+                if lock_status[op.value][0]=="W"+str(op.txn_num):
+                    no_lock=1
+                if no_lock==1:
+                    finished[i]=1
+                    if lock_status[op.value][0] == "N":
+                        lock_status[op.value][0] = "W"+str(op.txn_num)
+                else:
+                    pending[op.txn_num]=1
+                lock_status[op.value][op.txn_num]=op.op_type+str(op.op_time)
+            elif op.op_type=="C" or op.op_type=="RB":
+                for j in range(total_num+1):
+                    lock_status[j][op.txn_num]="N"
+                    if lock_status[j][0][1:] == str(op.txn_num):
+                        lock_status[j][0] = "N"
+                finished[i]=1
+                for j in range(1,total_num_txn+1):
+                    pending[j]=-1
+            break
+        iteration_count+=1
+        if iteration_count > 2*len(finished)+1:
+            break
+    if iteration_count>2*len(finished)+1:
+        return "Rollback"
+    else:
+        return "Avoid"
+
 
 """
 Assumption:
 The modifications of transactions at any isolation level are mutually visible, which is equivalent to a single storage, without read-write buffer.
-Add statements to set isolation level of each transaction in the input file, after "BEGIN":
-    # BEGIN T1 set_isolation=repeatable-read
-    # BEGIN T2 set_isolation=serializable
-    # BEGIN T3 set_isolation=read-uncommitted
-    # BEGIN T4 set_isolation=read-committed
+This program sets isolation level to "serializable" for all test cases.
 Assume that the inserted data key is in ascending order from 0.
 Assume all execution time Qi have no "finished" statement in dynamic test.
 """
 
-run_result_folder = "pg/mda_detect_test"
+run_result_folder = "pg/serializable"
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
 ts_now = time.strftime("%Y%m%d_%H%M%S", time.localtime())
@@ -874,6 +964,7 @@ for file in files:
     edge_type = []  # edge type of the cycle
     version_list = [[] for i in range(total_num + 2)]
     go_end = False  # if test result is "Rollback" or "Timeout", we will don't check
+    operation_by_time = [] # record all operations after Q0
 
     error_message = ""
     for query in lines:
@@ -881,10 +972,10 @@ for file in files:
         query = query.replace(" ", "")
         if query.find("Rollback") != -1 or query.find("Timeout") != -1:
             go_end = True
-        error_message = operation_record(total_num, query, txn, data_op_list, version_list)
+        error_message = operation_record(total_num, query, txn, data_op_list, version_list, operation_by_time)
         if error_message != "":
             break
-    
+
     if error_message != "":
         output_result(file,"Error")
         print_error(result_folder)
@@ -893,20 +984,9 @@ for file in files:
     cycle = False
 
     build_graph(data_op_list, indegree, edge, txn, error_type)
-    print("--------file:{}--------".format(file))
+
+    check_result=mysql_serializable_check(total_num,total_num_txn,operation_by_time)
+    print("{}".format(file)+": "+check_result+"\n")
+
     with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
-        f.write("--------file:{}--------".format(file) + "\n")
-    print_graph(edge,txn,error_type)
-    if not go_end:
-        cycle = check_cycle(edge, indegree, total_num_txn+2)
-    if cycle:
-        output_result(file,"Cyclic")
-        for i in range(total_num_txn + 2):
-            if visit1[i] == 0:
-                dfs(result_folder, ts_now, Edge("null",i,-1))
-    else:
-        output_result(file,"Avoid")
-        print_path(edge)
-    print("---------------------------------\n")
-    with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
-        f.write("---------------------------------\n\n")
+        f.write("{}".format(file)+": "+check_result+"\n\n")
