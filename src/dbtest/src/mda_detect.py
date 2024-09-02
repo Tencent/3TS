@@ -236,16 +236,15 @@ str: Corresponding isolation level setting.
 """
 
 
-def find_isolation(query):  # TODO: In this program, set all test cases "read-repeatable".
-    #    if query.find("read-uncommitted") != -1:
-    #        return "read-uncommitted"
-    #    if query.find("read-committed") != -1:
-    #        return "read-committed"
-    #    if query.find("repeatable-read") != -1:
-    #        return "repeatable-read"
-    #    if query.find("serializable") != -1:
-    #        return "serializable"
-    return "read-repeatable"
+def find_isolation(query):
+    if query.find("read-uncommitted") != -1:
+        return "read-uncommitted"
+    if query.find("read-committed") != -1:
+        return "read-committed"
+    if query.find("repeatable-read") != -1:
+        return "repeatable-read"
+    if query.find("serializable") != -1:
+        return "serializable"
 
 
 """
@@ -540,7 +539,8 @@ None
 """
 
 
-# TODO: need to judge the name of attributes, this program only considers the name for key "k" and value "v".
+# TODO: need to judge the name of attributes and query for other attributes,
+#  this program only considers the name for key "k" and value "v", and query for "k".
 def read_record(op_time, txn_num, total_num, txn, data_op_list, operation_by_time):
     if txn[txn_num].begin_ts == -1:
         txn[txn_num].begin_ts = op_time
@@ -548,6 +548,7 @@ def read_record(op_time, txn_num, total_num, txn, data_op_list, operation_by_tim
     if query.find("v=") != -1:
         op_data = find_data(query, "v=")
         data_op_list[op_data].append(Operation("R", txn_num, op_time, op_data))
+        operation_by_time.append(Operation("R", txn_num, op_time, op_data))
     # for normal cases
     elif query.find("k=") != -1:
         op_data = find_data(query, "k=")
@@ -1180,6 +1181,244 @@ def mysql_readrepeatable_check(total_num, total_num_txn, operation_by_time, vali
 
 
 """
+Detect anomaly in MySQL environment at "READ-COMMITTED" isolation level.
+
+Args:
+- total_num (int): Total number of variables.
+- total_num_txn (int): Total number of transactions.
+- operation_by_time (list of Operation): List of operations ordered by time sequence.
+- validate_group (list of str list): List of validation data from test cases.
+- data_record (list of int list): List of data in int form.
+
+Returns:
+Str: A bug detection result in MySQL environment at "READ-COMMITTED" isolation level, including "Avoid", "Anomaly" and "Rollback".
+The matched test case number is attached to the right side of "Avoid" message.
+"""
+
+
+def mysql_readcommitted_check(total_num, total_num_txn, operation_by_time, validate_group, data_record):
+    lock_status = [["N" for _ in range(total_num_txn + 1)] for _ in range(total_num + 1)]
+    finished = [0 for _ in range(len(operation_by_time))]
+    pending = [-1 for _ in range(total_num_txn + 1)]
+    iteration_count = 0
+    test_group = []
+    pre_version = [copy.deepcopy(data_record) for _ in range(total_num_txn + 1)]
+    while finished.count(1) < len(finished):
+        for i, op in enumerate(operation_by_time):
+            if finished[i] != 0 or pending[op.txn_num] != -1:
+                continue
+            if op.op_type == "R":
+                finished[i] = 1
+                fill=0
+                for data in pre_version[op.txn_num]:
+                    if (data[0] == op.value or op.value == -1) and data[3] == -1:
+                        test_group.append([str(op.op_time), str(data[0]), str(data[1])])
+                        fill=1
+                if fill==0:
+                    test_group.append([str(op.op_time),"",""])
+            elif op.op_type == "W" or op.op_type == "D" or op.op_type == "I":
+                no_lock = 1
+                for j in range(1, total_num_txn + 1):
+                    if lock_status[op.value][j][0] == "W" and j != op.txn_num and op.op_time > int(
+                            lock_status[op.value][j][1:]):
+                        no_lock = 0
+                        break
+                if lock_status[op.value][0] == "W" + str(op.txn_num):
+                    no_lock = 1
+                if no_lock == 1:
+                    finished[i] = 1
+                    if lock_status[op.value][0] == "N":
+                        lock_status[op.value][0] = "W" + str(op.txn_num)
+                    if op.op_type == "W":
+                        for j in range(len(pre_version[op.txn_num])):
+                            if (pre_version[op.txn_num][j][0]==op.value or op.value==-1) and pre_version[op.txn_num][j][3]==-1:
+                                pre_version[op.txn_num][j][1]=op.keyvalue
+                    elif op.op_type == "D":
+                        for j in range(len(pre_version[op.txn_num])):
+                            if (pre_version[op.txn_num][j][0]==op.value or op.value==-1) and pre_version[op.txn_num][j][3]==-1:
+                                pre_version[op.txn_num][j][3]=1
+                    elif op.op_type == "I":
+                        pre_version[op.txn_num].append([op.value, op.keyvalue, 0, -1])
+                else:
+                    pending[op.txn_num] = 1
+                lock_status[op.value][op.txn_num] = op.op_type + str(op.op_time)
+            elif op.op_type == "C" or op.op_type == "RB":
+                for j in range(total_num + 1):
+                    lock_status[j][op.txn_num] = "N"
+                    if lock_status[j][0][1:] == str(op.txn_num):
+                        lock_status[j][0] = "N"
+                finished[i] = 1
+                for j in range(1, total_num_txn + 1):
+                    pending[j] = -1
+                is_write = 0
+                for j in operation_by_time:
+                    if j.op_type != "R" and j.txn_num == op.txn_num and j.op_time < op.op_time:
+                        is_write = 1
+                        break
+                if is_write == 1 and op.op_type == "C":
+                    txn_modify = [0 for _ in range(total_num + 1)]
+                    for data in operation_by_time:
+                        if op.op_time<data.op_time: break
+                        if data.txn_num==op.txn_num and (data.op_type=="W" or data.op_type=="D" or data.op_type=="I"):
+                            if data.value==-1:
+                                txn_modify=[1 for _ in range(total_num+1)]
+                            else:
+                                txn_modify[data.value]=1
+                    for j in range(len(txn_modify)):
+                        if txn_modify[j]==1:
+                            for k in range(len(pre_version)):
+                                if k!=op.txn_num:
+                                    exist=0
+                                    for l in range(len(pre_version[k])):
+                                        if pre_version[k][l][0]==j:
+                                            for m in range(len(pre_version[op.txn_num])):
+                                                if pre_version[op.txn_num][m][0]==j:
+                                                    pre_version[k][l][1]=pre_version[op.txn_num][m][1]
+                                            exist=1
+                                    if exist==0:
+                                        for m in range(len(pre_version[op.txn_num])):
+                                            if pre_version[op.txn_num][m][0] == j:
+                                                pre_version[k].append(pre_version[op.txn_num][m])
+            break
+        iteration_count += 1
+        if iteration_count > 2 * len(finished) + 1:
+            break
+    if iteration_count > 2 * len(finished) + 1:
+        return "Rollback"
+    else:
+        for cnt, i in enumerate(validate_group):
+            can_pass = 1
+            for j in test_group:
+                if j not in i:
+                    can_pass = 0
+                    break
+            if can_pass == 1:
+                return "Avoid [" + (str)(cnt + 1) + "]"
+        return "Anomaly"
+
+
+"""
+Detect anomaly in MySQL environment at "READ-UNCOMMITTED" isolation level.
+
+Args:
+- total_num (int): Total number of variables.
+- total_num_txn (int): Total number of transactions.
+- operation_by_time (list of Operation): List of operations ordered by time sequence.
+- validate_group (list of str list): List of validation data from test cases.
+- data_record (list of int list): List of data in int form.
+
+Returns:
+Str: A bug detection result in MySQL environment at "READ-UNCOMMITTED" isolation level, including "Avoid", "Anomaly" and "Rollback".
+The matched test case number is attached to the right side of "Avoid" message.
+"""
+
+
+def mysql_readuncommitted_check(total_num, total_num_txn, operation_by_time, validate_group, data_record):
+    lock_status = [["N" for _ in range(total_num_txn + 1)] for _ in range(total_num + 1)]
+    finished = [0 for _ in range(len(operation_by_time))]
+    pending = [-1 for _ in range(total_num_txn + 1)]
+    iteration_count = 0
+    begin = [-1 for _ in range(total_num_txn + 1)]
+    begin_record=[[] for _ in range(total_num_txn+1)]
+    test_group = []
+    pre_version = [copy.deepcopy(data_record) for _ in range(total_num_txn + 1)]
+    for op in operation_by_time:
+        if begin[op.txn_num] == -1:
+            begin[op.txn_num] = op.op_time
+    while finished.count(1) < len(finished):
+        for i, op in enumerate(operation_by_time):
+            if finished[i] != 0 or pending[op.txn_num] != -1:
+                continue
+            for j in range(len(begin)):
+                if begin[j]==op.txn_num:
+                    begin_record[j]=pre_version
+            if op.op_type == "R":
+                finished[i] = 1
+                fill=0
+                for data in pre_version[op.txn_num]:
+                    if (data[0] == op.value or op.value == -1) and data[3] == -1:
+                        test_group.append([str(op.op_time), str(data[0]), str(data[1])])
+                        fill=1
+                if fill==0:
+                    test_group.append([str(op.op_time),"",""])
+            elif op.op_type == "W" or op.op_type == "D" or op.op_type == "I":
+                no_lock = 1
+                for j in range(1, total_num_txn + 1):
+                    if lock_status[op.value][j][0] == "W" and j != op.txn_num and op.op_time > int(
+                            lock_status[op.value][j][1:]):
+                        no_lock = 0
+                        break
+                if lock_status[op.value][0] == "W" + str(op.txn_num):
+                    no_lock = 1
+                if no_lock == 1:
+                    finished[i] = 1
+                    if lock_status[op.value][0] == "N":
+                        lock_status[op.value][0] = "W" + str(op.txn_num)
+                    if op.op_type == "W":
+                        for j in range(len(pre_version[op.txn_num])):
+                            if (pre_version[op.txn_num][j][0]==op.value or op.value==-1) and pre_version[op.txn_num][j][3]==-1:
+                                pre_version[op.txn_num][j][1]=op.keyvalue
+                    elif op.op_type == "D":
+                        for j in range(len(pre_version[op.txn_num])):
+                            if (pre_version[op.txn_num][j][0]==op.value or op.value==-1) and pre_version[op.txn_num][j][3]==-1:
+                                pre_version[op.txn_num][j][3]=1
+                    elif op.op_type == "I":
+                        pre_version[op.txn_num].append([op.value, op.keyvalue, 0, -1])
+                    txn_modify = [0 for _ in range(total_num + 1)]
+                    for data in operation_by_time:
+                        if op.op_time<data.op_time: break
+                        if data.txn_num==op.txn_num and (data.op_type=="W" or data.op_type=="D" or data.op_type=="I"):
+                            if data.value==-1:
+                                txn_modify=[1 for _ in range(total_num+1)]
+                            else:
+                                txn_modify[data.value]=1
+                    for j in range(len(txn_modify)):
+                        if txn_modify[j]==1:
+                            for k in range(len(pre_version)):
+                                if k!=op.txn_num:
+                                    exist=0
+                                    for l in range(len(pre_version[k])):
+                                        if pre_version[k][l][0]==j:
+                                            for m in range(len(pre_version[op.txn_num])):
+                                                if pre_version[op.txn_num][m][0]==j:
+                                                    pre_version[k][l][1]=pre_version[op.txn_num][m][1]
+                                            exist=1
+                                    if exist==0:
+                                        for m in range(len(pre_version[op.txn_num])):
+                                            if pre_version[op.txn_num][m][0] == j:
+                                                pre_version[k].append(pre_version[op.txn_num][m])
+                else:
+                    pending[op.txn_num] = 1
+                lock_status[op.value][op.txn_num] = op.op_type + str(op.op_time)
+            elif op.op_type == "C" or op.op_type == "RB":
+                for j in range(total_num + 1):
+                    lock_status[j][op.txn_num] = "N"
+                    if lock_status[j][0][1:] == str(op.txn_num):
+                        lock_status[j][0] = "N"
+                finished[i] = 1
+                for j in range(1, total_num_txn + 1):
+                    pending[j] = -1
+                if op.op_type=="RB":
+                    pre_version=begin_record[op.txn_num]
+            break
+        iteration_count += 1
+        if iteration_count > 2 * len(finished) + 1:
+            break
+    if iteration_count > 2 * len(finished) + 1:
+        return "Rollback"
+    else:
+        for cnt, i in enumerate(validate_group):
+            can_pass = 1
+            for j in test_group:
+                if j not in i:
+                    can_pass = 0
+                    break
+            if can_pass == 1:
+                return "Avoid [" + (str)(cnt + 1) + "]"
+        return "Anomaly"
+
+
+"""
 Assumption:
 The modifications of transactions at any isolation level are mutually visible, which is equivalent to a single storage, without read-write buffer.
 This program sets isolation level to "serializable" for all test cases.
@@ -1244,8 +1483,14 @@ for file in files:
     build_graph(data_op_list, indegree, edge, txn, error_type)
     if find_isolation(lines) == "serializable":
         check_result = mysql_serializable_check(total_num, total_num_txn, operation_by_time)
-    elif find_isolation(lines) == "read-repeatable":
+    elif find_isolation(lines) == "repeatable-read":
         check_result = mysql_readrepeatable_check(total_num, total_num_txn, operation_by_time, validate_group,
+                                                  data_record)
+    elif find_isolation(lines) == "read-committed":
+        check_result = mysql_readcommitted_check(total_num, total_num_txn, operation_by_time, validate_group,
+                                                  data_record)
+    elif find_isolation(lines) == "read-uncommitted":
+        check_result = mysql_readuncommitted_check(total_num, total_num_txn, operation_by_time, validate_group,
                                                   data_record)
 
     print("{}".format(file) + ": " + check_result + "\n")
