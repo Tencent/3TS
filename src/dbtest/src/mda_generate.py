@@ -9,9 +9,6 @@
 #  *
 #  */
 
-import matplotlib.pyplot as plt
-from typing import List
-import typing
 import networkx as nx
 from operator import truediv
 import os
@@ -1090,14 +1087,12 @@ class Checker:
 
 
 # [single,distributed] => for local test or distributed test
-db_type = "no"
+db_type = sys.argv[1]
 # [tdsql] => for pg/sql standard queries
-# test_type = sys.argv[2]
-test_type = "single"
-# "mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver","oceanbase","tidb","mongodb"
-database = "mysql"
-# ru,rc,rr,si,ser
-isolation = "rr"
+test_type = sys.argv[2]
+
+database = sys.argv[3]
+isolation = sys.argv[4]
 
 # target folder
 case_folder = f"t/test_case_v2_{database}_{isolation}"
@@ -1105,8 +1100,6 @@ case_folder = f"t/test_case_v2_{database}_{isolation}"
 do_test_list = f"do_test_list.txt"
 
 
-db_type = "no-use"
-test_type = "single"
 max_time = 99999999999999999999
 with open(do_test_list, "r") as f:
     lines = f.readlines()
