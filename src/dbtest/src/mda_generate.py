@@ -945,7 +945,6 @@ class Checker:
         txns_block_key = {i: 0 for i in range(self.num_nodes)}
         after = {}  # op -> key（lock item)
         lock_table = {}  # key -> (lock_type, set of transaction_ids)
-        # Track committed transactions
 
         def log_operation(op, operation_type):
             if op.key not in self.history:
@@ -989,7 +988,7 @@ class Checker:
                 self.reorder.append(op)
                 op.set_pos(len(self.reorder))
                 op.finished = True
-                log_operation(op, 'W')  # 记录写操作
+                log_operation(op, 'W')
                 return
             if op.type in read_op_set:
                 if shared_mode != "no":
@@ -1029,7 +1028,7 @@ class Checker:
             return False
 
     def build_dependency_graph(self):
-        self.graph = nx.DiGraph()
+        self.graph = nx.MultiDiGraph()
         for key, operations in self.history.items():
             seen_transactions = set()
             for i, (op_type, tid, op) in enumerate(operations):
@@ -1039,43 +1038,44 @@ class Checker:
                     if seen_tid != tid:
                         prev_op_type, prev_tid, prev_op = operations[i - 1]
                         if prev_op_type == 'WC' and op_type.startswith('R'):
-                            label = 'WCR'
+                            key = 'WCR'
                         elif prev_op_type == 'RC' and op_type.startswith('W'):
-                            label = 'RCW'
+                            key = 'RCW'
                         elif prev_op_type == 'WC' and op_type.startswith('W'):
-                            label = 'WCW'
+                            key = 'WCW'
                         elif prev_op_type.startswith('W') and op_type.startswith('R'):
-                            label = 'WR'
+                            key = 'WR'
                         elif prev_op_type.startswith('R') and op_type.startswith('W'):
-                            label = 'RW'
+                            key = 'RW'
                         elif prev_op_type.startswith('W') and op_type.startswith('W'):
-                            label = 'WW'
+                            key = 'WW'
                         else:
-                            label = 'unknown'
-                        self.graph.add_edge(seen_tid, tid, label=label)
+                            key = 'unknown'
+                        self.graph.add_edge(seen_tid, tid, key=key)
                 seen_transactions.add(tid)
 
     def reverse_wr_edges_to_rw(self):
-        edges_to_reverse = [(u, v, data) for u, v, data in self.graph.edges(data=True) if data['label'] == 'WR']
+        edges_to_reverse = [(u, v, key) for u, v, key in self.graph.edges(keys=True) if key == 'WR']
         for u, v, data in edges_to_reverse:
-            self.graph.add_edge(v, u, label='RW')
-            self.graph.remove_edge(u, v)
+            self.graph.add_edge(v, u, key='RW')
+            self.graph.remove_edge(u, v, key='WR')
 
     def reverse_wcr_edges_to_rw(self):
         edges_to_reverse = []
-        for u, v, data in self.graph.edges(data=True):
-            if data['label'] == 'WCR':
+        for u, v, key in self.graph.edges(keys=True):
+            if key == 'WCR':
                 txn_u = self.txns[u]
                 txn_v = self.txns[v]
                 w = txn_u[-2]
                 br = txn_v[0]
                 if br.pos < w.pos and br.type in read_op_set:
-                    edges_to_reverse.append((u, v))
-        for u, v in edges_to_reverse:
-            self.graph.add_edge(v, u, label='RW')
-            self.graph.remove_edge(u, v)
+                    edges_to_reverse.append((u, v, key))
+        for u, v, key in edges_to_reverse:
+            self.graph.add_edge(v, u, key='RW')
+            self.graph.remove_edge(u, v, key=key)
 
-    def print(self):
+
+    def printHistory(self):
         print("Operation History:")
         for key, operations in self.history.items():
             print(f"Key: {key}")
@@ -1085,19 +1085,26 @@ class Checker:
                 print(f"  - {op_type} by T{tid} [{status}]")
 
 
+# [single,distributed] => for local test or distributed test
+# db_type = sys.argv[1]
+# # [tdsql] => for pg/sql standard queries
+# test_type = sys.argv[2]
+
+# database = sys.argv[3]
+# isolation = sys.argv[4]
 
 # [single,distributed] => for local test or distributed test
-db_type = sys.argv[1]
-# [tdsql] => for pg/sql standard queries
-test_type = sys.argv[2]
+db_type = "single"
+# # [tdsql] => for pg/sql standard queries
+test_type = ""
 
-database = sys.argv[3]
-isolation = sys.argv[4]
+database = "mysql"
+isolation = "rc"
 
 # target folder
 case_folder = f"t/test_case_v2_{database}_{isolation}"
 # pattern files
-do_test_list = f"do_test_list.txt"
+do_test_list = f"do_test_list"
 
 
 max_time = 99999999999999999999
