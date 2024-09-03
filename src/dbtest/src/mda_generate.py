@@ -1086,20 +1086,20 @@ class Checker:
 
 
 # [single,distributed] => for local test or distributed test
-# db_type = sys.argv[1]
-# # [tdsql] => for pg/sql standard queries
-# test_type = sys.argv[2]
+db_type = sys.argv[1]
+# [tdsql] => for pg/sql standard queries
+test_type = sys.argv[2]
 
-# database = sys.argv[3]
-# isolation = sys.argv[4]
+database = sys.argv[3]
+isolation = sys.argv[4]
 
-# [single,distributed] => for local test or distributed test
-db_type = "single"
-# # [tdsql] => for pg/sql standard queries
-test_type = ""
+# # [single,distributed] => for local test or distributed test
+# db_type = "single"
+# # # [tdsql] => for pg/sql standard queries
+# test_type = ""
 
-database = "mysql"
-isolation = "rc"
+# database = "mysql"
+# isolation = "rc"
 
 # target folder
 case_folder = f"t/test_case_v2_{database}_{isolation}"
