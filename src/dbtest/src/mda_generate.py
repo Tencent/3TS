@@ -9,6 +9,10 @@
 #  *
 #  */
 
+import matplotlib.pyplot as plt
+from typing import List
+import typing
+import networkx as nx
 from operator import truediv
 import os
 import sys
@@ -51,12 +55,12 @@ Args:
 Returns:
 int: The data_num value, which depends on the database type and determines the number of data columns in each table.
 
-This function initializes tables for database testing by generating SQL statements and writing them to the specified 
-file (`file_name`). The SQL statements include DROP TABLE IF EXISTS and CREATE TABLE statements for the specified 
+This function initializes tables for database testing by generating SQL statements and writing them to the specified
+file (`file_name`). The SQL statements include DROP TABLE IF EXISTS and CREATE TABLE statements for the specified
 number of tables (`table_num`).
 
-The function takes into account the `db_type` and `test_type` to determine the structure of the created tables and 
-the number of data columns. It returns the `data_num` value, which is an integer that depends on the database type 
+The function takes into account the `db_type` and `test_type` to determine the structure of the created tables and
+the number of data columns. It returns the `data_num` value, which is an integer that depends on the database type
 and determines the number of data columns in each table.
 
 """
@@ -138,9 +142,9 @@ Args:
 Returns:
 bool: True if the specified operation type exists in the transaction and is concurrent; False otherwise.
 
-This function checks if a specific operation type (`op`) exists in a transaction (`txn`) by examining 
-the list of data operations (`data_op_list`) associated with that operation number (`op_num`). If the 
-specified operation type exists in the transaction and is concurrent with other transactions, the 
+This function checks if a specific operation type (`op`) exists in a transaction (`txn`) by examining
+the list of data operations (`data_op_list`) associated with that operation number (`op_num`). If the
+specified operation type exists in the transaction and is concurrent with other transactions, the
 function returns True; otherwise, it returns False.
 
 The function is designed to help identify and handle concurrent operations in a transactional context.
@@ -179,8 +183,8 @@ Args:
 Returns:
 int: The updated count of SQL operations after execution.
 
-This function executes an SQL operation within a transaction context. It takes into account whether the 
-operation is a predicate operation (IsPredicate flag) and writes the SQL operation to the specified file. 
+This function executes an SQL operation within a transaction context. It takes into account whether the
+operation is a predicate operation (IsPredicate flag) and writes the SQL operation to the specified file.
 The function also updates the SQL operation count and performs the necessary actions based on the type of
 SQL operation.
 
@@ -302,9 +306,9 @@ Args:
 Returns:
 int: The updated count of SQL operations after the delete.
 
-This function deletes data from a table within a transaction context. It generates an SQL delete statement 
-based on the provided parameters and writes the statement to the specified file. The function also updates 
-the SQL operation count, manages the existence of data elements, and records the delete operation in the 
+This function deletes data from a table within a transaction context. It generates an SQL delete statement
+based on the provided parameters and writes the statement to the specified file. The function also updates
+the SQL operation count, manages the existence of data elements, and records the delete operation in the
 data operation list.
 
 The function returns the updated count of SQL operations after the delete.
@@ -355,7 +359,7 @@ Returns:
 int: The updated count of SQL operations after the write.
 
 This function writes data to a table within a transaction context, incrementing its value by 1. It generates
-an SQL update statement based on the provided parameters and writes the statement to the specified file. 
+an SQL update statement based on the provided parameters and writes the statement to the specified file.
 The function also updates the SQL operation count, increments the data value, and records the write operation
 in the data operation list.
 
@@ -408,7 +412,7 @@ Args:
 Returns:
 int: The updated count of SQL operations after the read.
 
-This function reads data from a table within a transaction context. It generates an SQL select statement 
+This function reads data from a table within a transaction context. It generates an SQL select statement
 based on the provided parameters and writes the statement to the specified file. The function also updates
 the SQL operation count and records the read operation in the data operation list.
 
@@ -458,7 +462,7 @@ Returns:
 int: The updated count of SQL operations after the read.
 
 This function reads data from a table within a transaction context with a predicate (range condition). It generates
-an SQL select statement based on the provided parameters and writes the statement to the specified file. 
+an SQL select statement based on the provided parameters and writes the statement to the specified file.
 The function also updates the SQL operation count and records the read operation in the data operation list.
 
 The function returns the updated count of SQL operations after the read.
@@ -503,8 +507,8 @@ Args:
 Returns:
 int: The updated count of SQL operations after the rollback.
 
-This function aborts (rolls back) a transaction by generating an SQL rollback statement based on the provided 
-parameters and writes the statement to the specified file. It updates the SQL operation count and marks the 
+This function aborts (rolls back) a transaction by generating an SQL rollback statement based on the provided
+parameters and writes the statement to the specified file. It updates the SQL operation count and marks the
 transaction as ended. If the transaction has already ended, it logs an error message.
 
 The function returns the updated count of SQL operations after the rollback.
@@ -540,7 +544,7 @@ Returns:
 int: The updated count of SQL operations after the commit.
 
 This function commits a transaction by generating an SQL commit statement based on the provided parameters and
-writes the statement to the specified file. It updates the SQL operation count and marks the transaction as ended. 
+writes the statement to the specified file. It updates the SQL operation count and marks the transaction as ended.
 If the transaction has already ended, it logs an error message.
 
 The function returns the updated count of SQL operations after the commit.
@@ -573,7 +577,7 @@ Args:
 - data_num (int): The number of data columns in each table.
 - table_num (int): The total number of tables.
 
-This function generates and executes a check transaction. It begins the transaction, performs ordered SELECT 
+This function generates and executes a check transaction. It begins the transaction, performs ordered SELECT
 queries on all tables to read data, and then commits the transaction. The generated SQL statements are written
 to the specified file.
 
@@ -609,8 +613,8 @@ Returns:
 - last_op_type (str): The type of the last operation before the current position.
 - last_txn_num (int): The transaction number of the last operation before the current position.
 
-This function examines the list of operations and checks the last operation that occurred before the current position. 
-It returns the type of that operation (e.g., "C" for commit, "A" for abort, or a specific operation type) and the 
+This function examines the list of operations and checks the last operation that occurred before the current position.
+It returns the type of that operation (e.g., "C" for commit, "A" for abort, or a specific operation type) and the
 corresponding transaction number.
 
 """
@@ -645,8 +649,8 @@ Returns:
 - sql_count (int): The updated count of SQL queries after processing the first operation of the POP.
 
 This function processes the first operation of a Partial Order Pair (POP) for a given transaction. It checks whether
-the last operation before the current operation has the same type and number. If not, it executes the SQL query for 
-the current operation, updates the SQL query count, and advances the transaction count. The function returns the 
+the last operation before the current operation has the same type and number. If not, it executes the SQL query for
+the current operation, updates the SQL query count, and advances the transaction count. The function returns the
 updated SQL query count.
 
 """
@@ -692,9 +696,9 @@ Args:
 Returns:
 - sql_count (int): The updated count of SQL queries after processing the second operation of the POP.
 
-This function processes the second operation of a Partial Order Pair (POP) for a given transaction. It iterates 
-through the list of operations, executes the SQL queries for each operation, updates the SQL query count, and 
-advances the transaction count. If an operation requires an "AC" (Abort or Commit) operation, it is also executed. 
+This function processes the second operation of a Partial Order Pair (POP) for a given transaction. It iterates
+through the list of operations, executes the SQL queries for each operation, updates the SQL query count, and
+advances the transaction count. If an operation requires an "AC" (Abort or Commit) operation, it is also executed.
 The function returns the updated SQL query count.
 
 """
@@ -741,8 +745,8 @@ Args:
 Returns:
 - sql_count (int): The updated count of SQL queries after executing the transaction.
 
-This function executes a transaction while considering the order of operations for conflict resolution. 
-It iterates through the list of operations, executes SQL queries, and manages the execution order to 
+This function executes a transaction while considering the order of operations for conflict resolution.
+It iterates through the list of operations, executes SQL queries, and manages the execution order to
 resolve conflicts. The function returns the updated SQL query count.
 
 """
@@ -835,7 +839,7 @@ Args:
 - op_num (int): The number of operations.
 - data_num (int): The number of data parameters.
 
-This function writes a description for the test case to the specified file. The description includes 
+This function writes a description for the test case to the specified file. The description includes
 information about  the test case pattern, parameters, and structure.
 
 """
@@ -858,323 +862,242 @@ def write_description(file_name, txn_num, op_num, data_num):
         file_test.write(description)
 
 
-"""
-Check if the test case can be handled by the isolation level of the database
-"""
-
-
-def check_isolation(conflicts, database, isolation):
-    # assert database in ["mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver"]
-    if isolation == "ru":
-        if database in ["mysql", "sqlserever"]:
-            return eliminate_dirty_write_lock(conflicts)
-        elif database in ["postgresql", "greenplum"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_dirty_read_mvcc(conflicts)
-    elif isolation == "rc":
-        if database in ["postgresql", "greenplum", "oceanbase", "oracle", "mysql", "tidb"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_dirty_read_mvcc(conflicts)
-        elif database in ["sqlserver"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_dirty_read_lock(conflicts)
-    elif isolation == "rr":
-        if database in ["mysql", "myrocks", "tdsql", "tidb", "oceanbase"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_non_repeatable_read_mvcc1(conflicts)
-        elif database in ["sqlserver"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_non_repeatable_read_lock(conflicts)
-        elif database in ["postgresql"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_non_repeatable_read_mvcc2(conflicts)
-    elif isolation == "si":
-        if database in ["mongodb"]:
-            return eliminate_non_repeatable_read_mvcc2(conflicts)
-        elif database in ["sqlserver"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_non_repeatable_read_mvcc2(conflicts)
-    elif isolation == "ser":
-        if database in ["greenplum"]:
-            return eliminate_dirty_write_lock(conflicts) or eliminate_non_repeatable_read_mvcc2(conflicts)
-        else:
+def check_isolation(edges, database, isolation):
+    if database == "mysql":
+        if isolation == "ru":
+            c = Checker(edges)
+            return not c.cycle() or c.deadlock()
+        elif isolation == "rc":
+            c = Checker(edges)
+            c.reverse_wr_edges_to_rw()
+            return not c.cycle() or c.deadlock()
+        elif isolation == "rr":
+            c = Checker(edges)
+            c.reverse_wr_edges_to_rw()
+            c.reverse_wcr_edges_to_rw()
+            return not c.cycle() or c.deadlock()
+        elif isolation == "ser":
             return True
 
 
-# Define sets for read and write operations
 read_op_set = ["P", "R"]
-write_op_set = ["I", "W"]
+write_op_set = ["I", "W", "D"]
 
 
-"""
-To avoid dirty writes, a long write lock is acquired before the write operation.
-In all cases of W1[x]W2[x], W2[x] is blocked until the transaction containing W1[x] is committed.
-This breaks some cycles in the POP graph mainly in two ways:
+class Operator:
+    def __init__(self, tid, type, key):
+        self.finished = False
+        self.blocked_by = None
+        self.tid = tid
+        self.type = type
+        self.key = key
+        self.pos = -1
 
-1. Adjusting the order of transactions to make them serializable:
-   Because when generating test cases, adjusting the order of conflicts ensures conflicts do not disappear due to blocking.
-   However, there is a special case:
-   W1[X]W2[X]->?2[X]?1[X]. At this time, the transaction operations can be serialized as W1[X]?1[X]->W2[X]?2[X].
-   Example: W1[X], W2[X], W1[X], C1, C2 (POP: W1[x]W2[x], W2[X]W1[x])
-   can be serialized as W1[X] -> W1[X] -> C1 -> W2[X] -> C2 (POP: W1[X]C W2[x]).
-   Another example: W1[X], W2[X], R1[X], C1, C2 (POP: W1[x]W2[x], W2[X]R1[x])
-   can be serialized as W1[X] -> R1[X] -> C1 -> W2[X] -> C2 (POP: W1[X]C W2[x], R1[X]C W2[x]).
-
-2. Causing deadlocks that prevent transaction sequences from being executed:
-   Example: W1[X], W2[Y], W2[X], W1[Y], C1, C2 (POP: W1[x]W2[x], W2[Y]W1[Y]) causes a deadlock.
-   Deadlocks in the POP occur only with cycles formed by write dependencies.
-   If there are other dependencies in the cycle, deadlocks do not occur in this case, because there are only long write locks.
-
-Note: Long write locks do not eliminate RW, WR, and WW dependencies on non-X tuples.
-They eliminate WW, WR, and RW dependencies on X tuples.
-Consider:
-1. T1 == RW0 ==> T2 == PW0 ==> T1
-2. T1 == RW0 ==> T2 == PW1 ==> T1
-The first case does not result in a cycle after eliminating dirty writes.
-The second case is not detected by the database but can lead to data inconsistency.
-"""
+    def set_pos(self, pos):
+        self.pos = pos
 
 
-def eliminate_dirty_write_lock(conflicts):
-    num_txns = len(conflicts)
-    # Adjusting the order of transactions to make them serializable
-    if num_txns == 2 and len(conflicts[0]) == 3 and conflicts[0][0] in write_op_set and conflicts[0][-2] in write_op_set and conflicts[0][-1] == conflicts[1][-1]:
-        return True
-    # Check write cycles
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        value = conflict[-1]
+class Checker:
+    def __init__(self, edges, shared_mode="no"):
+        self.edges = edges
+        self.order = []
+        self.reorder = []
+        self.history = {}  # key -> list of (operation_type, tid, op)
+        self.graph = None
+        self.num_nodes = len(edges)
+        self.committed_txns = set()
+        self.txns = {i: [] for i in range(self.num_nodes)}
+        self.parse_edges()
+        self.reorderOp(shared_mode=shared_mode)
+        self.build_dependency_graph()
 
-        if first_op in read_op_set:  # other dependency
-            return False
-        else:
-            if len(conflict) == 3:
-                if second_op in read_op_set:  # WR conflict: check if W1[X]R2[X] -> ?2[X]W2[X] then W1[X] -> W2[X]
-                    if i < num_txns - 1:
-                        next_value = conflicts[i+1][-1]
-                        next_second_op = conflicts[i+1][-2]
-                        if value == next_value and next_second_op in write_op_set:
-                            i += 1  # Skip the next conflict
-                        else:
-                            return False  # can not eliminate this read dependency
-            elif second_op not in write_op_set:  # not WCW
-                return False
-    # contains a write cycles
-    return True
+    def parse_edges(self):
+        commit = {}  # tid -> Operator
+        for i in range(self.num_nodes):
+            j = (i + 1) % self.num_nodes
+            op_2nd = self.edges[i][-2]
+            key = self.edges[i][-1]
+            next_op_1st = self.edges[j][0]
+            next_key = self.edges[j][-1]
+            if len(self.edges[i]) == 4:
+                self.order.append(Operator(i, "C", -1))  # txn commit
+                commit[i] = self.order[-1]
+            if j == 0:
+                self.order.append(Operator(j, op_2nd, key))
+                self.order.insert(0, Operator(j, next_op_1st, next_key))
+            else:
+                if key == next_key:  # do not swap the operate in txn j
+                    if op_2nd == next_op_1st:
+                        self.order.append(Operator(j, op_2nd, key))  # first op of txn j
+                    else:
+                        self.order.append(Operator(j, op_2nd, key))
+                        self.order.append(Operator(j, next_op_1st, next_key))
+                else:  # swap the operate in txn j
+                    self.order.append(Operator(j, next_op_1st, next_key))
+                    self.order.append(Operator(j, op_2nd, key))
+        for i in range(self.num_nodes):
+            if i not in commit:
+                self.order.append(Operator(i, "C", -1))  # txn commit
+        for op in self.order:
+            self.txns[op.tid].append(op)
+        for txn in self.txns.values():
+            for i in range(1, len(txn)):
+                txn[i].blocked_by = txn[i - 1]
 
+    def reorderOp(self, exclusive_mode="long", shared_mode="no"):
+        txns_block_key = {i: 0 for i in range(self.num_nodes)}
+        after = {}  # op -> key（lock item)
+        lock_table = {}  # key -> (lock_type, set of transaction_ids)
+        # Track committed transactions
 
-"""
-To avoid dirty reads, a short read lock is acquired before the read operation.
-In all cases of W1[x]R2[x], R2[x] is blocked until the transaction containing W1[x] is committed.
-This breaks some cycles in the POP graph mainly in two ways:
-1. Adjusting the order of transactions to make them serializable
-2. Causing deadlocks that prevent transaction sequences from being executed:
-Deadlocks in the POP occur only with cycles formed by write and read dependencies.
+        def log_operation(op, operation_type):
+            if op.key not in self.history:
+                self.history[op.key] = []
 
-Note: Short read locks do not eliminate RW, WR, and WW dependencies on non-X tuples.
-They eliminate WW, WR, and RW dependencies on X tuples.
-"""
+            if op.tid in self.committed_txns:
+                if operation_type == 'W':
+                    operation_type = 'WC'
+                elif operation_type == 'R':
+                    operation_type = 'RC'
 
+            self.history[op.key].append((operation_type, op.tid, op))
 
-def eliminate_dirty_read_lock(conflicts):
-    num_txns = len(conflicts)
-    # Adjusting the order of transactions to make them serializable
-    # WR
-    if num_txns == 2 and len(conflicts[0]) == 3 and conflicts[0][0] in write_op_set and conflicts[0][-2] in read_op_set and conflicts[0][-1] == conflicts[1][-1]:
-        return True
-    # WW
-    if num_txns == 2 and len(conflicts[0]) == 3 and conflicts[0][0] in write_op_set and conflicts[0][-2] in write_op_set and conflicts[0][-1] == conflicts[1][-1]:
-        return True
-    # Check write and read cycles
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        value = conflict[-1]
+        def process_operation(op):
+            if op.type == "C":
+                self.reorder.append(op)
+                op.set_pos(len(self.reorder))
+                op.finished = True
+                self.committed_txns.add(op.tid)
+                # log_operation(op, 'C')
+                for cop in self.txns[op.tid]:
+                    if cop.key in lock_table:
+                        lock_type, holders = lock_table[cop.key]
+                        if op.tid in holders:
+                            holders.remove(op.tid)
+                            if not holders:
+                                del lock_table[cop.key]
+                                blocked_ops = after.pop(cop.key, [])
+                                for blocked_op in blocked_ops:
+                                    process_operation(blocked_op)
+                return
 
-        if first_op in read_op_set:  # other dependency
-            return False
-        else:
-            if len(conflict) == 3:
-                if second_op in read_op_set:  # WR conflict: check if W1[X]R2[X] -> ?2[X]W2[X] then W1[X] -> W2[X]
-                    if i < num_txns - 1:
-                        next_value = conflicts[i+1][-1]
-                        next_second_op = conflicts[i+1][-2]
-                        if value == next_value and next_second_op in write_op_set:
-                            i += 1  # Skip the next conflict
-    # contains a write and read cycle
-    return True
+            if op.type in write_op_set:
+                if op.key in lock_table:
+                    current_lock_type, holders = lock_table[op.key]
+                    if (current_lock_type == 'X' or current_lock_type == 'S') and op.tid not in holders:
+                        after.setdefault(op.key, []).append(op)
+                        txns_block_key[op.tid] = op.key
+                        return
+                lock_table[op.key] = ('X', {op.tid})  # lock
+                self.reorder.append(op)
+                op.set_pos(len(self.reorder))
+                op.finished = True
+                log_operation(op, 'W')  # 记录写操作
+                return
+            if op.type in read_op_set:
+                if shared_mode != "no":
+                    if op.key in lock_table:
+                        current_lock_type, holders = lock_table[op.key]
+                        if current_lock_type == 'X' and op.tid not in holders:
+                            after.setdefault(op.key, []).append(op)
+                            txns_block_key[op.tid] = op.key
+                            return
+                self.reorder.append(op)
+                op.set_pos(len(self.reorder))
+                op.finished = True
+                log_operation(op, 'R')
+                if shared_mode == "long":
+                    if op.key in lock_table:
+                        lock_table[op.key][1].add(op.tid)
+                    else:
+                        lock_table[op.key] = ('S', {op.tid})
+                    return
+        for op in self.order:
+            if op.blocked_by and not op.blocked_by.finished:
+                after[txns_block_key[op.tid]].append(op)
+            elif op.blocked_by is None or op.blocked_by.finished:
+                process_operation(op)
 
+    def deadlock(self):
+        return len(self.reorder) != len(self.order)
 
-"""
-With MVCC, a snapshot is taken before each read operation, converting W_1[X]R_2[X] to R_2[X]CW_1[X]. 
-This can eliminate some cycles in POP.
-"""
-
-
-def eliminate_dirty_read_mvcc(conflicts):
-    num_txns = len(conflicts)
-    broken_edges = set()  # To store broken edges caused by write dependencies
-
-    # Check read cycles
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        value = conflict[-1]
-
-        if first_op in read_op_set:  # other dependency
-            break
-        else:
-            if len(conflict) == 3:
-                if second_op in write_op_set:  # WW conflict: check if W1[X]W2[X] -> W2[X]R2[X] then W1[X] -> R2[X]
-                    if i < num_txns - 1:
-                        next_value = conflicts[i+1][-1]
-                        next_second_op = conflicts[i+1][-2]
-                        next_first_op = conflicts[i+1][0]
-                        if value == next_value and next_second_op in read_op_set and next_first_op in write_op_set:
-                            i += 1  # Skip the next conflict
-        # a cycle contains only wr edge
-        return False
-
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        if len(conflict) == 3:  # Only consider WR conflicts, not WCR
+    def cycle(self):
+        try:
+            cycle = nx.find_cycle(self.graph, orientation='original')
+            # print("Found a cycle:")
+            # print(" -> ".join(f"{edge[0]}->{edge[1]}" for edge in cycle))
             return True
-
-
-"""
-To avoid dirty reads, a long read lock is acquired before the read operation.
-In all cases of R1[x]W2[x], W2[x] is blocked until the transaction containing R1[x] is committed.
-This breaks some cycles in the POP graph mainly in two ways:
-1. Adjusting the order of transactions to make them serializable
-2. Causing deadlocks that prevent transaction sequences from being executed:
-Deadlocks in the POP occur only with cycles formed by write, read and anti-dependencies. 
-
-Note: 
-1.long read locks do not eliminate RW, WR, and WW dependencies on non-X tuples.
-They eliminate WW, WR, and RW dependencies on X tuples.
-2.not include P-I edge, because roww-level locks do not constraint the predicate's condition range
-"""
-
-
-def eliminate_non_repeatable_read_lock(conflicts):
-    num_txns = len(conflicts)
-    if num_txns == 2 and len(conflicts[0]) == 3 and conflicts[0][0] == "R" and conflicts[0][-2] in write_op_set and conflicts[0][-1] == conflicts[1][-1]:
-        return True
-    # Check cycles
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        if first_op == "P" and second_op == "I":
+        except nx.NetworkXNoCycle:
+            # print("No cycles found.")
             return False
-    # contains a cycle
-    return True
+
+    def build_dependency_graph(self):
+        self.graph = nx.DiGraph()
+        for key, operations in self.history.items():
+            seen_transactions = set()
+            for i, (op_type, tid, op) in enumerate(operations):
+                if tid not in self.graph:
+                    self.graph.add_node(tid)
+                for seen_tid in seen_transactions:
+                    if seen_tid != tid:
+                        prev_op_type, prev_tid, prev_op = operations[i - 1]
+                        if prev_op_type == 'WC' and op_type.startswith('R'):
+                            label = 'WCR'
+                        elif prev_op_type == 'RC' and op_type.startswith('W'):
+                            label = 'RCW'
+                        elif prev_op_type == 'WC' and op_type.startswith('W'):
+                            label = 'WCW'
+                        elif prev_op_type.startswith('W') and op_type.startswith('R'):
+                            label = 'WR'
+                        elif prev_op_type.startswith('R') and op_type.startswith('W'):
+                            label = 'RW'
+                        elif prev_op_type.startswith('W') and op_type.startswith('W'):
+                            label = 'WW'
+                        else:
+                            label = 'unknown'
+                        self.graph.add_edge(seen_tid, tid, label=label)
+                seen_transactions.add(tid)
+
+    def reverse_wr_edges_to_rw(self):
+        edges_to_reverse = [(u, v, data) for u, v, data in self.graph.edges(data=True) if data['label'] == 'WR']
+        for u, v, data in edges_to_reverse:
+            self.graph.add_edge(v, u, label='RW')
+            self.graph.remove_edge(u, v)
+
+    def reverse_wcr_edges_to_rw(self):
+        edges_to_reverse = []
+        for u, v, data in self.graph.edges(data=True):
+            if data['label'] == 'WCR':
+                txn_u = self.txns[u]
+                txn_v = self.txns[v]
+                w = txn_u[-2]
+                br = txn_v[0]
+                if br.pos < w.pos and br.type in read_op_set:
+                    edges_to_reverse.append((u, v))
+        for u, v in edges_to_reverse:
+            self.graph.add_edge(v, u, label='RW')
+            self.graph.remove_edge(u, v)
+
+    def print(self):
+        print("Operation History:")
+        for key, operations in self.history.items():
+            print(f"Key: {key}")
+            for operation in operations:
+                op_type, tid, op = operation
+                status = "committed" if tid in self.committed_txns else "pending"
+                print(f"  - {op_type} by T{tid} [{status}]")
 
 
-"""
-mysql-style
-With MVCC, a snapshot is taken before the first non-control statement of each transaction is executed, 
-and W_1[X]R_2[X] is converted to R_2[X]CW_1[X]. 
-This can eliminate some cycles in POP.
-Unlike read-committed, it will also convert some W1[X]C1R2[X] to R2[X]W1[X].
-"""
 
-
-def eliminate_non_repeatable_read_mvcc1(conflicts):
-    num_txns = len(conflicts)
-    # Check read cycles
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        value = conflict[-1]
-
-        if first_op in read_op_set:  # other dependency
-            break
-        else:
-            if len(conflict) == 3 or i == num_txns-1:
-                if second_op in write_op_set:  # WW conflict: check if W1[X]W2[X] -> W2[X]R2[X] then W1[X] -> R2[X]
-                    if i < num_txns - 1:
-                        next_value = conflicts[i+1][-1]
-                        next_second_op = conflicts[i+1][-2]
-                        next_first_op = conflicts[i+1][0]
-                        if value == next_value and next_second_op in read_op_set and next_first_op in write_op_set:
-                            i += 1  # Skip the next conflict
-        return False
-
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        if first_op in write_op_set and second_op in read_op_set:
-            if len(conflict) == 3 or i == num_txns-1:  # consider WCR
-                return True
-    return False
-
-
-"""
-postgresql-style
-With MVCC, a snapshot is taken before the first non-control statement of each transaction is executed, and W_1[X]R_2[X] is converted to R_2[X]CW_1[X]. This can eliminate some cycles in POP.
-Unlike read-committed, it will also convert some W[X]CR[X] to R[X]W[X].
-
-Unlike mysql-style, pg does not only use long write locks to avoid dirty writes.
-If concurrent writes occur, the later updated write operation needs to wait for the previous write operation.
-If the previous write operation is committed, the transaction in which the later updated write operation is located must be rolled back.
-
-"""
-
-
-def eliminate_non_repeatable_read_mvcc2(conflicts):
-    num_txns = len(conflicts)
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        if len(conflict) == 3:  # Only consider WW conflicts, not WCW
-            if first_op in write_op_set and second_op in write_op_set:
-                if i < num_txns - 1:
-                    return True
-
-    # Check read cycles
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        value = conflict[-1]
-
-        if first_op in read_op_set:  # other dependency
-            break
-        else:
-            if len(conflict) == 3 or i == num_txns-1:
-                if second_op in write_op_set:  # WW conflict: check if W1[X]W2[X] -> W2[X]R2[X] then W1[X] -> R2[X]
-                    if i < num_txns - 1:
-                        next_value = conflicts[i+1][-1]
-                        next_second_op = conflicts[i+1][-2]
-                        next_first_op = conflicts[i+1][0]
-                        if value == next_value and next_second_op in read_op_set and next_first_op in write_op_set:
-                            i += 1  # Skip the next conflict
-
-        return False
-
-    for i in range(num_txns):
-        conflict = conflicts[i]
-        first_op = conflict[0]
-        second_op = conflict[-2]
-        if first_op in write_op_set and second_op in read_op_set:
-            if len(conflict) == 3 or i == num_txns-1:
-                return True
-    return False
-
-
-# global database
-# global isolation
 # [single,distributed] => for local test or distributed test
-db_type = sys.argv[1]
+db_type = "no"
 # [tdsql] => for pg/sql standard queries
-test_type = sys.argv[2]
-#"mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver","oceanbase","tidb","mongodb"
-database = sys.argv[3]
+# test_type = sys.argv[2]
+test_type = "single"
+# "mysql", "myrocks", "tdsql", "postgresql", "greenplum", "sqlserver","oceanbase","tidb","mongodb"
+database = "mysql"
 # ru,rc,rr,si,ser
-isolation = sys.argv[4]
+isolation = "rr"
 
 # target folder
 case_folder = f"t/test_case_v2_{database}_{isolation}"
@@ -1205,7 +1128,7 @@ for popg in lines:
     if popg[0] == "#":
         continue
     ops = popg.split('-')
-    if not check_isolation(ops, database, isolation):
+    if not check_isolation(ops, database, isolation):  # can not break the cycles in pop
         continue
     path_store = case_folder
     if not os.path.exists(path_store):
