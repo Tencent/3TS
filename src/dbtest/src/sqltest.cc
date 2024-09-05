@@ -24,7 +24,7 @@ DEFINE_int32(conn_pool_size, 6, "db_conn pool size");
 DEFINE_string(isolation, "serializable", "transation isolation level: read-uncommitted read-committed repeatable-read serializable");
 DEFINE_string(case_dir, "mysql", "test case dir name");
 DEFINE_string(timeout, "20", "timeout");
-DEFINE_int32(sql_interval, 0, "sleep for the specified interval between SQL executions");
+DEFINE_int32(sql_interval, 2000, "sleep for the specified interval between SQL executions");
 
 // std::vector<std::mutex *> mutex_txn(5); // same as conn_pool_size
 std::vector<pthread_mutex_t *> mutex_txn(FLAGS_conn_pool_size);  // same as conn_pool_size
