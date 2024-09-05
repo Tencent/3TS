@@ -223,6 +223,9 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
     SQLHSTMT m_hStatement;
     SQLHDBC m_hDatabaseConnection = DBConnector::conn_pool_[session_id - 1];
 
+    //sleeep time_interval_ ms
+    usleep(1000 * time_interval_); 
+
     ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDatabaseConnection, &m_hStatement);
     std::string err_info_stmt = DBConnector::SqlExecuteErr(session_id, sql_id, sql, "stmt", m_hStatement, ret, test_process_file);
     if (!err_info_stmt.empty()) {
@@ -312,6 +315,9 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
     SQLHDBC m_hDatabaseConnection = DBConnector::conn_pool_[session_id - 1];
     // Get the expected result set list from test_result_set
     std::vector<std::unordered_map<int, std::vector<std::string>>> expected_result_set_list = test_result_set.ExpectedResultSetList();
+
+    //sleeep time_interval_ ms
+    usleep(1000 * time_interval_); 
 
     // Allocate a statement handle: Allocate a new statement handle for the database connection using SQLAllocHandle function.
     ret = SQLAllocHandle(SQL_HANDLE_STMT, m_hDatabaseConnection, &m_hStatement);
