@@ -244,6 +244,8 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
         }    
     }
     SQLLEN row_count=-1;
+    // sleep for sql_exec_interval_ ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(sql_exec_interval_));
     ret = SQLExecDirect(m_hStatement, (SQLCHAR*)sql.c_str(), SQL_NTS);
     SQLRowCount(m_hStatement,&row_count);
     // std::cout << "row_count" << row_count << std::endl;
@@ -280,9 +282,12 @@ bool DBConnector::ExecWriteSql(int sql_id, const std::string& sql, TestResultSet
         if (sql_id != 1024  && sql_id !=0) {
             std::string blank(blank_base*(session_id - 1), ' ');
             std::string output_time_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " finished at: " + get_current_time() ;
-            std::cout << output_time_info << std::endl;
+            std::string output_exec_interval_info = blank + "Q" + std::to_string(sql_id) + 
+                "-T" + std::to_string(session_id) + 
+                " sql execution interval: " + std::to_string(sql_exec_interval_) + "ms";
+            std::cout << output_time_info << std::endl << output_exec_interval_info << std::endl;
             std::ofstream test_process(test_process_file, std::ios::app);
-            test_process << output_time_info << std::endl;
+            test_process << output_time_info << std::endl << output_exec_interval_info << std::endl;
         }
     }
     
@@ -333,6 +338,8 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
 	    std::ofstream test_process(test_process_file, std::ios::app);
         test_process << output_info << std::endl;
     }
+    // sleep for sql_exec_interval_ ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(sql_exec_interval_));
     // Execute the SQL statement using SQLExecDirect function
     ret = SQLExecDirect(m_hStatement, (SQLCHAR*)sql.c_str(), SQL_NTS);
     // parse result
@@ -375,9 +382,12 @@ bool DBConnector::ExecReadSql2Int(int sql_id, const std::string& sql, TestResult
         outputter.PrintAndWriteTxnSqlResult(cur_result_set[sql_id], expected_result_set_list, sql_id, sql, session_id, test_process_file);
         if (sql_id != 1024 && sql_id !=0) {
             std::string output_time_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " finished at: " + get_current_time() ;
-            std::cout << output_time_info << std::endl;
+            std::string output_exec_interval_info = blank + "Q" + std::to_string(sql_id) + 
+                "-T" + std::to_string(session_id) + 
+                " sql execution interval: " + std::to_string(sql_exec_interval_) + "ms";
+            std::cout << output_time_info << std::endl << output_exec_interval_info << std::endl;
             std::ofstream test_process(test_process_file, std::ios::app);
-            test_process << output_time_info << std::endl;
+            test_process << output_time_info << std::endl << output_exec_interval_info << std::endl;
         }
         SQLFreeStmt( m_hStatement, SQL_UNBIND);
         SQLFreeStmt( m_hStatement, SQL_DROP);
@@ -447,13 +457,19 @@ bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestRes
         SQLRETURN ret;
         SQLHDBC m_hDatabaseConnection = DBConnector::conn_pool_[session_id - 1];
         if ("commit" == opt) {
+            // sleep for sql_exec_interval_ ms
+            std::this_thread::sleep_for(std::chrono::milliseconds(sql_exec_interval_));
             ret = SQLEndTran(SQL_HANDLE_DBC, m_hDatabaseConnection, SQL_COMMIT);
         } else if ("rollback" == opt) {
             if (db_type != "crdb"){
+                // sleep for sql_exec_interval_ ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(sql_exec_interval_));
                 ret = SQLEndTran(SQL_HANDLE_DBC, m_hDatabaseConnection, SQL_ROLLBACK);
             } else {
                 std::string sql = "ROLLBACK TRANSCATION;"; 
                 // std::cout << sql << std::endl;
+                // sleep for sql_exec_interval_ ms
+                std::this_thread::sleep_for(std::chrono::milliseconds(sql_exec_interval_));
                 if (!DBConnector::ExecWriteSql(1024, sql, test_result_set, session_id, test_process_file)) {
                 return false;
                 }
@@ -474,9 +490,12 @@ bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestRes
             if (sql_id != 1024 && sql_id !=0) {
                 std::string blank(blank_base*(session_id - 1), ' ');
                 std::string output_time_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " finished at: " + get_current_time() ;
-                std::cout << output_time_info << std::endl;
+                std::string output_exec_interval_info = blank + "Q" + std::to_string(sql_id) + 
+                    "-T" + std::to_string(session_id) + 
+                    " sql execution interval: " + std::to_string(sql_exec_interval_) + "ms";
+                std::cout << output_time_info << std::endl << output_exec_interval_info << std::endl;
                 std::ofstream test_process(test_process_file, std::ios::app);
-                test_process << output_time_info << std::endl;
+                test_process << output_time_info << std::endl << output_exec_interval_info << std::endl;
             }
         }
     } else {
@@ -515,6 +534,8 @@ bool DBConnector::SQLEndTnx(std::string opt, int session_id, int sql_id, TestRes
 bool DBConnector::SQLStartTxn(int session_id, int sql_id, std::string test_process_file) {
     SQLHDBC m_hDatabaseConnection = DBConnector::conn_pool_[session_id - 1];
     std::ofstream test_process(test_process_file, std::ios::app);
+    // sleep for sql_exec_interval_ ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(sql_exec_interval_));
     if(!DBConnector::SetAutoCommit(m_hDatabaseConnection, 0)) {
         std::string blank(blank_base*(session_id - 1), ' ');
 	    std::string output_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " begin failed";
@@ -533,8 +554,11 @@ bool DBConnector::SQLStartTxn(int session_id, int sql_id, std::string test_proce
 	// }
     if (sql_id != 1024 && sql_id !=0) {
         std::string output_time_info = blank + "Q" + std::to_string(sql_id) + "-T" + std::to_string(session_id) + " finished at: " + get_current_time() ;
-        std::cout << output_time_info << std::endl;
-        test_process << output_time_info << std::endl;
+        std::string output_exec_interval_info = blank + "Q" + std::to_string(sql_id) + 
+            "-T" + std::to_string(session_id) + 
+            " sql execution interval: " + std::to_string(sql_exec_interval_) + "ms";
+        std::cout << output_time_info << std::endl << output_exec_interval_info << std::endl;
+        test_process << output_time_info << std::endl << output_exec_interval_info << std::endl;
     }
         return true;
     }
