@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <mutex>
 #include <regex>
-
+#include <chrono> 
 // Implement command-line argument parsing based on Google's gflags library
 DEFINE_string(db_type, "mysql", "data resource name, please see /etc/odbc.ini, such as mysql pg oracle ob tidb sqlserver crdb");
 DEFINE_string(user, "test123", "username");
@@ -377,7 +377,8 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
         // remove the last commit at verification selct
         split_groups[thread_cnt-1].pop_back();
     }
-
+   // Start time for measuring the overall execution duration
+    auto start_time = std::chrono::high_resolution_clock::now();
     // prepration phase 
     for (auto& group : init_group) {
         // for (auto& txn_sql : group) {   
@@ -415,6 +416,14 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     if(!outputter.WriteResultType(test_result_set.ResultType(), test_process_file)) {
         return false;
     }
+     // End time for measuring the overall execution duration
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+
+     // Output execution time
+    std::string execution_time_info = "Transaction execution time: " + std::to_string(elapsed.count()) + " seconds";
+    std::cout << execution_time_info << std::endl;
+    test_process << execution_time_info << std::endl;
     return true;
 }
 
