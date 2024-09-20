@@ -45,15 +45,16 @@ bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
 }
 
 /**
- * Executes a SQL query and returns the result.
- * 
- * @param sql The SQL query to execute.
- * @param session_id The session ID for tracking.
- * @param sql_id The SQL query ID for tracking.
- * @param test_result_set The test result set to store results.
- * @param db_type The type of the database (e.g., "oracle", "mysql").
- * @param test_process_file The file to log test process.
- * @return True if the query execution is successful, false otherwise.
+ * Executes multiple SQL transactions in a multi-threaded environment.
+ *
+ * @param txn_sql_list The list of transaction SQL to execute.
+ * @param test_sequence Represents the test sequence object.
+ * @param test_result_set Represents the expected test result set object.
+ * @param db_connector The object used for database interactions.
+ * @param test_process_file The file for logging or recording the test process.
+ * @param cur_result_set A map to store the current result set.
+ * @param sleeptime The sleep time between transaction executions. Note: Different threads may have different sleep times to stagger their execution.
+ * @return True if the transactions are executed successfully, false otherwise.
  */
 bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_sequence, TestResultSet& test_result_set, 
     DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
