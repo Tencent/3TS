@@ -790,9 +790,10 @@ def verify_cycle(edge_type, isolation_level, snapshot=False):
     return True
     
     
-run_result_folder = "pg/read-committed" #read-committed/serializable/repeatable-read
+run_result_folder = "pg/serializable"
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
+
 isolation_level = "rc" #[ru,rc,rr,ser]
 snapshot = True
 #ts_now = "_2param_3txn_insert"
