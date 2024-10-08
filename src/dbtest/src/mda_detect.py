@@ -10,10 +10,11 @@
 #  */
 
 
-import Queue
+import queue
 import os
 import time
 
+MAX_TS = 99999999999999999999
 
 class Edge:
     def __init__(self, type, out):
@@ -32,7 +33,9 @@ class Operation:
 class Txn:
     def __init__(self):
         self.begin_ts = -1
-        self.end_ts = 99999999999999999999
+        self.end_ts = MAX_TS
+        self.snapshot_ts = MAX_TS
+
 
 """
 Find the total variable number.
@@ -115,23 +118,37 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
             data_value += tmp
             tmp, tmp1 = "", ""
     data_value = int(data_value)
-    for t in txn:
+    for txn_num,t in enumerate(txn):
         if t.begin_ts == op_time:
             t.begin_ts = data_value
         if t.end_ts == op_time:
             t.end_ts = data_value
+            # update 'visible_ts' for versions installed by the committed transaction
+            if isolation_level != "ru":
+                for i, data_versions in enumerate(version_list):
+                    for j, version in enumerate(data_versions):
+                        if version[1] == txn_num:
+                            version_list[i][j][2] = data_value
     for i, list1 in enumerate(data_op_list):
         for op in list1:
             if op.op_time == op_time:
                 op.op_time = data_value
-                if op.op_type == "W":
-                    version_list[i].append(op.value)
+                if isolation_level == "ru":
+                    visible_ts = op.op_time
+                else:
+                    visible_ts = MAX_TS
+                #update 'snapshot_ts'
+                if op.op_type == "R" or op.op_type == "P":
+                    if snapshot and isolation_level in {"ser","rr"}:
+                        txn[op.txn_num].snapshot_ts = min(op.op_time,txn[op.txn_num].snapshot_ts)
+                elif op.op_type == "W":
+                    version_list[i].append([op.value,op.txn_num,visible_ts])
                     op.value = len(version_list[i]) - 1
                 elif op.op_type == "D":
-                    version_list[i].append(-1)
+                    version_list[i].append([-1,op.txn_num,visible_ts])
                     op.value = len(version_list[i]) - 1
                 elif op.op_type == "I":
-                    version_list[i].append(op.value)
+                    version_list[i].append([op.value,op.txn_num,visible_ts])
                     op.value = len(version_list[i]) - 1
 
 
@@ -257,7 +274,7 @@ None
 def init_record(query, version_list):
     key = find_data(query, "(")
     value = find_data(query, ",")
-    version_list[key].append(value)
+    version_list[key].append((value,-1,0))
 
 
 """
@@ -285,14 +302,25 @@ def readVersion_record(query, op_time, data_op_list, version_list):
             for op in list1:
                 if op.op_time == op_time:
                     value = op.value
-                    if len(version_list[value]) == 0:
+                    snapshot_ts = txn[op.txn_num].snapshot_ts
+                    versions = version_list[value]
+                    if len(versions) == 0:
                         op.value = -1
-                    else:    
-                        if -1 not in version_list[value]:
-                            error_message = "Value exists, but did not successully read"
-                            return error_message    
-                        pos = version_list[value].index(-1)
-                        op.value = pos
+                    else: 
+                        deleted = False  
+                        for i, version in enumerate(versions):
+                            version_val = version[0]
+                            install_txn =  version[1]
+                            visible_ts = version[2]
+                            if (visible_ts < snapshot_ts and visible_ts < MAX_TS) or install_txn == op.txn_num :
+                                if version_val== -1 :
+                                    deleted = True
+                                    op.value = i
+                                else:
+                                    error_message = "Value exists, but did not successully read"
+                                    return error_message
+                        if not deleted:
+                            op.value = -1
     else:
         for s in data:
             key = find_data(s, "(")
@@ -301,14 +329,27 @@ def readVersion_record(query, op_time, data_op_list, version_list):
                 for op in list1:
                     if key == i and op.op_time == op_time:
                         value1 = op.value
-                        if len(version_list[value1]) == 0:
+                        versions = version_list[value1]
+                        snapshot_ts = txn[op.txn_num].snapshot_ts
+                        if len(versions) == 0:
                             op.value = -1
                         else:
-                            if version_list[value1].count(value) == 0:
+                            find = False
+                            for i, version in enumerate(reversed(versions)):
+                                version_val = version[0]
+                                install_txn =  version[1]
+                                visible_ts = version[2]
+                                if (visible_ts < snapshot_ts and visible_ts < MAX_TS) or install_txn == op.txn_num:
+                                    if version_val== value:
+                                        find = True
+                                        op.value = i
+                                        break
+                                    else:
+                                        error_message = "Read version that is not the latest version"
+                                        return error_message
+                            if not find:
                                 error_message = "Read version that does not exist"
-                                return error_message
-                            pos = version_list[value1].index(value)
-                            op.value = pos
+                                return error_message             
     
     return error_message
     # for i, list1 in enumerate(data_op_list):
@@ -563,7 +604,7 @@ bool: True if a cycle is detected, False otherwise.
 """
 # toposort to determine whether there is a cycle
 def check_cycle(edge, indegree, total):
-    q = Queue.Queue()
+    q = queue.Queue()
     for i, degree in enumerate(indegree):
         if degree == 0: q.put(i)
     ans = []
@@ -612,10 +653,15 @@ def dfs(result_folder, ts_now, now, type):
         else:
             path.append(v.out)
             edge_type.append(v.type)
+            accept = verify_cycle(edge_type,isolation_level,snapshot)
             with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
                 for i in range(0, len(path)):
                     f.write(str(path[i]))
                     if i != len(path) - 1: f.write("->" + edge_type[i+1] + "->")
+                if accept:
+                    f.write(" : Accept")
+                else:
+                    f.write(" : Reject")
                 f.write("\n\n")
             path.pop()
             edge_type.pop()
@@ -693,9 +739,62 @@ def print_error(result_folder, ts_now, error_message):
         f.write("\n\n")
 
 
-run_result_folder = "pg/serializable"
+"""
+Determines the validity of a cycle based on the edge types and the isolation level.
+
+Args:
+edge_type (list): List of edge types representing dependencies between operations.
+isolation_level (str): The isolation level of the database ('ru', 'rc', 'rr', 'ser').
+snapshot (bool): Optional parameter to indicate if snapshot isolation is used. Default is False.
+
+Returns:
+bool: True if the cycle is valid, False otherwise.
+"""
+def verify_cycle(edge_type, isolation_level, snapshot=False):
+    write_set = {"I", "D", "W"}  # Write operations: Insert, Delete, Write
+    generalized_edge_type = []  # To store generalized edge types (RW, WR, WW, PW, WP)
+
+    # Generalize edge types based on whether they are reads (R) or writes (W)
+    for t in edge_type:
+        if t != 'null':
+            g_type = ""
+            g_type += "W" if t[0] in write_set else t[0]
+            g_type += "W" if t[-1] in write_set else t[-1]
+            generalized_edge_type.append(g_type)
+
+    # Check validity based on isolation level
+    if isolation_level == "ru":
+        # Under 'ru' (read uncommitted), cycles consisting only of write dependencies (G0) are not allowed
+        return generalized_edge_type.count("WW") != len(generalized_edge_type)
+    
+    elif isolation_level == "rc":
+        # Under 'rc' (read committed), cycles consisting only of write and read dependencies (G1c) are not allowed
+        return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") != len(generalized_edge_type)
+    
+    elif isolation_level == "rr":
+        if snapshot:
+            # Under 'rr' with snapshot, consecutive "RW" or "PW" edges indicate a cycle
+            anti_set = {"RW", "PW"}
+            for i in range(len(generalized_edge_type) - 1):
+                if generalized_edge_type[i] in anti_set and generalized_edge_type[i + 1] in anti_set:
+                    return True  # Cycle is valid
+            return False  # No valid cycle found
+        else:
+            # Without snapshot, cycles consisting only of write, read and item-anti dependencies (G1c+G2-item) are not allowed
+            return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") + generalized_edge_type.count("RW") != len(generalized_edge_type)
+    
+    elif isolation_level == "ser":
+        # Under 'ser' (serializable), no cycles are allowed
+        return False
+
+    return True
+    
+    
+run_result_folder = "pg/read-committed" #read-committed/serializable/repeatable-read
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
+isolation_level = "rc" #[ru,rc,rr,ser]
+snapshot = True
 #ts_now = "_2param_3txn_insert"
 ts_now = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 if not os.path.exists(result_folder):
