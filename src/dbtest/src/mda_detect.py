@@ -796,12 +796,8 @@ def verify_cycle(edge_type, isolation_level):
 
     return True
 
-
 db_type = sys.argv[1] #[mariadb,mysql,pg...]
 isolation_level = sys.argv[2] #[ru,rc,rr,ser]
-
-# db_type = "pg"
-# isolation_level = "rr"
 
 isolations = {
     "ru":"read-uncommitted",
@@ -822,12 +818,6 @@ if db_type in {"pg"}:
         snapshot_read = True
 elif db_type in {"mysql","mariadb"} and isolation_level in {"rr"}:
     snapshot_read = True
-
-    
-
-print(snapshot_read)
-
-
 
 #ts_now = "_2param_3txn_insert"
 ts_now = time.strftime("%Y%m%d_%H%M%S", time.localtime())
