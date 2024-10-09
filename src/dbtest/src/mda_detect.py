@@ -335,6 +335,7 @@ def readVersion_record(query, op_time, data_op_list, version_list):
                             op.value = -1
                         else:
                             find = False
+                            version_size = len(versions)
                             for i, version in enumerate(reversed(versions)):
                                 version_val = version[0]
                                 install_txn =  version[1]
@@ -342,7 +343,7 @@ def readVersion_record(query, op_time, data_op_list, version_list):
                                 if (visible_ts < snapshot_ts and visible_ts < MAX_TS) or install_txn == op.txn_num:
                                     if version_val== value:
                                         find = True
-                                        op.value = i
+                                        op.value = version_size-i-1
                                         break
                                     else:
                                         error_message = "Read version that is not the latest version"
@@ -790,12 +791,12 @@ def verify_cycle(edge_type, isolation_level, snapshot=False):
     return True
     
     
-run_result_folder = "pg/serializable"
+run_result_folder = "mariadb/read-committed"#read-committed/repeatable-read
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
 
 isolation_level = "rc" #[ru,rc,rr,ser]
-snapshot = True
+snapshot = False
 #ts_now = "_2param_3txn_insert"
 ts_now = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 if not os.path.exists(result_folder):
