@@ -122,6 +122,8 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
     for txn_num,t in enumerate(txn):
         if t.begin_ts == op_time:
             t.begin_ts = data_value
+            if snapshot_read and db_type in {"pg"}:
+                txn[txn_num].snapshot_ts = data_value
         if t.end_ts == op_time:
             t.end_ts = data_value
             # update 'visible_ts' for versions installed by the committed transaction
@@ -140,7 +142,7 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
                     visible_ts = MAX_TS
                 #update 'snapshot_ts'
                 if op.op_type == "R" or op.op_type == "P":
-                    if snapshot_read:
+                    if snapshot_read and db_type in {"mysql","mariadb"}:
                         txn[op.txn_num].snapshot_ts = min(op.op_time,txn[op.txn_num].snapshot_ts)
                 elif op.op_type == "W":
                     version_list[i].append([op.value,op.txn_num,visible_ts])
@@ -336,22 +338,24 @@ def readVersion_record(query, op_time, data_op_list, version_list):
                             op.value = -1
                         else:
                             find = False
+                            latest = 1
                             version_size = len(versions)
                             for i, version in enumerate(reversed(versions)):
                                 version_val = version[0]
                                 install_txn =  version[1]
                                 visible_ts = version[2]
                                 if (visible_ts < snapshot_ts and visible_ts < MAX_TS) or install_txn == op.txn_num:
+                                    latest -= 1
                                     if version_val== value:
                                         find = True
                                         op.value = version_size-i-1
                                         break
-                                    else:
-                                        error_message = "Read version that is not the latest version"
-                                        return error_message
                             if not find:
                                 error_message = "Read version that does not exist"
-                                return error_message             
+                                return error_message       
+                            if latest < 0:
+                                error_message = "Read version that is not the latest version"
+                                return error_message      
     
     return error_message
     # for i, list1 in enumerate(data_op_list):
@@ -793,8 +797,11 @@ def verify_cycle(edge_type, isolation_level):
     return True
 
 
-db_type = sys.argv[1] #[mariadb,pg...]
-isolation_level = sys.argv[2] #[ru,rc,rr,ser]
+# db_type = sys.argv[1] #[mariadb,pg...]
+# isolation_level = sys.argv[2] #[ru,rc,rr,ser]
+
+db_type = "pg"
+isolation_level = "rr"
 
 isolations = {
     "ru":"read-uncommitted",
@@ -803,16 +810,22 @@ isolations = {
     "ser":"serializable"
 }
 
-if db_type in {"pg"} and isolation_level in {"rr","ser"}:
-    snapshot_read = True
-elif db_type in {"mysql","mariadb"} and isolation_level in {"rr"}:
-    snapshot_read = True
-else:
-    snapshot_read = False
-
 run_result_folder = f"{db_type}/{isolations[isolation_level]}"
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
+
+snapshot_read = False
+if db_type in {"pg"}:
+    if isolation_level == "ru":
+        isolation_level = "rc"
+    if isolation_level in {"rr","ser"}:
+        snapshot_read = True
+elif db_type in {"mysql","mariadb"} and isolation_level in {"rr"}:
+    snapshot_read = True
+
+    
+
+print(snapshot_read)
 
 
 
