@@ -13,6 +13,7 @@
 import queue
 import os
 import time
+import sys
 
 MAX_TS = 99999999999999999999
 
@@ -139,7 +140,7 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
                     visible_ts = MAX_TS
                 #update 'snapshot_ts'
                 if op.op_type == "R" or op.op_type == "P":
-                    if snapshot and isolation_level in {"ser","rr"}:
+                    if snapshot_read:
                         txn[op.txn_num].snapshot_ts = min(op.op_time,txn[op.txn_num].snapshot_ts)
                 elif op.op_type == "W":
                     version_list[i].append([op.value,op.txn_num,visible_ts])
@@ -654,7 +655,7 @@ def dfs(result_folder, ts_now, now, type):
         else:
             path.append(v.out)
             edge_type.append(v.type)
-            accept = verify_cycle(edge_type,isolation_level,snapshot)
+            accept = verify_cycle(edge_type,isolation_level)
             with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
                 for i in range(0, len(path)):
                     f.write(str(path[i]))
@@ -746,12 +747,11 @@ Determines the validity of a cycle based on the edge types and the isolation lev
 Args:
 edge_type (list): List of edge types representing dependencies between operations.
 isolation_level (str): The isolation level of the database ('ru', 'rc', 'rr', 'ser').
-snapshot (bool): Optional parameter to indicate if snapshot isolation is used. Default is False.
 
 Returns:
 bool: True if the cycle is valid, False otherwise.
 """
-def verify_cycle(edge_type, isolation_level, snapshot=False):
+def verify_cycle(edge_type, isolation_level):
     write_set = {"I", "D", "W"}  # Write operations: Insert, Delete, Write
     generalized_edge_type = []  # To store generalized edge types (RW, WR, WW, PW, WP)
 
@@ -771,15 +771,17 @@ def verify_cycle(edge_type, isolation_level, snapshot=False):
     elif isolation_level == "rc":
         # Under 'rc' (read committed), cycles consisting only of write and read dependencies (G1c) are not allowed
         return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") != len(generalized_edge_type)
-    
+
     elif isolation_level == "rr":
-        if snapshot:
-            # Under 'rr' with snapshot, two consecutive anti-dependency edges are allowed.
+        if db_type in {"pg"}: # snapshot isolation
+            # Under snapshot isolation, two consecutive anti-dependency edges are allowed.
             anti_set = {"RW", "PW"}
             for i in range(len(generalized_edge_type) - 1):
                 if generalized_edge_type[i] in anti_set and generalized_edge_type[i + 1] in anti_set:
                     return True  # Cycle is valid
             return False  # No valid cycle found
+        elif db_type in {"mariadb","mysql"}: # MySQL's repeatable read is below the PL-2.99 level defined by Adya. Use PL-1 level instead.
+            return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") != len(generalized_edge_type)
         else:
             # Without snapshot, cycles consisting only of write, read and item-anti dependencies (G1c+G2-item) are not allowed
             return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") + generalized_edge_type.count("RW") != len(generalized_edge_type)
@@ -789,14 +791,31 @@ def verify_cycle(edge_type, isolation_level, snapshot=False):
         return False
 
     return True
-    
-    
-run_result_folder = "mariadb/read-committed"#read-committed/repeatable-read
+
+
+db_type = sys.argv[1] #[mariadb,pg...]
+isolation_level = sys.argv[2] #[ru,rc,rr,ser]
+
+isolations = {
+    "ru":"read-uncommitted",
+    "rc":"read-committed",
+    "rr":"repeatable-read",
+    "ser":"serializable"
+}
+
+if db_type in {"pg"} and isolation_level in {"rr","ser"}:
+    snapshot_read = True
+elif db_type in {"mysql","mariadb"} and isolation_level in {"rr"}:
+    snapshot_read = True
+else:
+    snapshot_read = False
+
+run_result_folder = f"{db_type}/{isolations[isolation_level]}"
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
 
-isolation_level = "rc" #[ru,rc,rr,ser]
-snapshot = False
+
+
 #ts_now = "_2param_3txn_insert"
 ts_now = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 if not os.path.exists(result_folder):
