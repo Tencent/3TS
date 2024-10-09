@@ -773,7 +773,7 @@ def verify_cycle(edge_type, isolation_level, snapshot=False):
     
     elif isolation_level == "rr":
         if snapshot:
-            # Under 'rr' with snapshot, consecutive "RW" or "PW" edges indicate a cycle
+            # Under 'rr' with snapshot, two consecutive anti-dependency edges are allowed.
             anti_set = {"RW", "PW"}
             for i in range(len(generalized_edge_type) - 1):
                 if generalized_edge_type[i] in anti_set and generalized_edge_type[i + 1] in anti_set:
