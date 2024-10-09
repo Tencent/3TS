@@ -797,11 +797,11 @@ def verify_cycle(edge_type, isolation_level):
     return True
 
 
-# db_type = sys.argv[1] #[mariadb,pg...]
-# isolation_level = sys.argv[2] #[ru,rc,rr,ser]
+db_type = sys.argv[1] #[mariadb,mysql,pg...]
+isolation_level = sys.argv[2] #[ru,rc,rr,ser]
 
-db_type = "pg"
-isolation_level = "rr"
+# db_type = "pg"
+# isolation_level = "rr"
 
 isolations = {
     "ru":"read-uncommitted",
