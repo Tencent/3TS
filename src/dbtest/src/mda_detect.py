@@ -254,7 +254,7 @@ Returns:
 None
 """
 def insert_edge(data1, data2, indegree, edge, txn):
-    if check_concurrency(data1, data2, txn):
+    # if check_concurrency(data1, data2, txn):
         edge_type, data1, data2 = get_edge_type(data1, data2, txn)
         if edge_type != "RR" and edge_type != "RCR" and data1.txn_num != data2.txn_num:
             indegree[data2.txn_num] += 1
