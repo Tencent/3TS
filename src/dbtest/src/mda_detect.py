@@ -127,7 +127,7 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
         if t.end_ts == op_time:
             t.end_ts = data_value
             # update 'visible_ts' for versions installed by the committed transaction
-            if isolation_level != "ru":
+            if isolation_level != "ru": # For unset, also update the visible timestamp
                 for i, data_versions in enumerate(version_list):
                     for j, version in enumerate(data_versions):
                         if version[1] == txn_num:
@@ -142,7 +142,7 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
                     visible_ts = MAX_TS
                 #update 'snapshot_ts'
                 if op.op_type == "R" or op.op_type == "P":
-                    if snapshot_read and db_type in {"mysql","mariadb"}:
+                    if snapshot_read and db_type in {"mariadb"}:
                         txn[op.txn_num].snapshot_ts = min(op.op_time,txn[op.txn_num].snapshot_ts)
                 elif op.op_type == "W":
                     version_list[i].append([op.value,op.txn_num,visible_ts])
@@ -353,7 +353,7 @@ def readVersion_record(query, op_time, data_op_list, version_list):
                             if not find:
                                 error_message = "Read version that does not exist"
                                 return error_message       
-                            if latest < 0:
+                            if latest < 0 and db_type!= "unset":
                                 error_message = "Read version that is not the latest version"
                                 return error_message      
     
@@ -659,15 +659,15 @@ def dfs(result_folder, ts_now, now, type):
         else:
             path.append(v.out)
             edge_type.append(v.type)
-            accept = verify_cycle(edge_type,isolation_level)
             with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
                 for i in range(0, len(path)):
                     f.write(str(path[i]))
                     if i != len(path) - 1: f.write("->" + edge_type[i+1] + "->")
-                if accept:
-                    f.write(" : Accept")
-                else:
-                    f.write(" : Reject")
+                if db_type != "unset":
+                    if verify_cycle(edge_type,isolation_level):
+                        f.write(" : Accept")
+                    else:
+                        f.write(" : Reject")
                 f.write("\n\n")
             path.pop()
             edge_type.pop()
@@ -784,11 +784,11 @@ def verify_cycle(edge_type, isolation_level):
                 if generalized_edge_type[i] in anti_set and generalized_edge_type[i + 1] in anti_set:
                     return True  # Cycle is valid
             return False  # No valid cycle found
-        elif db_type in {"mariadb","mysql"}: # MySQL's repeatable read is below the PL-2.99 level defined by Adya. Use PL-1 level instead.
+        elif db_type in {"mariadb"}: # maridb's repeatable read is below the PL-2.99 level defined by Adya. Use PL-1 level instead.
             return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") != len(generalized_edge_type)
         else:
             # Without snapshot, cycles consisting only of write, read and item-anti dependencies (G1c+G2-item) are not allowed
-            return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") + generalized_edge_type.count("RW") != len(generalized_edge_type)
+            return generalized_edge_type.count("WW") + generalized_edge_type.count("WR") + generalized_edge_type.count("WP") + generalized_edge_type.count("RW")+ generalized_edge_type.count("PW")!= len(generalized_edge_type)
     
     elif isolation_level == "ser":
         # Under 'ser' (serializable), no cycles are allowed
@@ -796,8 +796,6 @@ def verify_cycle(edge_type, isolation_level):
 
     return True
 
-db_type = sys.argv[1] #[mariadb,mysql,pg...]
-isolation_level = sys.argv[2] #[ru,rc,rr,ser]
 
 isolations = {
     "ru":"read-uncommitted",
@@ -806,17 +804,35 @@ isolations = {
     "ser":"serializable"
 }
 
-run_result_folder = f"{db_type}/{isolations[isolation_level]}"
+run_result_folder = "pg/repeatable-read"
+
+if (len(sys.argv) - 1) == 0:
+    db_type = "unset"
+    isolation_level = "unset"
+else:
+    db_type = sys.argv[1] #[mariadb,pg]
+    isolation_level = sys.argv[2] #[ru,rc,rr,ser]
+    if db_type  in {"mariadb","pg"}:
+        run_result_folder = f"{db_type}/{isolations[isolation_level]}"
+    else:
+        db_type = "unset"
+        isolation_level = "unset"
+        
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
 
+print(result_folder)
+
 snapshot_read = False
+# If snapshot_read is False, snapshot_ts is always MAX_TS. This is equivalent to disabling snapshot reads. 
+# Once a version is visible, it will be read.
+
 if db_type in {"pg"}:
     if isolation_level == "ru":
         isolation_level = "rc"
     if isolation_level in {"rr","ser"}:
         snapshot_read = True
-elif db_type in {"mysql","mariadb"} and isolation_level in {"rr"}:
+elif db_type in {"mariadb"} and isolation_level in {"rr"}:
     snapshot_read = True
 
 #ts_now = "_2param_3txn_insert"
