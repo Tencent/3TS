@@ -127,7 +127,7 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
         if t.end_ts == op_time:
             t.end_ts = data_value
             # update 'visible_ts' for versions installed by the committed transaction
-            if isolation_level != "ru": # For unset, also update the visible timestamp
+            if isolation_level != "ru" and isolation_level!="unset":
                 for i, data_versions in enumerate(version_list):
                     for j, version in enumerate(data_versions):
                         if version[1] == txn_num:
@@ -136,7 +136,7 @@ def set_finish_time(op_time, data_op_list, query, txn, version_list):
         for op in list1:
             if op.op_time == op_time:
                 op.op_time = data_value
-                if isolation_level == "ru":
+                if isolation_level == "ru" or isolation_level == "unset":
                     visible_ts = op.op_time
                 else:
                     visible_ts = MAX_TS
@@ -804,7 +804,7 @@ isolations = {
     "ser":"serializable"
 }
 
-run_result_folder = "pg/repeatable-read"
+run_result_folder = "pg/serializable"
 
 if (len(sys.argv) - 1) == 0:
     db_type = "unset"
