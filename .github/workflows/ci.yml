@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - coo-consistency-check
+  push:
+    branches:
+      - coo-consistency-check
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: CheckCode
+      uses: actions/checkout@v3
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake g++ libgflags-dev unixodbc unixodbc-dev odbcinst locales curl
+        sudo locale-gen en_US.UTF-8
+
+    - name: Install Python2
+      run: sudo apt-get install -y python2
+
+    - name: Install pip2
+      run: |
+        curl https://bootstrap.pypa.io/pip/2.7/get-pip.py --output get-pip.py
+        python2 get-pip.py
+
+    - name: Install Python Lib
+      run: python2 -m pip install -r ./src/dbtest/requirements.txt
+
+    - name: Compile 3TSCOO
+      working-directory: ./src/dbtest
+      run: |
+        set -e
+        cmake -S ./
+        make
+
+    - name: Verify the compilation output
+      working-directory: ./src/dbtest
+      run: |
+        set -e
+        if [ -f 3ts_dbtest ]; then echo "3ts_dbtest exists"; else echo "3ts_dbtest not found"; exit 1; fi
+        if [ -f 3ts_dbtest_v2 ]; then echo "3ts_dbtest_v2 exists"; else echo "3ts_dbtest_v2 not found"; exit 1; fi
+
+    - name: Check executable file update time
+      working-directory: ./src/dbtest
+      run: |
+        set -e
+        BUILD_TIME=$(date +%s)
+        FILE1_TIME=$(stat -c %Y 3ts_dbtest)
+        FILE2_TIME=$(stat -c %Y 3ts_dbtest_v2)
+        TIME_DIFF1=$((BUILD_TIME - FILE1_TIME))
+        TIME_DIFF2=$((BUILD_TIME - FILE2_TIME))
+        if [ "$TIME_DIFF1" -lt 300 ]; then echo "3ts_dbtest was updated recently"; else echo "3ts_dbtest was not updated recently"; exit 1; fi
+        if [ "$TIME_DIFF2" -lt 300 ]; then echo "3ts_dbtest_v2 was updated recently"; else echo "3ts_dbtest_v2 was not updated recently"; exit 1; fi
+
+    - name: Run Python test
+      run: |
+        set -e
+        python2 -c "import certifi; print(certifi.__version__)"
