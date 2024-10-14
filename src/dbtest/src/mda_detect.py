@@ -821,7 +821,6 @@ else:
 result_folder = "check_result/" + run_result_folder
 do_test_list = "do_test_list.txt"
 
-print(result_folder)
 
 snapshot_read = False
 # If snapshot_read is False, snapshot_ts is always MAX_TS. This is equivalent to disabling snapshot reads. 
