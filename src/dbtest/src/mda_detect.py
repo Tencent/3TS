@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # /*
 #  * Tencent is pleased to support the open source community by making 3TS available.
 #  *
@@ -18,12 +16,10 @@ import time
 
 
 class Edge:
-    def __init__(self, type, out, begin_time):
+    def __init__(self, type, out):
         self.type = type
         self.out = out
-        self.time = begin_time
-    def __repr__(self):
-        return "Edge(begin_time={}, type={}, out={})".format(self.time, self.type, self.out)
+
 
 class Operation:
     def __init__(self, op_type, txn_num, op_time, value):
@@ -37,45 +33,6 @@ class Txn:
     def __init__(self):
         self.begin_ts = -1
         self.end_ts = 99999999999999999999
-        self.isolation = "serializable"
-
-
-"""
-Print the graph edges after building the graph.
-
-Args:
-- edge (list): A list of Edge lists
-- txn (list): A list of Txn objects
-
-Returns:
-None
-"""
-# print edge after build graph
-def print_graph(edge,txn):
-    for i, edges in enumerate(edge):
-        if i == 0 or i == len(edge)-1:
-            continue
-        print("Transaction {}:-----{}-----".format(i,txn[i].isolation))
-        for e in edges:
-            print("  {}".format(e))
-
-
-"""
-Print the contents of the data operation list.
-
-Args:
-- data_op_list (list): A list of Operation lists
-
-Returns:
-None
-"""
-# print data_op_list
-def print_data_op_list(data_op_list):
-    for k,list in enumerate(data_op_list):
-        if k< len(data_op_list)-1:
-            print("\nk:{}---".format(k))
-            for i, data in enumerate(list):
-                    print("op:{}--{}-".format(data.op_type,data.txn_num))
 
 """
 Find the total variable number.
@@ -92,31 +49,11 @@ def get_total(lines):
     for query in lines:
         query = query.replace("\n", "")
         query = query.replace(" ", "")
-        if query.find("INSERT") != -1: # query[0:2] == "Q0" and 
+        if query[0:2] == "Q0" and query.find("INSERT") != -1:
             tmp = find_data(query, "(")
             num = max(num, tmp)
-        # elif query[0:2] == "Q1":
-        #     break
-    return num
-
-"""
-Find the total number of transactions based on transaction identifiers in queries.
-
-Args:
-- lines (list): A list of query strings, each potentially containing transaction identifiers.
-
-Returns:
-int: The highest transaction number found in the queries.
-"""
-# find total Txn number
-def get_total_txn(lines):
-    num = 0
-    for query in lines:
-        query = query.replace("\n", "")
-        query = query.replace(" ", "")
-        if query[0:1] == "Q" and query.find("T") != -1:
-            tmp = find_data(query, "T")
-            num = max(num, tmp)
+        elif query[0:2] == "Q1":
+            break
     return num
 
 
@@ -147,16 +84,6 @@ def find_data(query, target):
     data_value = int(data_value)
     return data_value
 
-# extract the isolation from content 
-def find_isolation(query):
-    if query.find("read-uncommitted") != -1:
-        return "read-uncommitted"
-    if query.find("read-committed") != -1:
-        return "read-committed"
-    if query.find("repeatable-read") != -1:
-        return "repeatable-read"
-    if query.find("serializable") != -1:
-        return "serializable"
 
 """
 When a statement is executed, this function sets the end time, modifies the transaction list,
@@ -174,21 +101,20 @@ None
 """
 # when a statement is executed, set the end time and modify the version list
 def set_finish_time(op_time, data_op_list, query, txn, version_list):
-    # pos = query.find("finished at:")
-    # pos += len("finished at:")
-    # data_value = ""
-    # tmp, tmp1 = "", ""
-    # for i in range(pos, len(query)):
-    #     if query[i].isdigit():
-    #         tmp += query[i]
-    #     else:
-    #         for j in range(3 - len(tmp)):
-    #             tmp1 += "0"
-    #         tmp = tmp1 + tmp
-    #         data_value += tmp
-    #         tmp, tmp1 = "", ""
-    # data_value = int(data_value)
-    data_value = int(op_time)
+    pos = query.find("finishedat:")
+    pos += len("finishedat:")
+    data_value = ""
+    tmp, tmp1 = "", ""
+    for i in range(pos, len(query)):
+        if query[i].isdigit():
+            tmp += query[i]
+        else:
+            for j in range(3 - len(tmp)):
+                tmp1 += "0"
+            tmp = tmp1 + tmp
+            data_value += tmp
+            tmp, tmp1 = "", ""
+    data_value = int(data_value)
     for t in txn:
         if t.begin_ts == op_time:
             t.begin_ts = data_value
@@ -226,30 +152,10 @@ bool: True if the transactions are concurrent, False otherwise.
 def check_concurrency(data1, data2, txn):
     if txn[data2.txn_num].begin_ts < txn[data1.txn_num].end_ts:
         return True
-    elif txn[data1.txn_num].begin_ts < txn[data2.txn_num].end_ts: # TODO maybe a bug: don't need
+    elif txn[data1.txn_num].begin_ts < txn[data2.txn_num].end_ts:
         return True
     else:
         return False
-
-
-"""
-Check if a specific edge exists between two transactions in the graph.
-
-Args:
-- edge (list): A list of lists, where each sublist contains edge objects representing the connections in the graph.
-- src_txn (int): The source transaction number, which the edge originates from.
-- src_type (str): The operation type (e.g., 'R', 'W') at the source of the edge.
-- tar_txn (int): The target transaction number, which the edge points to.
-- tar_type (str): The operation type (e.g., 'R', 'W') at the target of the edge.
-
-Returns:
-bool: True if the specified edge exists, False otherwise.
-"""
-def check_edge_exit(edge,src_txn,src_type,tar_txn,tar_type):
-    for e in edge[src_txn]:
-        if e.out == tar_txn and e.type[0] == src_type and e.type[-1] == tar_type:
-            return True
-    return False
 
 
 """
@@ -269,7 +175,7 @@ tuple: A tuple containing three values:
 # decide which operation comes first depending on the read or write version
 # if later operation happened after the first txn commit time, edge type will add "C"
 def get_edge_type(data1, data2, txn):
-    if data1.op_time <= data2.op_time:          
+    if data1.value <= data2.value:
         before, after = data1, data2
     else:
         before, after = data2, data1
@@ -278,11 +184,12 @@ def get_edge_type(data1, data2, txn):
     #         before, after = data2, data1
     #     else:
     #         before, after = data1, data2
-    if after.op_time > txn[before.txn_num].end_ts: 
+    if data2.op_time > txn[data1.txn_num].end_ts:
         state = "C"
     else:
         state = ""
     return before.op_type + state + after.op_type, before, after
+
 
 """
 Build a directed graph representing the concurrency relationships between operations.
@@ -329,32 +236,10 @@ None
 def insert_edge(data1, data2, indegree, edge, txn):
     if check_concurrency(data1, data2, txn):
         edge_type, data1, data2 = get_edge_type(data1, data2, txn)
-        if data1.txn_num == data2.txn_num or edge_type in ["RCR", "RR"]:
-            return 
-        #* read-uncommitted： Dirty Write
-        # WI does not exist. If it does, there must be an equivalent edge of WD + DI
-        # II does not exist. If it does, there must be an equivalent edge of ID + DI
-        # DW is allowed to exist. When UPDATE, use the condition to query the data containing D
-        # DD does not exist. If it does, there must be an equivalent edge of DI + ID
-        if edge_type in ["WCW", "WW", "WCD", "WD", "ICW","IW", "ICD", "ID", "DCW", "DW", "DCI", "DI"]:   
+        if edge_type != "RR" and edge_type != "RCR" and data1.txn_num != data2.txn_num:
             indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))
-        #* read-committed： Dirty Read
-        elif edge_type in ["WCR","WR"] and (txn[data2.txn_num].isolation == "read-committed" or txn[data2.txn_num].isolation == "repeatable-read" or txn[data2.txn_num].isolation == "serializable"):   
-            indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))
-        #* repeatable-read： Unrepeatable Read
-        elif edge_type in ["RCW","RW"] and (txn[data1.txn_num].isolation == "repeatable-read" or txn[data1.txn_num].isolation == "serializable"):   
-            indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))
-        #* serializable： Phantom Read
-        elif edge_type in ["RCI","RI","RCD","RD"] and txn[data1.txn_num].isolation == "serializable":   
-            indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num, data1.op_time))       
-        #* serializable： Phantom Read
-        elif edge_type in ["ICR","IR","DCR","DR"] and txn[data2.txn_num].isolation == "serializable":   
-            indegree[data2.txn_num] += 1
-            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num,data1.op_time)) 
+            edge[data1.txn_num].append(Edge(edge_type, data2.txn_num))
+
 
 """
 Initialize a record in the version list based on the information in the query.
@@ -475,15 +360,15 @@ def read_record(op_time, txn_num, total_num, txn, data_op_list):
         left = find_data(query, "k>") + 1
         right = find_data(query, "k<")
         for i in range(left, right):
-            data_op_list[i].append(Operation("R", txn_num, op_time, i)) # P
+            data_op_list[i].append(Operation("P", txn_num, op_time, i))
     elif query.find("value1>") != -1:
         left = find_data(query, "value1>") + 1
         right = find_data(query, "value1<")
         for i in range(left, right):
-            data_op_list[i].append(Operation("R", txn_num, op_time, i)) # p
+            data_op_list[i].append(Operation("P", txn_num, op_time, i))
     else:
         # it means select all rows in table
-        for i in range(total_num+1):
+        for i in range(total_num):
             data_op_list[i].append(Operation("R", txn_num, op_time, i))
 
 
@@ -516,21 +401,6 @@ def write_record(op_time, txn_num, txn, data_op_list):
         op_data = find_data(query, "k=")
         op_value = find_data(query, "v=")
         data_op_list[op_data].append(Operation("W", txn_num, op_time, op_value))
-    # for predicate cases
-    elif query.find("k>") != -1:
-        left = find_data(query, "k>") + 1
-        right = find_data(query, "k<")
-        for i in range(left, right):
-            data_op_list[i].append(Operation("W", txn_num, op_time, i)) # P
-    elif query.find("value1>") != -1:
-        left = find_data(query, "value1>") + 1
-        right = find_data(query, "value1<")
-        for i in range(left, right):
-            data_op_list[i].append(Operation("W", txn_num, op_time, i)) # p
-    else:
-        # it means select all rows in table
-        for i in range(total_num+1):
-            data_op_list[i].append(Operation("W", txn_num, op_time, i))
 
 
 """
@@ -560,21 +430,6 @@ def delete_record(op_time, txn_num, txn, data_op_list):
     elif query.find("k=") != -1:
         op_data = find_data(query, "k=")
         data_op_list[op_data].append(Operation("D", txn_num, op_time, op_data))
-    # for predicate cases
-    elif query.find("k>") != -1:
-        left = find_data(query, "k>") + 1
-        right = find_data(query, "k<")
-        for i in range(left, right):
-            data_op_list[i].append(Operation("D", txn_num, op_time, i)) # P
-    elif query.find("value1>") != -1:
-        left = find_data(query, "value1>") + 1
-        right = find_data(query, "value1<")
-        for i in range(left, right):
-            data_op_list[i].append(Operation("D", txn_num, op_time, i)) # p
-    else:
-        # it means select all rows in table
-        for i in range(total_num+1):
-            data_op_list[i].append(Operation("D", txn_num, op_time, i))
 
 
 """
@@ -642,32 +497,33 @@ def operation_record(total_num, query, txn, data_op_list, version_list):
     error_message = ""
     op_time = find_data(query, "Q")
     txn_num = find_data(query, "T")
-    #  print("total_num:{}, query:{},optime: {}, txn_num: {}\n".format(total_num,query, op_time, txn_num))
     if op_time == 0 and query.find("INSERT") != -1:
         init_record(query, version_list)
         return error_message
-    if query.find("returnresult") != -1: #! 1"returnresult"  maybe don't exist
+    if query.find("returnresult") != -1:
         error_message = readVersion_record(query, op_time, data_op_list, version_list)
         return error_message
-    if query.find("finished") != -1: #! "finished"  maybe don't exist
+    if query.find("finished") != -1:
         set_finish_time(op_time, data_op_list, query, txn, version_list)
         return error_message
     if op_time == -1 or txn_num == -1:
         return error_message
-    if query.find("BEGIN") != -1: # TODO: Need a related interface, I assume that it is read from the do_test_list file.:
-        txn[txn_num].isolation = find_isolation(query)
-    elif query.find("SELECT") != -1:
+    if query.find("SELECT") != -1:
         read_record(op_time, txn_num, total_num, txn, data_op_list)
+        return error_message
     elif query.find("UPDATE") != -1:
         write_record(op_time, txn_num, txn, data_op_list)
-    elif query.find("DELETE") != -1:    
+        return error_message
+    elif query.find("DELETE") != -1:
         delete_record(op_time, txn_num, txn, data_op_list)
-    elif query.find("INSERT") != -1:    #! assume existing data will not be inserted ("Rollback")
+        return error_message
+    elif query.find("INSERT") != -1:
         insert_record(op_time, txn_num, txn, data_op_list)
+        return error_message
     elif query.find("COMMIT") != -1:
         if op_time != 0:
             end_record(op_time, txn_num, txn)
-    set_finish_time(op_time, data_op_list, query, txn, version_list)
+        return error_message
     return error_message
     
 
@@ -744,33 +600,28 @@ Note: This function assumes that global variables like 'visit', 'visit1', 'path'
 
 """
 # for loop graphs, print the loop
-def dfs(result_folder, ts_now , e):
-    visit1[e.out] = 1
-    if visit[e.out] == 1: return
-    visit[e.out] = 1
-    path.append(e)
-    for v in edge[e.out]:
+def dfs(result_folder, ts_now, now, type):
+    visit1[now] = 1
+    if visit[now] == 1: return
+    visit[now] = 1
+    path.append(now)
+    edge_type.append(type)
+    for v in edge[now]:
         if visit[v.out] == 0:
-            dfs(result_folder, ts_now, v)
+            dfs(result_folder, ts_now, v.out, v.type)
         else:
-            path.append(v)
+            path.append(v.out)
+            edge_type.append(v.type)
             with open(result_folder + "/check_result" + ts_now + ".txt", "a+") as f:
-                content = ""
-                list_loop = []
-                for i in range(len(path) - 1, -1, -1):
-                    if i != len(path) - 1 and path[i].out == path[len(path) - 1].out:
-                        break
-                    index = 0
-                    while(index < len(list_loop) and path[list_loop[index]].time < path[i].time):
-                        index += 1
-                    list_loop.insert(index,i)
-                for idx in list_loop:
-                    content = content + "->" + path[idx].type + "->" + str(path[idx].out)
-                content = str(path[list_loop[-1]].out) + content + "\n\n"
-                f.write(content)
+                for i in range(0, len(path)):
+                    f.write(str(path[i]))
+                    if i != len(path) - 1: f.write("->" + edge_type[i+1] + "->")
+                f.write("\n\n")
             path.pop()
+            edge_type.pop()
     path.pop()
-    visit[e.out] = 0
+    edge_type.pop()
+    visit[now] = 0
 
 
 """
@@ -842,21 +693,9 @@ def print_error(result_folder, ts_now, error_message):
         f.write("\n\n")
 
 
-
-
-
-#! ------Some assumption------
-# The modifications of transactions at any isolation level are mutually visible, which is equivalent to a single storage, without read-write buffer
-# There are statements to set the isolation level of each transaction in the input file, after "BEGIN"
-    # BEGIN T1 set_isolation=repeatable-read
-    # BEGIN T2 set_isolation=serializable
-    # BEGIN T3 set_isolation=read-uncommitted
-    # BEGIN T4 set_isolation=read-committed
-# Assume that the inserted data key is in ascending order from 0
-
-run_result_folder = "pg/mda_detect_test"
+run_result_folder = "pg/serializable"
 result_folder = "check_result/" + run_result_folder
-do_test_list = "mda_detect_test_list.txt"
+do_test_list = "do_test_list.txt"
 #ts_now = "_2param_3txn_insert"
 ts_now = time.strftime("%Y%m%d_%H%M%S", time.localtime())
 if not os.path.exists(result_folder):
@@ -875,13 +714,12 @@ for file in files:
         lines = f.readlines()
 
     total_num = get_total(lines)  # total number of variables
-    total_num_txn = get_total_txn(lines)  # total number of txn
-    txn = [Txn() for i in range(total_num_txn + 2)]  # total num of transaction
+    txn = [Txn() for i in range(total_num + 2)]  # total num of transaction
     data_op_list = [[] for i in range(total_num + 2)]  # record every operation that occurs on the variable
-    edge = [[] for i in range(total_num_txn + 2)]  # all edges from the current point
-    indegree = [0] * (total_num_txn + 2)  # in-degree of each point
-    visit = [0] * (total_num_txn + 2)  # in dfs, whether the current point has been visited
-    visit1 = [0] * (total_num_txn + 2)  # we will only use unvisited points as the starting point of the dfs
+    edge = [[] for i in range(total_num + 2)]  # all edges from the current point
+    indegree = [0] * (total_num + 2)  # in-degree of each point
+    visit = [0] * (total_num + 2)  # in dfs, whether the current point has been visited
+    visit1 = [0] * (total_num + 2)  # we will only use unvisited points as the starting point of the dfs
     path = []  # points in cycle
     edge_type = []  # edge type of the cycle
     version_list = [[] for i in range(total_num + 2)]
@@ -893,7 +731,6 @@ for file in files:
         query = query.replace(" ", "")
         if query.find("Rollback") != -1 or query.find("Timeout") != -1:
             go_end = True
-        # print("total_num:{}, total_num_txn:{}, query:{},ts_now: {}, file: {}\n".format(total_num,total_num_txn,query,ts_now,run_result_folder + "/" + file + ".txt"))
         error_message = operation_record(total_num, query, txn, data_op_list, version_list)
         if error_message != "":
             break
@@ -904,20 +741,15 @@ for file in files:
         continue
     
     cycle = False
-    # remove_unfinished_operation(data_op_list) 动态测试中默认所有的执行时间 Qi 都没有 finish 字段
+    remove_unfinished_operation(data_op_list)
     build_graph(data_op_list, indegree, edge, txn)
-    print("--------file:{}--------".format(file))
-    print_graph(edge,txn)
-    # print_data_op_list(data_op_list)
     if not go_end:
-        cycle = check_cycle(edge, indegree, total_num_txn+2)
+        cycle = check_cycle(edge, indegree, total_num + 2)
     if cycle:
         output_result(file, result_folder, ts_now, "Cyclic")
-        for i in range(total_num_txn + 2):
+        for i in range(total_num + 2):
             if visit1[i] == 0:
-                # dfs(result_folder, ts_now, i, "null")
-                dfs(result_folder, ts_now, Edge("null",i,-1))
+                dfs(result_folder, ts_now, i, "null")
     else:
         output_result(file, result_folder, ts_now, "Avoid")
         print_path(result_folder, ts_now, edge)
-    print("---------------------------------\n")
