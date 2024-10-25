@@ -904,7 +904,7 @@ for file in files:
         continue
     
     cycle = False
-    # remove_unfinished_operation(data_op_list) 动态测试中默认所有的执行时间 Qi 都没有 finish 字段
+    # remove_unfinished_operation(data_op_list)
     build_graph(data_op_list, indegree, edge, txn)
     print("--------file:{}--------".format(file))
     print_graph(edge,txn)
