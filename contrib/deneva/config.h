@@ -405,7 +405,7 @@ enum PPSTxnType {
 #define LTS_CURL_CLOCK          5
 #define LTS_TCP_CLOCK          6
 
-#define LTS_TCP_IP  "10.77.110.147"
+#define LTS_TCP_IP  "xx.xx.xx.xx" // wirte the IP
 #define LTS_TCP_PORT  62389
 // MODES
 // NORMAL < NOCC < QRY_ONLY < SETUP < SIMPLE
