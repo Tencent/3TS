@@ -23,6 +23,10 @@ Paper from the project:
 
 - VLDB'24 DEMO: [IsoVista: Black-box Checking Database Isolation Guarantees](https://github.com/hengxin/IsoVista) 
 
+- ICDE'25: [Boosting End-to-End Database Isolation Checking via Mini-Transactions](https://www.computer.org/csdl/proceedings-article/icde/2025/360300d998/26FZCeQ3uJW)
+  
+- ICDE'25: [Online Timestamp-Based Transactional Isolation Checking of Database Systems](https://www.computer.org/csdl/proceedings-article/icde/2025/360300d738/26FZC0ImYsU)
+
 
 ## Usage
 Provide two installation methods for the project environment: **Docker** and **Compilation**, and you can freely choose the installation method.
@@ -109,12 +113,6 @@ Check if it successfully connects to PostgreSQL server by isql,
 isql pg -v
 ```
 Once the connected information showed, we are able to run our code to test designed anomaly schedules.
-
-The anomaly test cases are Write-read Skew and Write-read Skew Committed, the schedules are as follows:
-
-Write-read Skew : <img src="https://render.githubusercontent.com/render/math?math=W_1[x_1]W_2[y_1]R_2[x_1]R_1[y_1]">
-
-Write-read Skew Committed : <img src="https://render.githubusercontent.com/render/math?math=W_1[x_1]W_2[y_1]R_2[x_1]C_2R_1[y_1]">
 
 Under "src/dbtest/" folder, add rat_dda_write_read_skew and rat_dda_write_read_skew_committed to "do_test_list.txt".
 Add the following to "auto_test_all.sh" for running PostgreSQL with four isolation levels:
