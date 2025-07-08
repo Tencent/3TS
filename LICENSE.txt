@@ -1,7 +1,6 @@
 Tencent is pleased to support the open source community by making Tencent Transaction Processing Testbed System-(3TS--腾讯事务处理技术验证系统) available.
 
-Copyright (C) 2020 THL A29 Limited, a Tencent company.  All rights reserved. The below software in this distribution may have been modified by THL A29 Limited ("Tencent Modifications"). All Tencent Modifications are Copyright (C) THL A29 Limited.
-
+Copyright © 2020 Tencent Holdings Limited, a Tencent company. All rights reserved. The software in this distribution may have been modified by Tencent Holdings Limited (“Tencent Modifications”). All Tencent Modifications are Copyright © Tencent Holdings.
 Tencent Transaction Processing Testbed System-(3TS--腾讯事务处理技术验证系统) is licensed under the following license, except for the third-party components listed below. 
 
 License for Tencent Transaction Processing Testbed System-(3TS--腾讯事务处理技术验证系统) :
