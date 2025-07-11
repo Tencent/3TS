@@ -38,6 +38,9 @@
 #define SAVE_HISTROY_WITH_EMPTY_OPT false
 #define DYNAMIC_SEQ_LEN false
 
+//Execution Interval /TXN
+#define QUERY_EXECUTION_INTERVAL 100  //ms
+
 //InputActionSequenceCreator
 #define INPUT_FILE_PATH "./input.txt"
 
