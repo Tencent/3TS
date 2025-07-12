@@ -41,7 +41,7 @@ public:
             ret = SQLAllocHandle(SQL_HANDLE_DBC, m_hEnviroment, &m_hDatabaseConnection);
             if (ret != SQL_SUCCESS && ret != SQL_SUCCESS_WITH_INFO) {
                 std::cerr << "get conn failed" << std::endl;
-		return false;
+		        return false;
             }
             // connect
             // Connects to the database using SQLConnect.

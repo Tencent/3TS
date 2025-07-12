@@ -15,3 +15,5 @@ CMakeFiles/
 *.cmake
 Makefile
 cmake/*
+build
+.cache

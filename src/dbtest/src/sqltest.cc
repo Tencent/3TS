@@ -248,13 +248,13 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
             }
         }
 
-      // Output the interval between SQL executions
-      std::string blank(blank_base*(txn_id - 1), ' ');
-      std::string output_time_info = blank + "T" + std::to_string(txn_id) + " sleeping for " + std::to_string(sql_interval) + " ms " + "before executing next SQL";
-      std::cout << output_time_info << std::endl;
-      test_process << output_time_info << std::endl;
-      // sleep for sql_interval milliseconds
-      usleep(1000 * sql_interval);
+        // output sleep info
+        std::string blank(blank_base*(txn_id - 1), ' ');
+        std::string output_sleep = blank + "T" + std::to_string(txn_id) + " sleep for " + std::to_string(sql_interval) + " ms " + "before next execution";
+        std::cout << output_sleep << std::endl;
+        test_process << output_sleep << std::endl;
+        // sleep for sql_interval milliseconds
+        usleep(1000 * sql_interval);
 
         // mutex_txn[txn_id]->unlock(); 
     }
