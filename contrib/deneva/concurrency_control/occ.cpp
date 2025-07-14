@@ -22,6 +22,9 @@
 #include "mem_alloc.h"
 #include "row_occ.h"
 #include "txn.h"
+#include "unistd.h"
+
+#define QUERY_EXECUTION_INTERVAL 100  
 
 set_ent::set_ent() {
     set_size = 0;
@@ -48,6 +51,9 @@ RC OptCC::validate(TxnManager * txn) {
     rc = central_validate(txn);
 #endif
   INC_STATS(txn->get_thd_id(),occ_validate_time,get_sys_clock() - starttime);
+
+   // Add to history
+    usleep(QUERY_EXECUTION_INTERVAL * 1000);  // ms->us
     return rc;
 }
 
@@ -57,6 +63,8 @@ void OptCC::finish(RC rc, TxnManager * txn) {
 #else
     central_finish(rc,txn);
 #endif
+     //Add to history
+    usleep(QUERY_EXECUTION_INTERVAL * 1000);  // ms->us
 }
 
 RC OptCC::per_row_validate(TxnManager *txn) {
