@@ -28,9 +28,9 @@ sudo apt install -y gcc g++ cmake curl
     1.  从 [MySQL 官网](https://downloads.mysql.com/archives/community/) 下载对应版本的 DEB Bundle 包。
     2.  按顺序安装：
         ```bash
-        dpkg -i mysql-common_8.0.19-1ubuntu18.04_amd64.deb
-        dpkg -i libmysqlclient21_8.0.19-1ubuntu18.04_amd64.deb
-        dpkg -i libmysqlclient-dev_8.0.19-1ubuntu18.04_amd64.deb
+        dpkg -i mysql-common_8.0.42-1ubuntu18.04_amd64.deb
+        dpkg -i libmysqlclient21_8.0.42-1ubuntu18.04_amd64.deb
+        dpkg -i libmysqlclient-dev_8.0.42-1ubuntu18.04_amd64.deb
         ```
     3.  设置数据库：
         ```bash

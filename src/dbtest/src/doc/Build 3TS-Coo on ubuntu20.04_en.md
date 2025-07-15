@@ -26,9 +26,9 @@ sudo apt install -y gcc g++ cmake curl
   1. Download DEB bundle from [MySQL site](https://downloads.mysql.com/archives/community/)
   2. Install in order:
      ```bash
-     dpkg -i mysql-common_8.0.19-1ubuntu18.04_amd64.deb
-     dpkg -i libmysqlclient21_8.0.19-1ubuntu18.04_amd64.deb
-     dpkg -i libmysqlclient-dev_8.0.19-1ubuntu18.04_amd64.deb
+     dpkg -i mysql-common_8.0.42-1ubuntu18.04_amd64.deb
+     dpkg -i libmysqlclient21_8.0.42-1ubuntu18.04_amd64.deb
+     dpkg -i libmysqlclient-dev_8.0.42-1ubuntu18.04_amd64.deb
      ```
   3. Configure DB:
      ```bash
