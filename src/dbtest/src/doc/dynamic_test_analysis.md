@@ -87,3 +87,51 @@ sqltest_v2.cc::main()
 - **超时设置**：`SetTimeout`（578 行）  
 - **异常处理**：`SqlExecuteErr`（136 行）
 
+
+
+## 4. sql_cntl_v2.cc 功能概述
+
+86178@LAPTOP-TUT2NE8F MINGW64 ~/Desktop (master)
+$ cd ~/3TS/src/dbtest/src
+grep -nE '^[[:space:]]*(bool|void|std::string)[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*[[:space:]]*\(' sql_cntl_v2.cc | nl
+     1  24:std::string get_current_time(){
+     2  79:bool replace(std::string& str, const std::string& from, const std::string& to) {
+     3  96:std::string SQLCHARToStr(SQLCHAR* ch) {
+     4  177:    std::string blank(blank_base*(session_id - 1), ' ');
+     5  276:        std::string blank(blank_base*(session_id - 1), ' ');
+     6  292:        std::string blank(blank_base*(session_id - 1), ' ');
+     7  319:            std::string blank(blank_base*(session_id - 1), ' ');
+     8  367:    std::string blank(blank_base*(session_id - 1), ' ');
+     9  466:        std::string blank(blank_base*(session_id - 1), ' ');
+    10  513:                std::string blank(blank_base*(session_id - 1), ' ');
+    11  527:                std::string blank(blank_base*(session_id - 1), ' ');
+    12  557:        std::string blank(blank_base*(session_id - 1), ' ');
+    13  565:        std::string blank(blank_base*(session_id - 1), ' ');
+
+sql_cntl_v2.cc做了部分的修改，代码行数会与原来的行数纯在偏差
+
+| 行号 | 函数 | 作用 |
+|---|---|---|
+| 24 | get_current_time | 高精度时间戳 |
+| 79 | replace | 字符串替换 |
+| 96 | SQLCHARToStr | SQLCHAR → std::string |
+| 121 | ErrInfoWithStmt | 提取 ODBC 错误信息 |
+| 174 | SqlExecuteErr | 统一 SQL 执行错误处理 |
+| 259 | ExecWriteSql | 执行写 SQL（INSERT/UPDATE/DELETE） |
+| 345 | ExecReadSql2Int | 执行读 SQL，返回结果集 |
+| 464 | SQLEndTnx | 事务提交/回滚 |
+| 553 | SQLStartTxn | 显式开启事务 |
+| 590 | SetAutoCommit | 设置自动提交模式 |
+| 616 | SetTimeout | 设置锁/事务超时 |
+| 648 | SetIsolationLevel | 设置事务隔离级别 |
+
+**异常处理**  
+- 连接失败：打印日志 → 重试  
+- SQL 超时：检测 "timeout" 字符串 → 标记 ResultType  
+- 语法错误：立即记录到 `logs/sql_error.log`
+**交互/异常处理要点**  
+- **建立连接**：`SetAutoCommit（590）` 关闭自动提交，进入事务模式  
+- **执行 SQL**：`ExecWriteSql（259）` / `ExecReadSql2Int（345）` 使用 ODBC `SQLExecDirect`  
+- **异常处理**：`SqlExecuteErr（174）` 解析 `SQL_ERROR` → 日志 + 标记超时/回滚  
+- **资源清理**：所有句柄在 `SQLFreeStmt` 后释放，避免泄漏  
+EOF
