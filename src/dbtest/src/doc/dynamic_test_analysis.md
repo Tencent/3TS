@@ -28,7 +28,7 @@ cat >> doc/dynamic_test_analysis.md <<'EOF'
 - 核心测试循环（`RunTestLoop`）：  
   1. 通过 `CaseReader` 读取 `*.txt` 测试用例  
   2. 调用 `sql_cntl_v2` 接口执行 SQL  
-  3. 收集结果 → 与预期比对 → 写日志 → 统计异常  
+  3. 收集结果 → 与预期比对 → 写日志 → 统计 异常  
 - 异常处理：连接失败、SQL 语法错误、超时均记录到 `logs/` 目录
 
 **调用链流程图**
@@ -75,3 +75,15 @@ sqltest_v2.cc::main()
 └─ ResultHandler::IsTestExpectedResult()
 ├─ IsSqlExpectedResult()
 └─ Outputter::WriteResultTotal()
+
+
+## 3. sql_cntl_v2.cc 功能概述（行号精确版）
+
+- **建立连接**：`DBConnector::SetAutoCommit`（552 行）  
+- **执行写 SQL**：`ExecWriteSql`（221 行）  
+- **执行读 SQL 并收集结果**：`ExecReadSql2Int`（307 行）  
+- **事务控制**：`SQLStartTxn`（515 行） / `SQLEndTnx`（426 行）  
+- **隔离级别**：`SetIsolationLevel`（610 行）  
+- **超时设置**：`SetTimeout`（578 行）  
+- **异常处理**：`SqlExecuteErr`（136 行）
+
