@@ -13,7 +13,9 @@
 import Queue
 import os
 import time
+import argparse
 
+ISOLATION_LEVEL = "READ_COMMITTED"
 
 class Edge:
     def __init__(self, type, out):
@@ -33,6 +35,57 @@ class Txn:
     def __init__(self):
         self.begin_ts = -1
         self.end_ts = 99999999999999999999
+
+def detect_dirty_read(txn, data_op_list):
+    for ops in data_op_list:
+        for r_op in ops:
+            if r_op.op_type != "R":
+                continue
+            for w_op in ops:
+                if w_op.op_type != "W":
+                    continue
+                if w_op.txn_num != r_op.txn_num:
+                    if w_op.op_time < r_op.op_time and txn[w_op.txn_num].end_ts > r_op.op_time:
+                        return True, f"Dirty Read Detected between T{w_op.txn_num} and T{r_op.txn_num}"
+    return False, None
+
+def detect_non_repeatable_read(txn, data_op_list):
+    for ops in data_op_list:
+        reads_by_txn = {}
+        writes = []
+        for op in ops:
+            if op.op_type == "R":
+                reads_by_txn.setdefault(op.txn_num, []).append(op)
+            elif op.op_type == "W":
+                writes.append(op)
+        for txn_num, reads in reads_by_txn.items():
+            if len(reads) >= 2:
+                for w in writes:
+                    if w.txn_num != txn_num:
+                        for r1 in reads:
+                            for r2 in reads:
+                                if r1.op_time < w.op_time < r2.op_time:
+                                    return True, f"Non-repeatable Read Detected in T{txn_num}"
+    return False, None
+
+def detect_anomalies(isolation_level, txn, data_op_list, total_num):
+    if isolation_level == "SERIALIZABLE":
+        build_graph(data_op_list, indegree, edge, txn)
+        has_cycle = check_cycle(edge, indegree, total_num + 2)
+        return has_cycle, "Cycle detected" if has_cycle else None
+
+    elif isolation_level == "REPEATABLE_READ":
+        return detect_non_repeatable_read(txn, data_op_list)
+
+    elif isolation_level == "READ_COMMITTED":
+        return detect_dirty_read(txn, data_op_list)
+
+    elif isolation_level == "READ_UNCOMMITTED":
+        return False, None
+
+    else:
+        raise ValueError(f"Unknown isolation level: {isolation_level}")
+
 
 """
 Find the total variable number.
@@ -744,9 +797,12 @@ for file in files:
     remove_unfinished_operation(data_op_list)
     build_graph(data_op_list, indegree, edge, txn)
     if not go_end:
-        cycle = check_cycle(edge, indegree, total_num + 2)
-    if cycle:
-        output_result(file, result_folder, ts_now, "Cyclic")
+        has_anomaly, reason = detect_anomalies(ISOLATION_LEVEL, txn, data_op_list, total_num)
+        if has_anomaly:
+            output_result(file, result_folder, ts_now, f"Anomaly Detected: {reason}")
+        else:
+            output_result(file, result_folder, ts_now, "No anomaly")
+        
         for i in range(total_num + 2):
             if visit1[i] == 0:
                 dfs(result_folder, ts_now, i, "null")
