@@ -135,3 +135,4 @@ sql_cntl_v2.cc做了部分的修改，代码行数会与原来的行数纯在偏
 - **异常处理**：`SqlExecuteErr（174）` 解析 `SQL_ERROR` → 日志 + 标记超时/回滚  
 - **资源清理**：所有句柄在 `SQLFreeStmt` 后释放，避免泄漏  
 EOF
+
