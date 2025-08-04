@@ -13,6 +13,27 @@ from operator import truediv
 import os
 import sys
 
+# 异常类型允许情况
+allowed_anomalies = {
+    "read-uncommitted": {"dirty_read", "non_repeatable_read", "phantom"},
+    "read-committed": {"non_repeatable_read", "phantom"},
+    "repeatable-read": {"phantom"},
+    "serializable": set()
+}
+
+# 根据测试用例名称判断它属于哪种异常
+def classify_anomaly(case_name: str) -> str:
+    name = case_name.lower()
+    if "dirty_write" in name:
+        return "dirty_write"
+    elif "dirty_read" in name:
+        return "dirty_read"
+    elif "non_repeatable_read" in name:
+        return "non_repeatable_read"
+    elif "phantom" in name or "predicate" in name:
+        return "phantom"
+    else:
+        return "other"
 
 class OptionException(Exception):
     pass
@@ -812,15 +833,30 @@ do_test_list = "do_test_list.txt"
 db_type = sys.argv[1]
 # [tdsql] => for pg/sql standard queries
 test_type = sys.argv[2]
+if len(sys.argv) >= 4:
+    isolation_level = sys.argv[3].lower()
+else:
+    isolation_level = "serializable"  # 默认最严格
 max_time = 99999999999999999999
 with open(do_test_list, "r") as f:
     lines = f.readlines()
+selected_lines = []
+allowed_set = allowed_anomalies.get(isolation_level, set())
+
+for popg in lines:
+    popg = popg.strip()
+    if not popg or popg.startswith("#"):
+        continue
+    anomaly_type = classify_anomaly(popg)
+    if anomaly_type in allowed_set:
+        continue  # 当前隔离级别允许这个异常，跳过生成
+    selected_lines.append(popg)
 if not os.path.exists(case_folder):
     os.mkdir(case_folder)
 
 
 # for each popg, generate popg test case and write into file.
-for popg in lines:
+for popg in selected_lines:
     popg = popg.replace("\n", "")
     popg = popg.replace(" ", "")
     if popg == "":
