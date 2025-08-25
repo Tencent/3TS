@@ -17,43 +17,49 @@ sudo apt install -y gcc g++ cmake curl
 ```
 
 ## 1.2 Install DB & Driver
-- **Quick method (default versions):**
-  ```bash
-  sudo apt install -y mysql-server libmysqlclient-dev mysql-client
-  ```
+**Quick method (default versions):**
 
-- **Manual install (specific versions):**
-  1. Download DEB bundle from [MySQL site](https://downloads.mysql.com/archives/community/)
-  2. Install in order:
-     ```bash
-     dpkg -i mysql-common_8.0.42-1ubuntu18.04_amd64.deb
-     dpkg -i libmysqlclient21_8.0.42-1ubuntu18.04_amd64.deb
-     dpkg -i libmysqlclient-dev_8.0.42-1ubuntu18.04_amd64.deb
-     ```
-  3. Configure DB:
-     ```bash
-     sudo mysql
-     CREATE database test;
-     ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '12345678';
-     FLUSH PRIVILEGES;
-     exit;
-     ```
-  4. Download  and Build [MySQL ODBC driver source](https://downloads.mysql.com/archives/c-odbc/ ) :
-     ```bash
-     tar -zxvf mysql-connector-odbc-8.0.42-src.tar.gz
-     cd mysql-connector-odbc-8.0.42-src
-     mkdir build && cd build
-     cmake -G "Unix Makefiles" -DWITH_UNIXODBC=true -DDISABLE_GUI=true ..
-     make -j4 && make install
-     ```
+```bash
+sudo apt install -y mysql-server libmysqlclient-dev mysql-client
+```
+
+**Manual install (specific versions):**
+
+1. Download DEB bundle from [MySQL site](https://downloads.mysql.com/archives/community/)
+2. Install in order:
+   ```bash
+   dpkg -i mysql-common_8.0.42-1ubuntu18.04_amd64.deb
+   dpkg -i libmysqlclient21_8.0.42-1ubuntu18.04_amd64.deb
+   dpkg -i libmysqlclient-dev_8.0.42-1ubuntu18.04_amd64.deb
+   ```
+3. Start up and configure the database:
+   ```bash
+   sudo systemctl start mysql
+   sudo mysql
+   CREATE database test;
+   ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '12345678';
+   FLUSH PRIVILEGES;
+   exit;
+   ```
+4. Download  and Build [MySQL ODBC driver source](https://downloads.mysql.com/archives/c-odbc/ ) :
+   ```bash
+   sudo -s
+   tar -zxvf mysql-connector-odbc-8.0.42-src.tar.gz
+   cd mysql-connector-odbc-8.0.42-src
+   mkdir build && cd build
+   cmake -G "Unix Makefiles" -DWITH_UNIXODBC=true -DDISABLE_GUI=true ..
+   make -j4 && make install
+   ```
 
 ## 1.3 Install & Configure ODBC
-- **Quick method:**
+- **Quick method(Use the default version of apt):**
+  
   ```bash
   sudo apt-get install unixodbc-dev
   ```
-
-- **Manual build:**
+  
+- **Manual build(If needed):**
+  
   ```bash
   curl -o unixODBC-2.3.12.tar.gz https://www.unixodbc.org/unixODBC-2.3.12.tar.gz
   tar -zxvf unixODBC-2.3.12.tar.gz
@@ -61,21 +67,26 @@ sudo apt install -y gcc g++ cmake curl
   cd unixODBC-2.3.12/
   ./configure
   make -j4 && make install
-  odbc_config --version  # Verify
+  
+  # Verify
+  odbc_config --version  
+  odbcinst -j
   ```
-
+  
 - **Configure ODBC files:**
-  - `odbcinst.ini`:
+  
+  - Use `odbcinst -j` to determine the location of the configuration file, then edit the `odbcinst.ini` file to configure it.
+    
     ```ini
-    # cat /usr/local/etc/odbcinst.ini
-    [MySQL]
+    [MySQL]	
     Driver = /home/infinity/Desktop/mysql-connector-odbc-8.0.42-src/build/lib/libmyodbc8w.so
     Description = Unicode Driver for connecting to MySQL database server
     Threading = 0
     ```
-  - `odbc.ini`:
+    
+  - Use `odbcinst -j` to determine the location of the configuration file, then edit the `odbc.ini` file to configure it.
+    
     ```ini
-    # cat /usr/local/etc/odbc.ini
     [mysql]
     Server          = localhost
     Host            = localhost
@@ -87,7 +98,9 @@ sudo apt install -y gcc g++ cmake curl
     DESCRIPTION     = MySQL ODBC 8.0 ANSI Driver test
     UID             = root
     ```
+  
 - **Test connection:**
+  
   ```bash
   isql mysql
   ```
@@ -102,6 +115,15 @@ git checkout coo-consistency-check
 ```
 
 ## 2.2 Install Dependencies [gflags](https://github.com/gflags/gflags) 
+
+**Quick method(Use the default version of apt):**
+
+```shell
+sudo apt install libgflags-dev
+```
+
+**Manual build(If needed): **
+
 ```bash
 # In gflags source directory
 mkdir build && cd build
@@ -125,11 +147,12 @@ make -j4
 
 - **Run test script:**
   1. Edit `auto_test.sh` with correct DB credentials
-  2. Execute:
+  2. Adjust the location of the compiled 3ts_dtest to the same directory as the script, grant executable permissions, and then run it:
      ```bash
      ./auto_test.sh "mysql" "read-uncommitted"
      ```
 - **Successful output:**
+  
   ```bash
   Test Result: Anomaly
   Reason: Data anomaly is not recognized by the database, resulting in data inconsistencies
