@@ -24,7 +24,7 @@ DEFINE_int32(conn_pool_size, 30, "db_conn pool size");
 DEFINE_string(isolation, "serializable", "transation isolation level: read-uncommitted read-committed repeatable-read serializable");
 DEFINE_string(case_dir, "mysql", "test case dir name");
 DEFINE_string(timeout, "3", "timeout");
-
+DEFINE_int32(sql_interval, 500, "sleep for the specified interval between SQL executions");
 
 std::vector<pthread_mutex_t *> mutex_txn(FLAGS_conn_pool_size);  // same as conn_pool_size
 
@@ -45,18 +45,20 @@ bool try_lock_wait(float wait_second, float wait_nanosecond, int txn_id)
 }
 
 /**
- * Executes a SQL query and returns the result.
- * 
- * @param sql The SQL query to execute.
- * @param session_id The session ID for tracking.
- * @param sql_id The SQL query ID for tracking.
- * @param test_result_set The test result set to store results.
- * @param db_type The type of the database (e.g., "oracle", "mysql").
- * @param test_process_file The file to log test process.
- * @return True if the query execution is successful, false otherwise.
+ * Executes multiple SQL transactions in a multi-threaded environment.
+ *
+ * @param txn_sql_list The list of transaction SQL to execute.
+ * @param test_sequence Represents the test sequence object.
+ * @param test_result_set Represents the expected test result set object.
+ * @param db_connector The object used for database interactions.
+ * @param test_process_file The file for logging or recording the test process.
+ * @param cur_result_set A map to store the current result set.
+ * @param sleeptime The sleep time between transaction executions. Note: Different threads may have different sleep times to stagger their execution.
+ * @param sql_interval The sleep time between individual SQL executions within a transaction.
+ * @return True if the transactions are executed successfully, false otherwise.
  */
 bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_sequence, TestResultSet& test_result_set, 
-    DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime){
+    DBConnector db_connector, std::string test_process_file, std::unordered_map<int, std::vector<std::string>>& cur_result_set, int sleeptime, int sql_interval) {
     
     // usleep(2000000*sleeptime); // 2 second
     usleep(100000*sleeptime); // 0.1 second
@@ -220,6 +222,14 @@ bool MultiThreadExecution(std::vector<TxnSql>& txn_sql_list, TestSequence& test_
                 goto jump;
             }
         }
+
+        // output sleep info
+        std::string blank(blank_base*(txn_id - 1), ' ');
+	    std::string output_sleep = blank + "T" + std::to_string(txn_id) + " sleep for " + std::to_string(sql_interval) + " ms " + "before next execution";
+        std::cout << output_sleep << std::endl;
+	    test_process << output_sleep << std::endl;
+        // sleep for sql_interval milliseconds
+        usleep(1000 * sql_interval);
     }
     pthread_mutex_unlock(mutex_txn[txn_id]);
     return true;
@@ -332,7 +342,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
         // for (auto& txn_sql : group) {   
         //     std::cout << " SQLID: " << txn_sql.SqlId() << " TXNID: " <<  txn_sql.TxnId() << " SQL: " << txn_sql.Sql() <<  std::endl;
         // }
-        if (! MultiThreadExecution(group, test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
+        if (! MultiThreadExecution(group, test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0, 0)) {return false;}
 
     }
 
@@ -340,7 +350,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
 
     // exlcude last group
     for (int i = 0; i < thread_cnt-1; i++) {
-        threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), test_process_file, std::ref(cur_result_set), i+1));
+        threads.push_back(std::thread(MultiThreadExecution, std::ref(split_groups[i]), std::ref(test_sequence), std::ref(test_result_set), std::ref(db_connector), test_process_file, std::ref(cur_result_set), i+1, FLAGS_sql_interval));
     }
 
     for (auto &th : threads) {
@@ -349,7 +359,7 @@ bool JobExecutor::ExecTestSequence(TestSequence& test_sequence, TestResultSet& t
     }
     // execute last group if correct
     if (test_result_set.ResultType() == "") {
-        if (! MultiThreadExecution(split_groups[thread_cnt-1], test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0)) {return false;}
+        if (! MultiThreadExecution(split_groups[thread_cnt-1], test_sequence, test_result_set, db_connector, test_process_file, cur_result_set, 0, FLAGS_sql_interval)) {return false;}
     }
     if (test_result_set.ResultType() == "") {
         test_result_set.SetResultType("Finish\nReason: The test case was finished without rollback, to be checked if consistent");
