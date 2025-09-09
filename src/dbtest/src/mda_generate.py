@@ -63,6 +63,10 @@ and determines the number of data columns in each table.
 def init_table(file_name, sql_count, txn_count, table_num, db_type, test_type):
     data_num = 2
     with open(file_name, "a+") as file_test:
+        if db_type == "neo4j":
+            # 图数据库无需建表，直接返回
+            file_test.write(f"# {sql_count}-{txn_count}-Neo4j: No table creation needed.\n")
+            return data_num
         for i in range(1, table_num + 1):
             drop_sql = str(sql_count) + "-" + str(txn_count) + "-" + "DROP TABLE IF EXISTS t" + str(i) + ";\n"
             file_test.write(drop_sql)
@@ -252,18 +256,27 @@ def insert_data(file_name, sql_count, txn_count, cur_count, partition_num, inser
                 # if it is not initialization, we need to pay attention to whether the transaction should be started
                 if sql_count != 0 and txn[txn_count].begin_ts == -1:
                     txn[txn_count].begin_ts = sql_count
-                    begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
-                    file_test.write(begin_sql)
+                    if db_type == "neo4j":
+                        begin_cypher = f"{sql_count}-{txn_count}-:begin\n"
+                        file_test.write(begin_cypher)
+                    else:
+                        begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
+                        file_test.write(begin_sql)
                     sql_count += 1
                 exist[cur_count] = True
-                if data_num == 2:
+                if db_type == "neo4j":
+                    # Cypher: 创建节点
+                    insert_cypher = f"{sql_count}-{txn_count}-CREATE (n:Test {{k: {cur_count}, v: {cur_count}}});\n"
+                    file_test.write(insert_cypher)
+                elif data_num == 2:
                     insert_sql = str(sql_count) + "-" + str(txn_count) + "-" + "INSERT INTO t" + \
                                  str(insert_table) + " VALUES (" + str(cur_count) + "," + str(cur_count) + ");\n"
+                    file_test.write(insert_sql)
                 else:
                     insert_sql = str(sql_count) + "-" + str(txn_count) + "-" + "INSERT INTO t" + \
                                  str(insert_table) + " VALUES (" + str(cur_count) + "," + str(partition_num) + \
                                  "," + str(cur_count) + "," + str(cur_count) + ");\n"
-                file_test.write(insert_sql)
+                    file_test.write(insert_sql)
                 data_value[cur_count] = cur_count
         except OptionException:
             if data_num == 2:
@@ -308,17 +321,26 @@ def delete_data(file_name, sql_count, txn_count, cur_count, delete_table, data_n
             else:
                 if txn[txn_count].begin_ts == -1:
                     txn[txn_count].begin_ts = sql_count
-                    begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
-                    file_test.write(begin_sql)
+                    if db_type == "neo4j":
+                        begin_cypher = f"{sql_count}-{txn_count}-:begin\n"
+                        file_test.write(begin_cypher)
+                    else:
+                        begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
+                        file_test.write(begin_sql)
                     sql_count += 1
                 exist[cur_count] = False
-                if data_num == 2:
+                if db_type == "neo4j":
+                    # Cypher: 删除节点
+                    delete_cypher = f"{sql_count}-{txn_count}-MATCH (n:Test {{k: {cur_count}}}) DELETE n;\n"
+                    file_test.write(delete_cypher)
+                elif data_num == 2:
                     delete_sql = str(sql_count) + "-" + str(txn_count) + "-" + "DELETE FROM t" + \
                                  str(delete_table) + " WHERE k=" + str(cur_count) + ";\n"
+                    file_test.write(delete_sql)
                 else:
                     delete_sql = str(sql_count) + "-" + str(txn_count) + "-" + "DELETE FROM t" + \
                                  str(delete_table) + " WHERE value1=" + str(cur_count) + ";\n"
-                file_test.write(delete_sql)
+                    file_test.write(delete_sql)
                 data_op_list[cur_count].append(Operation("D", txn_count))
         except OptionException:
             file_test.write("the transaction has ended and cannot be read")
@@ -360,17 +382,26 @@ def write_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_valu
             else:
                 if txn[txn_count].begin_ts == -1:
                     txn[txn_count].begin_ts = sql_count
-                    begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
-                    file_test.write(begin_sql)
+                    if db_type == "neo4j":
+                        begin_cypher = f"{sql_count}-{txn_count}-:begin\n"
+                        file_test.write(begin_cypher)
+                    else:
+                        begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
+                        file_test.write(begin_sql)
                     sql_count += 1
-                if data_num == 2:
+                if db_type == "neo4j":
+                    # Cypher: 更新节点属性
+                    write_cypher = f"{sql_count}-{txn_count}-MATCH (n:Test {{k: {op_num}}}) SET n.v = {data_value[op_num] + 1};\n"
+                    file_test.write(write_cypher)
+                elif data_num == 2:
                     write_sql = str(sql_count) + "-" + str(txn_count) + "-" + "UPDATE t1 SET v=" + \
                                 str(data_value[op_num] + 1) + " WHERE k=" + str(op_num) + ";\n"
+                    file_test.write(write_sql)
                 else:
                     write_sql = str(sql_count) + "-" + str(txn_count) + "-" + "UPDATE t" + str(txn_count) + \
                                 " SET value2=" + str(data_value[op_num] + 1) + " WHERE value1=" + \
                                 str(op_num) + ";\n"
-                file_test.write(write_sql)
+                    file_test.write(write_sql)
                 data_op_list[op_num].append(Operation("W", txn_count))
                 data_value[op_num] += 1
         except OptionException:
@@ -409,16 +440,25 @@ def read_data(file_name, sql_count, txn_count, op_num, data_num, txn, data_op_li
             else:
                 if txn[txn_count].begin_ts == -1:
                     txn[txn_count].begin_ts = sql_count
-                    begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
-                    file_test.write(begin_sql)
+                    if db_type == "neo4j":
+                        begin_cypher = f"{sql_count}-{txn_count}-:begin\n"
+                        file_test.write(begin_cypher)
+                    else:
+                        begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
+                        file_test.write(begin_sql)
                     sql_count += 1
-                if data_num == 2:
+                if db_type == "neo4j":
+                    # Cypher: 查询节点
+                    read_cypher = f"{sql_count}-{txn_count}-MATCH (n:Test {{k: {op_num}}}) RETURN n;\n"
+                    file_test.write(read_cypher)
+                elif data_num == 2:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t1 WHERE k=" + \
                                str(op_num) + ";\n"
+                    file_test.write(read_sql)
                 else:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t" + str(txn_count) + \
                                " WHERE value1=" + str(op_num) + ";\n"
-                file_test.write(read_sql)
+                    file_test.write(read_sql)
                 data_op_list[op_num].append(Operation("R", txn_count))
         except OptionException:
             file_test.write("the transaction has ended and cannot be read")
@@ -456,16 +496,25 @@ def read_data_predicate(file_name, sql_count, txn_count, op_num, data_num, txn, 
             else:
                 if txn[txn_count].begin_ts == -1:
                     txn[txn_count].begin_ts = sql_count
-                    begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
-                    file_test.write(begin_sql)
+                    if db_type == "neo4j":
+                        begin_cypher = f"{sql_count}-{txn_count}-:begin\n"
+                        file_test.write(begin_cypher)
+                    else:
+                        begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
+                        file_test.write(begin_sql)
                     sql_count += 1
-                if data_num == 2:
+                if db_type == "neo4j":
+                    # Cypher: 范围查询
+                    read_cypher = f"{sql_count}-{txn_count}-MATCH (n:Test) WHERE n.k > {op_num*2} AND n.k < {op_num*2+2} RETURN n;\n"
+                    file_test.write(read_cypher)
+                elif data_num == 2:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t1 WHERE k>" + \
                                str(op_num*2) + " and k<" + str(op_num*2+2) + ";\n"
+                    file_test.write(read_sql)
                 else:
                     read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t" + str(txn_count) + \
                                " WHERE value1>" + str(op_num*2) + " and value1<" + str(op_num*2+2) + ";\n"
-                file_test.write(read_sql)
+                    file_test.write(read_sql)
                 data_op_list[op_num].append(Operation("P", txn_count))
         except OptionException:
             file_test.write("the transaction has ended and cannot be read")
@@ -499,8 +548,12 @@ def abort_txn(file_name, sql_count, txn_count, txn):
                 raise OptionException
             else:
                 txn[txn_count].end_ts = sql_count
-                abort_sql = str(sql_count) + "-" + str(txn_count) + "-" + "ROLLBACK;\n"
-                file_test.write(abort_sql)
+                if db_type == "neo4j":
+                    abort_cypher = f"{sql_count}-{txn_count}-:rollback\n"
+                    file_test.write(abort_cypher)
+                else:
+                    abort_sql = str(sql_count) + "-" + str(txn_count) + "-" + "ROLLBACK;\n"
+                    file_test.write(abort_sql)
         except OptionException:
             file_test.write("transaction" + str(txn_count) + " ended and can't be rolled back again")
             print("transaction" + str(txn_count) + " ended and can't be rolled back again")
@@ -533,8 +586,12 @@ def commit_txn(file_name, sql_count, txn_count, txn):
                 raise OptionException
             else:
                 txn[txn_count].end_ts = sql_count
-                commit_sql = str(sql_count) + "-" + str(txn_count) + "-" + "COMMIT;\n"
-                file_test.write(commit_sql)
+                if db_type == "neo4j":
+                    commit_cypher = f"{sql_count}-{txn_count}-:commit\n"
+                    file_test.write(commit_cypher)
+                else:
+                    commit_sql = str(sql_count) + "-" + str(txn_count) + "-" + "COMMIT;\n"
+                    file_test.write(commit_sql)
         except OptionException:
             file_test.write("transaction" + str(txn_count) + " ended and can't be committed again")
             print("transaction" + str(txn_count) + " ended and can't be committed again")
@@ -558,20 +615,32 @@ to the specified file.
 """
 def execute_check(file_name, sql_count, txn_count, data_num, table_num):
     with open(file_name, "a+") as file_test:
-        begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
-        file_test.write(begin_sql)
-        sql_count += 1
-        for i in range(1, table_num + 1):
-            if data_num == 2:
-                read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t1 ORDER BY k;\n"
-            else:
-                read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t" + str(i) + \
-                           " ORDER BY k;\n"
-            file_test.write(read_sql)
+        if db_type == "neo4j":
+            begin_cypher = f"{sql_count}-{txn_count}-:begin\n"
+            file_test.write(begin_cypher)
             sql_count += 1
-        commit_sql = str(sql_count) + "-" + str(txn_count) + "-" + "COMMIT;\n"
-        file_test.write(commit_sql)
-        sql_count += 1
+            # 只需一次全图查询
+            read_cypher = f"{sql_count}-{txn_count}-MATCH (n:Test) RETURN n ORDER BY n.k;\n"
+            file_test.write(read_cypher)
+            sql_count += 1
+            commit_cypher = f"{sql_count}-{txn_count}-:commit\n"
+            file_test.write(commit_cypher)
+            sql_count += 1
+        else:
+            begin_sql = str(sql_count) + "-" + str(txn_count) + "-" + "BEGIN;\n"
+            file_test.write(begin_sql)
+            sql_count += 1
+            for i in range(1, table_num + 1):
+                if data_num == 2:
+                    read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t1 ORDER BY k;\n"
+                else:
+                    read_sql = str(sql_count) + "-" + str(txn_count) + "-" + "SELECT * FROM t" + str(i) + \
+                               " ORDER BY k;\n"
+                file_test.write(read_sql)
+                sql_count += 1
+            commit_sql = str(sql_count) + "-" + str(txn_count) + "-" + "COMMIT;\n"
+            file_test.write(commit_sql)
+            sql_count += 1
 
 """
 Check the last operation before the current position in a list of operations.
