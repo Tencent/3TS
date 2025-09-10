@@ -2,26 +2,26 @@
 ## Summary
 | Tool | Databases | Isolation | Data Model |
 | --- | --- | --- | --- |
-| [Cobra](https://www.usenix.org/system/files/osdi20-tan.pdf) | RocksDB, PostgreSQL, FaunaDB*| SER | KV |
-| [PolySI](https://dl.acm.org/doi/10.14778/3583140.3583145) | PostgreSQL, Dgraph*, CockroachDB* | SI | KV |
-| [Viper](https://dl.acm.org/doi/10.1145/3552326.3567492) | TiDB*, SQLServer, MongoDB* | SI | KV, list |
-| [DBCop](https://dl.acm.org/doi/10.1145/3360591) | CockroachDB*, Galera*, AntidoteDB | SER, SI, TCC | KV |
-| [Elle](https://www.vldb.org/pvldb/vol14/p268-alvaro.pdf) | YugabyteDB*, Dgraph*, FaunaDB* | SER, SI, RC | KV, list|
-| [MTC](https://www.computer.org/csdl/proceedings-article/icde/2025/360300d998/26FZCeQ3uJW) | PostgreSQL*, MongoDB*, Cassandra* | SER, SI | KV |
-| [Plume](https://dl.acm.org/doi/10.1145/3689742) | PostgreSQL, AntidoteDB*, MongoDB* | TCC, RA, RC | KV, list |
-| [AWDIT](https://dl.acm.org/doi/10.1145/3742465) | PostgreSQL*, CockroachDB*, RocksDB | TCC, RA, RC | KV |
-| [IsoVista](https://dl.acm.org/doi/10.14778/3685800.3685866) | PostgreSQL*, MySQL, MariaDB | SER, SI, TCC, RA, RC | KV, list |
-| [Vbox](https://arxiv.org/abs/2503.05163) | PostgreSQL, MySQL* | SER | KV, predicate |
-| [Leopard](https://ieeexplore.ieee.org/document/10184872) | OceanBase*, TiDB*, OpenGauss* | SER, SI, RR, RC | SQL |
-| [Troubadour](https://dl.acm.org/doi/abs/10.1145/3720504) | PostgreSQL, MySQL*, TiDB* | SER, SI, RC | SQL |
-| [GRAIL](https://link.springer.com/chapter/10.1007/978-3-031-64285-2_11) | ArangoDB, Neo4j* | SER, SI, PL-2, PL-1 | KV, list |
-| [Emme](https://dl.acm.org/doi/10.1145/3627703.3650080) | CockroachDB*, TiDB, PostgreSQL* | SER, SI | KV, predicate |
-| [Chronos & Aion](https://www.computer.org/csdl/proceedings-article/icde/2025/360300d738/26FZC0ImYsU) | Dgraph*, TiDB, YugabyteDB* | SER, SI | KV, list |
+| [Cobra](https://www.usenix.org/system/files/osdi20-tan.pdf) | RocksDB, PostgreSQL, FaunaDB\*| SER | KV |
+| [PolySI](https://dl.acm.org/doi/10.14778/3583140.3583145) | PostgreSQL, Dgraph\*, CockroachDB\* | SI | KV |
+| [Viper](https://dl.acm.org/doi/10.1145/3552326.3567492) | TiDB\*, SQLServer, MongoDB\* | SI | KV, list |
+| [DBCop](https://dl.acm.org/doi/10.1145/3360591) | CockroachDB\*, Galera\*, AntidoteDB | SER, SI, TCC | KV |
+| [Elle](https://www.vldb.org/pvldb/vol14/p268-alvaro.pdf) | YugabyteDB\*, Dgraph\*, FaunaDB\* | SER, SI, RC | KV, list|
+| [MTC](https://www.computer.org/csdl/proceedings-article/icde/2025/360300d998/26FZCeQ3uJW) | PostgreSQL\*, MongoDB\*, Cassandra\* | SER, SI | KV |
+| [Plume](https://dl.acm.org/doi/10.1145/3689742) | PostgreSQL, AntidoteDB\*, MongoDB\* | TCC, RA, RC | KV, list |
+| [AWDIT](https://dl.acm.org/doi/10.1145/3742465) | PostgreSQL\*, CockroachDB\*, RocksDB | TCC, RA, RC | KV |
+| [IsoVista](https://dl.acm.org/doi/10.14778/3685800.3685866) | PostgreSQL\*, MySQL, MariaDB | SER, SI, TCC, RA, RC | KV, list |
+| [Vbox](https://arxiv.org/abs/2503.05163) | PostgreSQL, MySQL\* | SER | KV, predicate |
+| [Leopard](https://ieeexplore.ieee.org/document/10184872) | OceanBase\*, TiDB\*, OpenGauss\* | SER, SI, RR, RC | SQL |
+| [Troubadour](https://dl.acm.org/doi/abs/10.1145/3720504) | PostgreSQL, MySQL\*, TiDB\* | SER, SI, RC | SQL |
+| [GRAIL](https://link.springer.com/chapter/10.1007/978-3-031-64285-2_11) | ArangoDB, Neo4j\* | SER, SI, PL-2, PL-1 | KV, list |
+| [Emme](https://dl.acm.org/doi/10.1145/3627703.3650080) | CockroachDB\*, TiDB, PostgreSQL\* | SER, SI | KV, predicate |
+| [Chronos & Aion](https://www.computer.org/csdl/proceedings-article/icde/2025/360300d738/26FZC0ImYsU) | Dgraph\*, TiDB, YugabyteDB\* | SER, SI | KV, list |
 
 * databases are selected: not all databases are listed (no more than three)
 * the star after a database means there is some kind of violation found in that database
 * the violation can be either artificial (synthetic or injected) or read-world (existing or newly discovered)
-* the listed databases may be runned elsewhere before checking its history (e.g. downloaded from a bug report)
+* the listed databases may be run elsewhere far before checking its history (e.g. downloaded from a bug report)
 * the tools can apply to these databases and check the histories produced by them
 * the tools may apply to other databases
 * variants of a popular isolation level are omitted
@@ -62,9 +62,9 @@ isolation: Snapshot Isolation
 
 data model: key-value store, list, range query
 
-violation: Lost update, Aborted read, G1c and Read future writes in MonogoDB and Read skew in TiDB
+violation: Lost update, Aborted read, G1c and Read future writes in MongoDB and Read skew in TiDB
 
-description: Like PolySI, Viper also makes the SI checking problem to be a cycle-search problem, by introduing BC-polygraph, which divides one transaction into two nodes (begin and commit). It uses heuristics to guess the order in which transactions occur to guide searching.
+description: Like PolySI, Viper also makes the SI checking problem to be a cycle-search problem, by introducing BC-polygraph, which divides one transaction into two nodes (begin and commit). It uses heuristics to guess the order in which transactions occur to guide searching.
 
 ### DBCop
 link: https://dl.acm.org/doi/10.1145/3360591
@@ -90,7 +90,7 @@ data model: key-value store, list
 
 violation: various violations in TiDB, YugabyteDB, Dgraph and FaunaDB
 
-description: Elle infers an Adya-style dependency graph between transaction by selecting database objects and operations when generating histories, to ensure the results of read reveal information about their version. Lists with append can benefit this inferrence.
+description: Elle infers an Adya-style dependency graph between transaction by selecting database objects and operations when generating histories, to ensure the results of read reveal information about their version. Lists with append can benefit this inference.
 
 ### MTC
 link: https://www.computer.org/csdl/proceedings-article/icde/2025/360300d998/26FZCeQ3uJW
@@ -116,7 +116,7 @@ data model: key-value store, list
 
 violation: in AntidoteDB, MariaDB-Galera, YugabyteDB, MySQL-Galera, Dgraph, MongoDB, CockroachDB
 
-description: Plume efficiently checks weak isolation levels, including TCC, RA and RC, by identifying (part of) 14 types of transactional anomalous patterns. It uses vectors and tree clocks to acclerate isolation checking.
+description: Plume efficiently checks weak isolation levels, including TCC, RA and RC, by identifying (part of) 14 types of transactional anomalous patterns. It uses vectors and tree clocks to accelerate isolation checking.
 
 ### AWDIT
 link: https://dl.acm.org/doi/10.1145/3742465
@@ -129,7 +129,7 @@ data model: key-value store
 
 violation: Future read and Causality cycle in CockroachDB and PostgreSQL
 
-description: 
+description: This work proposes the time complexity of checking TCC, RA and RC. AWDIT follows the optimal algorithms. This work also proves that any weak isolation level between RA and TCC requires at least $n^{3/2}$ time.
 
 ### IsoVista
 link: https://dl.acm.org/doi/10.14778/3685800.3685866
@@ -155,7 +155,7 @@ data model: key-value store, predicate
 
 violation: in MySQL
 
-description: 
+description: Like Cobra, Vbox tackles the SER checking problem. It is optimized through support for predicate operations, usage of transactions' time information and a simplified SAT formulation. In detail, it adds time dependency, creates a compact transitive closure structure and provides heuristic guidance to speed up graph construction.
 
 ### Leopard
 link: https://ieeexplore.ieee.org/document/10184872
@@ -168,7 +168,7 @@ data model: SQL
 
 violation: several bugs in TiDB, MySQL, PostgreSQL, OpenGauss and OceanBase
 
-description: Leopard decomposes several concurrency control protocols used by 18 popular databases into consistent read, mutual exclusion, first updater wins and serialization certifier to support checking various isolation levels. It mirrors the internal states of databases, including version orders and lock table, in addition to denpendency graph.
+description: Leopard decomposes several concurrency control protocols used by 18 popular databases into consistent read, mutual exclusion, first updater wins and serialization certifier to support checking various isolation levels. It mirrors the internal states of databases, including version orders and lock table, in addition to dependency graph.
 
 ### Troubadour
 link: https://dl.acm.org/doi/abs/10.1145/3720504
@@ -194,7 +194,7 @@ data model: key-value store, list
 
 violation: write skew in Neo4j
 
-description: GRAIL uses graph databases and queries to detect isolation violations expressed as anti-patterns in dependency graphs. It builds graphs through graph database schemas and uses algorithms based on shortest path and strongly connected components to detect specifc cycles.
+description: GRAIL uses graph databases and queries to detect isolation violations expressed as anti-patterns in dependency graphs. It builds graphs through graph database schemas and uses algorithms based on shortest path and strongly connected components to detect specific cycles.
 
 ## White-box History Checking Tools
 ### Emme
@@ -208,7 +208,7 @@ data model: key-value store, predicate
 
 violation: in PostgreSQL and CockroachDB
 
-description: 
+description: Emme uses a version certificate recovery mechanism to recover the version order and each operation's version from database. With this information, Emme can build a dependency graph with fewer constraints and then starts to find cycles. It also supports predicate and makes SER checking faster using an expected serialization order.
 
 ### Chronos & Aion
 link: https://www.computer.org/csdl/proceedings-article/icde/2025/360300d738/26FZC0ImYsU
@@ -221,4 +221,5 @@ data model: key-value store, list
 
 violation: in Dgraph and YugabyteDB
 
-description: Chronos uses timestamps to efficiently and incrementally check SER and SI, and Aion further extends it to support online checking, successfully overcoming chanllenges due to asynchronicity. They also introduce the garbage collection mechanism to avoid unlimited memory usage, which is especially important to online checking.
+description: Chronos uses timestamps to efficiently and incrementally check SER and SI (no need to build a graph and find cycles), and Aion further extends it to support online checking, overcoming challenges due to asynchronicity. They also introduce the garbage collection mechanism to avoid unlimited memory usage, which is especially important to online checking.
+
