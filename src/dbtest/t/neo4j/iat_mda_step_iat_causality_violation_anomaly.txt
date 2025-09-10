@@ -1,0 +1,51 @@
+ParamNum:2
+0-1-MATCH (n:If) DETACH DELETE n;
+0-1-// CREATE TABLE ignored in Cypher
+0-1-CREATE (:T1 {k: 0, v: 0});
+0-1-CREATE (:T1 {k: 1, v: 0});
+0-1-:commit
+1-1-:begin
+2-1-MATCH (n:T1 {k: 0}) RETURN n;
+3-2-:begin
+4-2-MATCH (n:T1 {k: 0}) SET n.v = 1;
+5-2-:commit
+6-3-:begin
+7-3-MATCH (n:T1 {k: 0}) RETURN n;
+8-3-MATCH (n:T1 {k: 1}) SET n.v = 1;
+9-3-:commit
+10-1-MATCH (n:T1 {k: 1}) RETURN n;
+11-1-:commit
+12-4-MATCH (n:T1) RETURN n ORDER BY n.k;
+13-4-:commit
+
+serializable {
+2-0,0
+7-0,1
+10-1,0
+12-0,1 1,1
+
+2-0,0
+7-0,0
+10-1,0
+12-0,1 1,1
+
+2-0,1
+7-0,1
+10-1,1
+12-0,1 1,1
+
+2-0,1
+7-0,1
+10-1,0
+12-0,1 1,1
+
+2-0,0
+7-0,0
+10-1,1
+12-0,1 1,1
+
+2-0,1
+7-0,0
+10-1,1
+12-0,1 1,1
+}

@@ -1,0 +1,53 @@
+ParamNum:2
+0-1-MATCH (n:If) DETACH DELETE n;
+0-1-// CREATE TABLE ignored in Cypher
+0-1-CREATE (:T1 {k: 0, v: 1});
+0-1-CREATE (:T1 {k: 1, v: 1});
+0-1-CREATE (:T1 {k: 2, v: 1});
+0-1-:commit
+1-1-:begin
+2-1-DELETE FROM t1 WHERE k=0;
+3-2-:begin
+4-2-DELETE FROM t1 WHERE k=1;
+5-2// [Unmapped] SELECT SUM(v) FROM t1 WHERE k = 0
+6-3-:begin
+7-3-DELETE FROM t1 WHERE k=2;
+8-3// [Unmapped] SELECT SUM(v) FROM t1 WHERE k = 1
+9-1// [Unmapped] SELECT SUM(v) FROM t1 WHERE k = 2
+10-1-:commit
+11-2-:commit
+12-3-:commit
+13-4// [Unmapped] select * from t1
+14-4-:commit
+
+serializable {
+5-,
+8-,
+9-1,
+13-null
+
+5-,
+8-1,
+9-1,
+13-null
+
+5-1,
+8-,
+9-1,
+13-null
+
+5-1,
+8-1,
+9-,
+13-null
+
+5-,
+8-1,
+9-,
+13-null
+
+5-1,
+8-1,
+9-,
+13-null
+}

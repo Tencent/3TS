@@ -1,0 +1,26 @@
+ParamNum:3
+0-1-MATCH (n:If) DETACH DELETE n;
+0-1-// CREATE TABLE ignored in Cypher
+0-1// [Unmapped] insert into account values ('kevin','saving', 500)
+0-1// [Unmapped] insert into account values ('kevin','checking', 500)
+0-1-:commit
+1-1-:begin
+2-1// [Unmapped] select type, balance from account where name = 'kevin'
+3-2-:begin
+4-2// [Unmapped] select type, balance from account where name = 'kevin'
+5-2// [Unmapped] update account set balance = balance + 900 where name = 'kevin' and type = 'saving'
+6-2-:commit
+7-1// [Unmapped] update account set balance = balance + 900 where name = 'kevin' and type = 'checking'
+8-1// [Unmapped] COMMIT:
+9-3// [Unmapped] select * from account
+10-3-:commit
+
+serializable {
+2-checking,500, saving,500,
+4-checking,500, saving,1400,
+9-kevin,checking,1400 kevin,saving,1400
+
+2-checking,1400, saving,500,
+4-checking,500, saving,500,
+9-kevin,checking,1400 kevin,saving,1400
+}

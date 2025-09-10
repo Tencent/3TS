@@ -1,0 +1,24 @@
+ParamNum:2
+0-1-MATCH (n:If) DETACH DELETE n;
+0-1-// CREATE TABLE ignored in Cypher
+0-1-CREATE (:T1 {k: 0, v: 0});
+0-1-:commit
+1-1-:begin
+2-1// [Unmapped] SELECT * from t1 WHERE v=0
+3-2-:begin
+4-2-DELETE FROM t1 WHERE k=0;
+5-2-:commit
+6-1// [Unmapped] SELECT * from t1 WHERE v=0
+7-1-:commit
+8-3// [Unmapped] SELECT * FROM t1
+9-3-:commit
+
+serializable {
+2-null
+6-null
+8-0,0
+
+2-0,0
+6-0,0
+8-null
+}
