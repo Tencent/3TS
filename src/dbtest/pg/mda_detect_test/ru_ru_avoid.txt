@@ -1,0 +1,28 @@
+
+
+Q0-T1-DROP TABLE IF EXISTS t1;
+Q0-T1-CREATE TABLE t1 (k INT PRIMARY KEY, v INT);
+Q0-T1-INSERT INTO t1 VALUES (0, 0);
+Q0-T1-INSERT INTO t1 VALUES (1, 0);
+Q0-T1-COMMIT;
+
+
+Q1-T1-BEGIN set_isolation=read-uncommitted;
+Q2-T1-UPDATE t1 SET v=1 WHERE k=0;
+
+      Q3-T2-BEGIN set_isolation=read-uncommitted;
+      Q4-T2-UPDATE t1 SET v=1 WHERE k=1;
+      Q5-T2-SELECT * FROM t1 WHERE k=0;
+
+Q6-T1-SELECT * FROM t1 WHERE k=1; 
+
+      Q7-T2-COMMIT;
+
+Q8-T1-COMMIT;
+
+
+
+
+
+Test Result:  
+
