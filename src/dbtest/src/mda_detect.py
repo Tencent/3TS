@@ -10,7 +10,7 @@
 #  */
 
 
-import Queue
+import queue
 import os
 import time
 
@@ -563,7 +563,7 @@ bool: True if a cycle is detected, False otherwise.
 """
 # toposort to determine whether there is a cycle
 def check_cycle(edge, indegree, total):
-    q = Queue.Queue()
+    q = queue.Queue()
     for i, degree in enumerate(indegree):
         if degree == 0: q.put(i)
     ans = []
