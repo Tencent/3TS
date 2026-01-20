@@ -1,0 +1,65 @@
+name: 3TS CI
+
+on:
+  push:
+    branches:
+      - coo-consistency-check
+  pull_request:
+    branches:
+      - coo-consistency-check
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # 设置构建环境和安装依赖项
+    - name: Set up build environment
+      run: |
+        echo "Setting up build environment..."
+        sudo apt-get update && sudo apt-get install -y cmake make g++ libgflags-dev unixodbc unixodbc-dev odbcinst odbcinst1debian2
+        echo "Build environment setup complete."
+
+    # 安装 Docker，如果尚未安装
+    - name: Install Docker
+      run: |
+        echo "Installing Docker..."
+        curl -s https://get.docker.com/ | sh
+        echo "Docker installed successfully."
+
+    # 拉取 Docker 镜像
+    - name: Pull Docker image
+      run: docker pull registry.cn-hangzhou.aliyuncs.com/open_projects/3ts_coo:1.0
+
+    # 列出 Docker 镜像
+    - name: List Docker images
+      run: docker images
+
+    # 运行 Docker 容器，并挂载项目目录
+    - name: Run Docker container with volume
+      run: |
+        IMAGE_ID=$(docker images -q registry.cn-hangzhou.aliyuncs.com/open_projects/3ts_coo:1.0)
+        docker run -d --name 3ts_container -v ${{ github.workspace }}:/src $IMAGE_ID tail -f /dev/null
+
+    # 在 Docker 容器中编译
+    - name: Compile inside Docker
+      run: |
+        echo "Compiling in Docker container..."
+        docker exec -i 3ts_container bash -c "cd /src/src/dbtest && cmake -S ./ && make"
+
+    # 清理 Docker 容器
+    - name: Clean up Docker container
+      if: always()
+      run: docker rm -f 3ts_container
+
+    # 在非 Docker 环境中编译
+    - name: Compile without Docker
+      run: |
+        echo "Compiling using CMake..."
+        cd src/dbtest
+        sudo rm -rf CMakeCache.txt CMakeFiles  # 清除缓存文件
+        cmake -S ./ || cmake -DCMAKE_PREFIX_PATH=/usr/ -S ./
+        make
+        echo "Compilation finished."

@@ -17,7 +17,26 @@ list(APPEND THIRD_PARTIES pthread)
 
 find_package(gflags REQUIRED)
 list(APPEND THIRD_PARTIES gflags)
+#
+# Manually find ODBC library and headers
+find_path(ODBC_INCLUDE_DIR sql.h
+  PATHS /usr/include /usr/local/include
+)
 
+find_library(ODBC_LIBRARIES
+  NAMES odbc odbc32
+  PATHS /usr/lib /usr/local/lib
+)
+
+# Check if ODBC was found
+if (ODBC_INCLUDE_DIR AND ODBC_LIBRARIES)
+  message(STATUS "Found ODBC library and include directory.")
+  include_directories(${ODBC_INCLUDE_DIR})
+  list(APPEND ODBC_LD ${ODBC_LIBRARIES})
+else()
+  message(FATAL_ERROR "Could not find ODBC library or include directory.")
+endif()
+#
 ########### sql test V1 #############
 # static test with 33 test case
 # all .cc files
@@ -30,9 +49,9 @@ list(APPEND SOURCE_FILES_SQL
 # bin
 add_executable(3ts_dbtest ${SOURCE_FILES_SQL})
 # ld:odbc
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
-find_package(ODBC REQUIRED)
-list(APPEND ODBC_LD odbc)
+#list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
+#find_package(ODBC REQUIRED)
+#list(APPEND ODBC_LD odbc)
 # link ld
 target_link_libraries(3ts_dbtest ${THIRD_PARTIES})
 target_link_libraries(3ts_dbtest ${ODBC_LD})
@@ -49,9 +68,9 @@ list(APPEND SOURCE_FILES_SQL_v2
 # bin
 add_executable(3ts_dbtest_v2 ${SOURCE_FILES_SQL_v2})
 # ld:odbc
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
-find_package(ODBC REQUIRED)
-list(APPEND ODBC_LD odbc)
+#list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
+#find_package(ODBC REQUIRED)
+#list(APPEND ODBC_LD odbc)
 # link ld
 target_link_libraries(3ts_dbtest_v2 ${THIRD_PARTIES})
 target_link_libraries(3ts_dbtest_v2 ${ODBC_LD})
