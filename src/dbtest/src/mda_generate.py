@@ -11,8 +11,8 @@
 
 from operator import truediv
 import os
+import random
 import sys
-
 
 class OptionException(Exception):
     pass
@@ -36,6 +36,26 @@ class Wait_Operation:
         self.txn_num = txn_num
         self.op_num = op_num
 
+"""
+Initialize supported isolation levels for different databases 
+
+Args:
+- db_type (str): The type of database being used.
+
+Returns:
+set: the supported isolation levels.
+
+"""
+def init_isolation_levels(db_type):
+    isolation_levels = list()
+    if 'mysql' in db_type.lower():
+        isolation_levels = [
+            "READ UNCOMMITTED",
+            "READ COMMITTED",
+            "REPEATABLE READ",
+            "SERIALIZABLE"
+        ]
+    return isolation_levels
 
 """
 Initialize tables for database testing.
@@ -804,6 +824,37 @@ def write_description(file_name, txn_num, op_num, data_num):
         description += "#\n"
         file_test.write(description)
 
+
+"""
+Write random transaction isolation levels to the specified file.
+
+Args:
+- file_name (str): The name of the file where the description will be written.
+- txn_num (int): The number of transactions.
+- isolation_levels (string {}): The isolation levels set supported by database
+
+This  function writes transaction isolation level for the test case to the specified file. the transaction isolation level
+is randomly choiced from the supported isolation level of database.
+
+"""
+
+def write_isolation_level(file_name, txn_num, isolation_levels):
+    if len(isolation_levels) == 0:
+        return
+
+    isolation_level_descprtion = ""
+    description = ""
+    for i in range(txn_num):
+        isolation_level = random.choice(isolation_levels)
+        if isolation_level_descprtion:
+            isolation_level_descprtion += ","
+        isolation_level_descprtion += "T" + str(i + 1)  +":" + isolation_level
+    description += "Txn Isolation: " + isolation_level_descprtion + "\n"
+
+    with open(file_name, "a+") as file_test:
+        file_test.write(description)
+
+
 # target folder
 case_folder = "t/test_case_v2"
 # pattern files
@@ -846,8 +897,11 @@ for popg in lines:
         table_num = 1
     sql_count, txn_count = 0, 1
 
+    isolation_levels = init_isolation_levels(db_type) 
     # description
     write_description(file_name, num, num, num)
+
+    write_isolation_level(file_name, num, isolation_levels)
 
     # preparation
     data_num = init_table(file_name, sql_count, txn_count, table_num, db_type, test_type)
